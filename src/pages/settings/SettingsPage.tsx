@@ -19,17 +19,16 @@ import {
   TabsTrigger,
   TabsContent,
 } from '@/components/ui/tabs';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
+import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { useForm } from 'react-hook-form';
 
 const SettingsPage: React.FC = () => {
+  const personalForm = useForm();
+  const businessForm = useForm();
+  const securityForm = useForm();
+  const notificationsForm = useForm();
+
   return (
     <DashboardLayout>
       <motion.div
@@ -90,30 +89,32 @@ const SettingsPage: React.FC = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <FormLabel htmlFor="firstName">First Name</FormLabel>
-                    <Input id="firstName" defaultValue="John" />
+                <form onSubmit={personalForm.handleSubmit(() => {})}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="firstName">First Name</Label>
+                      <Input id="firstName" defaultValue="John" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="lastName">Last Name</Label>
+                      <Input id="lastName" defaultValue="Doe" />
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <FormLabel htmlFor="lastName">Last Name</FormLabel>
-                    <Input id="lastName" defaultValue="Doe" />
+                  <div className="space-y-2 mt-4">
+                    <Label htmlFor="email">Email</Label>
+                    <Input id="email" type="email" defaultValue="john.doe@example.com" />
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <FormLabel htmlFor="email">Email</FormLabel>
-                  <Input id="email" type="email" defaultValue="john.doe@example.com" />
-                </div>
-                <div className="space-y-2">
-                  <FormLabel htmlFor="phone">Phone</FormLabel>
-                  <Input id="phone" type="tel" defaultValue="555-123-4567" />
-                </div>
-                <div className="pt-4">
-                  <Button>
-                    <Save className="mr-2 h-4 w-4" />
-                    Save Changes
-                  </Button>
-                </div>
+                  <div className="space-y-2 mt-4">
+                    <Label htmlFor="phone">Phone</Label>
+                    <Input id="phone" type="tel" defaultValue="555-123-4567" />
+                  </div>
+                  <div className="pt-4">
+                    <Button>
+                      <Save className="mr-2 h-4 w-4" />
+                      Save Changes
+                    </Button>
+                  </div>
+                </form>
               </CardContent>
             </Card>
           </TabsContent>
@@ -127,30 +128,32 @@ const SettingsPage: React.FC = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <FormLabel htmlFor="businessName">Business Name</FormLabel>
-                  <Input id="businessName" defaultValue="Acme Inc." />
-                </div>
-                <div className="space-y-2">
-                  <FormLabel htmlFor="businessAddress">Address</FormLabel>
-                  <Textarea id="businessAddress" defaultValue="123 Business St, Suite 101&#10;New York, NY 10001" />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <form onSubmit={businessForm.handleSubmit(() => {})}>
                   <div className="space-y-2">
-                    <FormLabel htmlFor="businessEmail">Business Email</FormLabel>
-                    <Input id="businessEmail" type="email" defaultValue="info@acme.com" />
+                    <Label htmlFor="businessName">Business Name</Label>
+                    <Input id="businessName" defaultValue="Acme Inc." />
                   </div>
-                  <div className="space-y-2">
-                    <FormLabel htmlFor="businessPhone">Business Phone</FormLabel>
-                    <Input id="businessPhone" type="tel" defaultValue="555-987-6543" />
+                  <div className="space-y-2 mt-4">
+                    <Label htmlFor="businessAddress">Address</Label>
+                    <Textarea id="businessAddress" defaultValue="123 Business St, Suite 101&#10;New York, NY 10001" />
                   </div>
-                </div>
-                <div className="pt-4">
-                  <Button>
-                    <Save className="mr-2 h-4 w-4" />
-                    Save Changes
-                  </Button>
-                </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="businessEmail">Business Email</Label>
+                      <Input id="businessEmail" type="email" defaultValue="info@acme.com" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="businessPhone">Business Phone</Label>
+                      <Input id="businessPhone" type="tel" defaultValue="555-987-6543" />
+                    </div>
+                  </div>
+                  <div className="pt-4">
+                    <Button>
+                      <Save className="mr-2 h-4 w-4" />
+                      Save Changes
+                    </Button>
+                  </div>
+                </form>
               </CardContent>
             </Card>
           </TabsContent>
@@ -180,26 +183,28 @@ const SettingsPage: React.FC = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <FormLabel htmlFor="currentPassword">Current Password</FormLabel>
-                  <Input id="currentPassword" type="password" />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <form onSubmit={securityForm.handleSubmit(() => {})}>
                   <div className="space-y-2">
-                    <FormLabel htmlFor="newPassword">New Password</FormLabel>
-                    <Input id="newPassword" type="password" />
+                    <Label htmlFor="currentPassword">Current Password</Label>
+                    <Input id="currentPassword" type="password" />
                   </div>
-                  <div className="space-y-2">
-                    <FormLabel htmlFor="confirmPassword">Confirm Password</FormLabel>
-                    <Input id="confirmPassword" type="password" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="newPassword">New Password</Label>
+                      <Input id="newPassword" type="password" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="confirmPassword">Confirm Password</Label>
+                      <Input id="confirmPassword" type="password" />
+                    </div>
                   </div>
-                </div>
-                <div className="pt-4">
-                  <Button>
-                    <Save className="mr-2 h-4 w-4" />
-                    Update Password
-                  </Button>
-                </div>
+                  <div className="pt-4">
+                    <Button>
+                      <Save className="mr-2 h-4 w-4" />
+                      Update Password
+                    </Button>
+                  </div>
+                </form>
               </CardContent>
             </Card>
           </TabsContent>
@@ -213,42 +218,44 @@ const SettingsPage: React.FC = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-sm font-medium">Email Notifications</h4>
-                      <p className="text-sm text-muted-foreground">Receive notifications via email.</p>
+                <form onSubmit={notificationsForm.handleSubmit(() => {})}>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-sm font-medium">Email Notifications</h4>
+                        <p className="text-sm text-muted-foreground">Receive notifications via email.</p>
+                      </div>
+                      <Switch defaultChecked />
                     </div>
-                    <Switch defaultChecked />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-sm font-medium">SMS Notifications</h4>
-                      <p className="text-sm text-muted-foreground">Receive notifications via text message.</p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-sm font-medium">SMS Notifications</h4>
+                        <p className="text-sm text-muted-foreground">Receive notifications via text message.</p>
+                      </div>
+                      <Switch />
                     </div>
-                    <Switch />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-sm font-medium">Booking Alerts</h4>
-                      <p className="text-sm text-muted-foreground">Get alerted when you receive new bookings.</p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-sm font-medium">Booking Alerts</h4>
+                        <p className="text-sm text-muted-foreground">Get alerted when you receive new bookings.</p>
+                      </div>
+                      <Switch defaultChecked />
                     </div>
-                    <Switch defaultChecked />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-sm font-medium">Payment Notifications</h4>
-                      <p className="text-sm text-muted-foreground">Get alerted when payments are processed.</p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-sm font-medium">Payment Notifications</h4>
+                        <p className="text-sm text-muted-foreground">Get alerted when payments are processed.</p>
+                      </div>
+                      <Switch defaultChecked />
                     </div>
-                    <Switch defaultChecked />
+                    <div className="pt-4">
+                      <Button>
+                        <Save className="mr-2 h-4 w-4" />
+                        Save Preferences
+                      </Button>
+                    </div>
                   </div>
-                  <div className="pt-4">
-                    <Button>
-                      <Save className="mr-2 h-4 w-4" />
-                      Save Preferences
-                    </Button>
-                  </div>
-                </div>
+                </form>
               </CardContent>
             </Card>
           </TabsContent>
