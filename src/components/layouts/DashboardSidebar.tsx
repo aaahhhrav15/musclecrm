@@ -23,7 +23,7 @@ import {
   MessageSquare,
   User,
   DollarSign,
-  FileInvoice,
+  File,
   QrCode,
   Clock
 } from 'lucide-react';

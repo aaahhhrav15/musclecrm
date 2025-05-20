@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { motion } from 'framer-motion';
 import { 
@@ -170,7 +169,7 @@ const LeadsPage: React.FC = () => {
                         lead.status === 'Contacted' ? 'default' :
                         lead.status === 'Meeting Scheduled' ? 'outline' :
                         lead.status === 'Interested' ? 'default' :
-                        lead.status === 'Negotiation' ? 'warning' : 'success'
+                        lead.status === 'Negotiation' ? 'destructive' : 'secondary'
                       }>
                         {lead.status}
                       </Badge>

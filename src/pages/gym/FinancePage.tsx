@@ -1,10 +1,9 @@
-
 import React from 'react';
 import { motion } from 'framer-motion';
 import { 
   DollarSign, 
   CreditCard, 
-  FileInvoice, 
+  File, 
   PlusCircle, 
   Filter, 
   Download, 
@@ -76,7 +75,7 @@ const FinancePage: React.FC = () => {
           </div>
           <div className="flex gap-2">
             <Button>
-              <FileInvoice className="mr-2 h-4 w-4" /> Create Invoice
+              <File className="mr-2 h-4 w-4" /> Create Invoice
             </Button>
             <Button variant="outline">
               <Download className="mr-2 h-4 w-4" /> Export
@@ -113,7 +112,7 @@ const FinancePage: React.FC = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Paid Invoices</CardTitle>
-              <FileInvoice className="h-4 w-4 text-muted-foreground" />
+              <File className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">

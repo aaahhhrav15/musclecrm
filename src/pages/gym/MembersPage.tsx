@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Users, UserPlus, RefreshCw, UserMinus, Search, Filter, Bell, MoreHorizontal } from 'lucide-react';
@@ -121,7 +120,7 @@ const MembersPage: React.FC = () => {
                       <Badge variant={
                         member.status === 'Active' ? 'default' :
                         member.status === 'Trial' ? 'secondary' :
-                        member.status === 'Expiring Soon' ? 'warning' : 'destructive'
+                        member.status === 'Expiring Soon' ? 'destructive' : 'destructive'
                       }>
                         {member.status}
                       </Badge>
