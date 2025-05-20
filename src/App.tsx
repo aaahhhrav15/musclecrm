@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import { IndustryProvider } from "@/context/IndustryContext";
 
@@ -41,7 +41,20 @@ import ProfilePage from "./pages/profile/ProfilePage";
 import BillingPage from "./pages/profile/BillingPage";
 
 // Create a React Query client
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      retry: 1,
+    },
+  },
+});
+
+// Protected route component
+const ProtectedRoute = ({ element }: { element: React.ReactNode }) => {
+  // AuthCheck is handled in the components with useRequireAuth
+  return <>{element}</>;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -52,38 +65,37 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <Routes>
+              {/* Public routes */}
               <Route path="/" element={<Home />} />
               <Route path="/industries/:industry" element={<IndustryDetail />} />
-              <Route path="/setup" element={<SetupPage />} />
-              
-              {/* Dashboard and Core CRM Routes */}
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/dashboard/customers" element={<CustomersPage />} />
-              <Route path="/dashboard/bookings" element={<BookingsPage />} />
-              <Route path="/dashboard/invoices" element={<InvoicesPage />} />
-              <Route path="/dashboard/notifications" element={<NotificationsPage />} />
-              <Route path="/dashboard/settings" element={<SettingsPage />} />
-              
-              {/* Industry-Specific Routes */}
-              <Route path="/dashboard/workout-plans" element={<WorkoutPlansPage />} />
-              <Route path="/dashboard/services" element={<ServicesPage />} />
-              <Route path="/dashboard/room-management" element={<RoomManagementPage />} />
-              <Route path="/dashboard/memberships" element={<MembershipsPage />} />
-              
-              {/* New Gym Module Routes */}
-              <Route path="/dashboard/gym/members" element={<GymMembersPage />} />
-              <Route path="/dashboard/gym/leads" element={<GymLeadsPage />} />
-              <Route path="/dashboard/gym/staff" element={<GymStaffPage />} />
-              <Route path="/dashboard/gym/finance" element={<GymFinancePage />} />
-              <Route path="/dashboard/gym/attendance" element={<GymAttendancePage />} />
-              
-              {/* Profile Routes */}
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/profile/billing" element={<BillingPage />} />
-              
-              {/* Auth Routes */}
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
+              
+              {/* Protected routes */}
+              <Route path="/setup" element={<ProtectedRoute element={<SetupPage />} />} />
+              <Route path="/dashboard" element={<ProtectedRoute element={<Dashboard />} />} />
+              <Route path="/dashboard/customers" element={<ProtectedRoute element={<CustomersPage />} />} />
+              <Route path="/dashboard/bookings" element={<ProtectedRoute element={<BookingsPage />} />} />
+              <Route path="/dashboard/invoices" element={<ProtectedRoute element={<InvoicesPage />} />} />
+              <Route path="/dashboard/notifications" element={<ProtectedRoute element={<NotificationsPage />} />} />
+              <Route path="/dashboard/settings" element={<ProtectedRoute element={<SettingsPage />} />} />
+              
+              {/* Industry-Specific Routes */}
+              <Route path="/dashboard/workout-plans" element={<ProtectedRoute element={<WorkoutPlansPage />} />} />
+              <Route path="/dashboard/services" element={<ProtectedRoute element={<ServicesPage />} />} />
+              <Route path="/dashboard/room-management" element={<ProtectedRoute element={<RoomManagementPage />} />} />
+              <Route path="/dashboard/memberships" element={<ProtectedRoute element={<MembershipsPage />} />} />
+              
+              {/* New Gym Module Routes */}
+              <Route path="/dashboard/gym/members" element={<ProtectedRoute element={<GymMembersPage />} />} />
+              <Route path="/dashboard/gym/leads" element={<ProtectedRoute element={<GymLeadsPage />} />} />
+              <Route path="/dashboard/gym/staff" element={<ProtectedRoute element={<GymStaffPage />} />} />
+              <Route path="/dashboard/gym/finance" element={<ProtectedRoute element={<GymFinancePage />} />} />
+              <Route path="/dashboard/gym/attendance" element={<ProtectedRoute element={<GymAttendancePage />} />} />
+              
+              {/* Profile Routes */}
+              <Route path="/profile" element={<ProtectedRoute element={<ProfilePage />} />} />
+              <Route path="/profile/billing" element={<ProtectedRoute element={<BillingPage />} />} />
               
               {/* Catch-all route */}
               <Route path="*" element={<NotFound />} />

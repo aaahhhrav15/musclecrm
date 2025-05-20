@@ -1,169 +1,176 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { User, Mail, Phone, Calendar, MapPin, Camera } from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
-import DashboardLayout from '@/components/layouts/DashboardLayout';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Loader2, Save } from 'lucide-react';
+import DashboardLayout from '@/components/layouts/DashboardLayout';
+import { Button } from '@/components/ui/button';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useAuth } from '@/context/AuthContext';
+import { useRequireAuth } from '@/hooks/useRequireAuth';
+
+// Form validation schema
+const profileFormSchema = z.object({
+  name: z.string().min(2, { message: 'Name must be at least 2 characters' }),
+  email: z.string().email({ message: 'Please enter a valid email address' }),
+  role: z.string().optional(),
+  phone: z.string().optional(),
+  bio: z.string().optional(),
+});
+
+type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
 const ProfilePage: React.FC = () => {
-  const { user } = useAuth();
-  const { register, handleSubmit } = useForm({
+  const { user, updateUserProfile } = useAuth();
+  const [isUpdating, setIsUpdating] = useState(false);
+  
+  // Use the auth hook to check authentication
+  useRequireAuth();
+  
+  const form = useForm<ProfileFormValues>({
+    resolver: zodResolver(profileFormSchema),
     defaultValues: {
-      name: user?.name || 'John Doe',
-      email: user?.email || 'john.doe@example.com',
-      phone: '+1 (555) 123-4567',
-      address: '123 Main Street, New York, NY 10001',
-      bio: 'Fitness enthusiast and gym owner with over 10 years of experience in the fitness industry.',
-      birthday: '1985-06-15',
-    }
+      name: user?.name || '',
+      email: user?.email || '',
+      role: user?.role || '',
+      phone: '',
+      bio: '',
+    },
   });
-
-  const onSubmit = (data: any) => {
-    console.log(data);
-    // Here you would update the user profile
+  
+  const onSubmit = async (data: ProfileFormValues) => {
+    setIsUpdating(true);
+    try {
+      await updateUserProfile({
+        name: data.name,
+        email: data.email,
+        role: data.role as 'admin' | 'staff' | 'member' | undefined,
+      });
+    } finally {
+      setIsUpdating(false);
+    }
   };
-
+  
   return (
     <DashboardLayout>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="space-y-6 max-w-3xl mx-auto"
+        className="space-y-6"
       >
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">My Profile</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Profile</h1>
           <p className="text-muted-foreground">
-            Manage your personal information and account details.
+            Manage your account settings and profile information.
           </p>
         </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Profile Information</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col sm:flex-row gap-8 items-start mb-6">
-              <div className="flex flex-col items-center gap-4">
-                <Avatar className="h-32 w-32">
+        
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          {/* Profile Card */}
+          <Card className="md:col-span-1">
+            <CardHeader className="text-center">
+              <div className="flex justify-center mb-4">
+                <Avatar className="w-24 h-24">
                   <AvatarImage src="/placeholder.svg" />
-                  <AvatarFallback>
-                    {user?.name?.charAt(0) || 'JD'}
-                  </AvatarFallback>
+                  <AvatarFallback className="text-lg">{user?.name?.charAt(0) || 'U'}</AvatarFallback>
                 </Avatar>
-                <Button variant="outline" size="sm" className="gap-2">
-                  <Camera className="h-4 w-4" /> Change Photo
-                </Button>
               </div>
-              <div className="space-y-4 flex-1">
-                <div>
-                  <h2 className="text-xl font-semibold">{user?.name || 'John Doe'}</h2>
-                  <p className="text-muted-foreground">{user?.email || 'john.doe@example.com'}</p>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-muted-foreground" />
-                    <span>+1 (555) 123-4567</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span>Member since Jan 2025</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
-                    <span>New York, NY</span>
-                  </div>
-                </div>
+              <CardTitle>{user?.name}</CardTitle>
+              <CardDescription>{user?.email}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-1">
+                <h4 className="text-sm font-medium">Role</h4>
+                <p className="text-sm capitalize">{user?.role || 'Member'}</p>
               </div>
-            </div>
-
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      id="name" 
-                      className="pl-10" 
-                      {...register('name')}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      id="email" 
-                      type="email" 
-                      className="pl-10" 
-                      {...register('email')}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      id="phone" 
-                      type="tel" 
-                      className="pl-10" 
-                      {...register('phone')}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="birthday">Birthday</Label>
-                  <div className="relative">
-                    <Calendar className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      id="birthday" 
-                      type="date" 
-                      className="pl-10" 
-                      {...register('birthday')}
-                    />
-                  </div>
-                </div>
+              <div className="space-y-1">
+                <h4 className="text-sm font-medium">Industry</h4>
+                <p className="text-sm capitalize">{user?.industry || 'Not specified'}</p>
               </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="address">Address</Label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    id="address" 
-                    className="pl-10" 
-                    {...register('address')}
+              <div className="space-y-1">
+                <h4 className="text-sm font-medium">Joined</h4>
+                <p className="text-sm">{user?.joinDate || 'Not specified'}</p>
+              </div>
+            </CardContent>
+          </Card>
+          
+          {/* Edit Profile Form */}
+          <Card className="md:col-span-2">
+            <CardHeader>
+              <CardTitle>Edit Profile</CardTitle>
+              <CardDescription>
+                Update your profile information and personal details.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter your name" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="bio">Bio</Label>
-                <Textarea 
-                  id="bio" 
-                  rows={4} 
-                  {...register('bio')}
-                />
-              </div>
-              
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline">Cancel</Button>
-                <Button type="submit">Save Changes</Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+                  
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter your email" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="phone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Phone Number</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter your phone number" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <Button type="submit" disabled={isUpdating}>
+                    {isUpdating ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Updating...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4 mr-2" />
+                        Save Changes
+                      </>
+                    )}
+                  </Button>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
+        </div>
       </motion.div>
     </DashboardLayout>
   );

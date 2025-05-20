@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
+import { Loader2 } from 'lucide-react';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address' }),
@@ -23,9 +24,20 @@ type FormValues = z.infer<typeof formSchema>;
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const location = useLocation();
+  const { login, isAuthenticated, isLoading } = useAuth();
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Redirect if there's a specified return URL in the location state
+  const from = location.state?.from?.pathname || '/dashboard';
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated && !isLoading) {
+      navigate(from, { replace: true });
+    }
+  }, [isAuthenticated, isLoading, navigate, from]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -36,25 +48,31 @@ const Login: React.FC = () => {
   });
 
   const onSubmit = async (values: FormValues) => {
-    setIsLoading(true);
+    setIsSubmitting(true);
     
     try {
       await login(values.email, values.password);
-      toast({
-        title: 'Login successful',
-        description: 'Welcome back to FlexCRM!',
-      });
-      navigate('/dashboard');
+      navigate(from, { replace: true });
     } catch (error) {
-      toast({
-        title: 'Login failed',
-        description: 'Please check your credentials and try again.',
-        variant: 'destructive',
-      });
+      console.error('Login error:', error);
+      // Toast is now handled in the auth context
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <Header />
+        <div className="flex flex-col items-center justify-center flex-1 px-4">
+          <Loader2 className="w-12 h-12 animate-spin text-primary" />
+          <p className="mt-4 text-lg">Loading...</p>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -113,8 +131,15 @@ const Login: React.FC = () => {
                   </div>
                 </div>
                 
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? 'Signing in...' : 'Sign In'}
+                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Signing in...
+                    </>
+                  ) : (
+                    'Sign In'
+                  )}
                 </Button>
               </form>
             </Form>

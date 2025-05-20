@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Bell, ChevronDown, Menu, User, X } from 'lucide-react';
+import { Bell, ChevronDown, Menu, User, LogOut, Settings, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -14,7 +15,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/context/AuthContext';
 import { useIndustry } from '@/context/IndustryContext';
+import { useRequireAuth } from '@/hooks/useRequireAuth';
 import DashboardSidebar from './DashboardSidebar';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -25,11 +28,45 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const { selectedIndustry } = useIndustry();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  
+  // Use the auth hook to check authentication
+  const { isLoading } = useRequireAuth();
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
+
+  // Show loading state while checking authentication
+  if (isLoading) {
+    return (
+      <div className="flex h-screen overflow-hidden bg-background">
+        <div className="w-64 h-full bg-background border-r border-border">
+          <Skeleton className="h-full" />
+        </div>
+        <div className="flex flex-col flex-1 w-0 overflow-hidden">
+          <div className="relative z-10 flex items-center justify-between flex-shrink-0 h-16 px-4 border-b bg-background border-border md:px-6">
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-8 w-32" />
+          </div>
+          <main className="flex-1 p-4 overflow-y-auto md:p-6">
+            <div className="space-y-6">
+              <Skeleton className="h-8 w-1/3" />
+              <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+                {[...Array(4)].map((_, i) => (
+                  <Skeleton key={i} className="h-32 w-full" />
+                ))}
+              </div>
+              <div className="grid gap-6 lg:grid-cols-2">
+                <Skeleton className="h-64 w-full" />
+                <Skeleton className="h-64 w-full" />
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -82,16 +119,20 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                 <DropdownMenuLabel>My Account</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => navigate('/profile')}>
+                  <User className="w-4 h-4 mr-2" />
                   Profile
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate('/dashboard/settings')}>
+                  <Settings className="w-4 h-4 mr-2" />
                   Settings
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate('/profile/billing')}>
+                  <CreditCard className="w-4 h-4 mr-2" />
                   Billing
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout}>
+                  <LogOut className="w-4 h-4 mr-2" />
                   Logout
                 </DropdownMenuItem>
               </DropdownMenuContent>
