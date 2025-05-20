@@ -35,7 +35,7 @@ const spaServices = [
     name: 'Hot Stone Massage', 
     duration: '75 min',
     price: '$110',
-    description: 'A specialty massage that uses smooth, heated stones as an extension of the therapist's hands.'
+    description: 'A specialty massage that uses smooth, heated stones as an extension of the therapist\'s hands.'
   },
   { 
     id: 4, 
