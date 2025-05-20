@@ -1,0 +1,154 @@
+
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
+import { X, Menu } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+
+interface HeaderProps {
+  transparent?: boolean;
+}
+
+const Header: React.FC<HeaderProps> = ({ transparent = false }) => {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  const toggleMenu = () => {
+    setIsMenuOpen(!isMenuOpen);
+  };
+
+  const headerClass = cn(
+    'fixed top-0 left-0 right-0 z-50 w-full transition-all duration-300',
+    transparent ? 'bg-transparent' : 'bg-background/95 backdrop-blur-sm border-b border-border'
+  );
+
+  return (
+    <header className={headerClass}>
+      <div className="container flex items-center justify-between h-16 px-4 mx-auto sm:px-6 lg:px-8">
+        <Link to="/" className="flex items-center">
+          <span className="text-xl font-bold text-primary">FlexCRM</span>
+        </Link>
+
+        {/* Desktop Navigation */}
+        <nav className="hidden space-x-6 md:flex">
+          <Link to="/" className="text-sm font-medium transition-colors hover:text-primary">
+            Home
+          </Link>
+          <Link to="/industries/gym" className="text-sm font-medium transition-colors hover:text-primary">
+            Gym
+          </Link>
+          <Link to="/industries/spa" className="text-sm font-medium transition-colors hover:text-primary">
+            Spa
+          </Link>
+          <Link to="/industries/hotel" className="text-sm font-medium transition-colors hover:text-primary">
+            Hotel
+          </Link>
+          <Link to="/industries/club" className="text-sm font-medium transition-colors hover:text-primary">
+            Club
+          </Link>
+          <Link to="/pricing" className="text-sm font-medium transition-colors hover:text-primary">
+            Pricing
+          </Link>
+        </nav>
+
+        <div className="hidden space-x-4 md:flex">
+          <Button variant="ghost" asChild>
+            <Link to="/login">Login</Link>
+          </Button>
+          <Button asChild>
+            <Link to="/signup">Get Started</Link>
+          </Button>
+        </div>
+
+        {/* Mobile menu button */}
+        <Button variant="ghost" size="icon" className="md:hidden" onClick={toggleMenu}>
+          <Menu className="w-5 h-5" />
+        </Button>
+      </div>
+
+      {/* Mobile Navigation */}
+      <AnimatePresence>
+        {isMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 overflow-hidden bg-background/95 backdrop-blur-sm"
+          >
+            <div className="container flex flex-col h-full p-6">
+              <div className="flex items-center justify-between">
+                <Link to="/" className="flex items-center" onClick={() => setIsMenuOpen(false)}>
+                  <span className="text-xl font-bold text-primary">FlexCRM</span>
+                </Link>
+                <Button variant="ghost" size="icon" onClick={toggleMenu}>
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+
+              <nav className="flex flex-col items-start mt-8 space-y-6">
+                <Link 
+                  to="/" 
+                  className="text-xl font-medium hover:text-primary"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Home
+                </Link>
+                <Link 
+                  to="/industries/gym" 
+                  className="text-xl font-medium hover:text-primary"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Gym
+                </Link>
+                <Link 
+                  to="/industries/spa" 
+                  className="text-xl font-medium hover:text-primary"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Spa
+                </Link>
+                <Link 
+                  to="/industries/hotel" 
+                  className="text-xl font-medium hover:text-primary"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Hotel
+                </Link>
+                <Link 
+                  to="/industries/club" 
+                  className="text-xl font-medium hover:text-primary"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Club
+                </Link>
+                <Link 
+                  to="/pricing" 
+                  className="text-xl font-medium hover:text-primary"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Pricing
+                </Link>
+              </nav>
+
+              <div className="flex flex-col w-full mt-auto mb-8 space-y-4">
+                <Button variant="outline" asChild className="w-full">
+                  <Link to="/login" onClick={() => setIsMenuOpen(false)}>
+                    Login
+                  </Link>
+                </Button>
+                <Button asChild className="w-full">
+                  <Link to="/signup" onClick={() => setIsMenuOpen(false)}>
+                    Get Started
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </header>
+  );
+};
+
+export default Header;
