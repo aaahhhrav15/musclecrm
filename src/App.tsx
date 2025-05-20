@@ -29,6 +29,17 @@ import ServicesPage from "./pages/spa/ServicesPage";
 import RoomManagementPage from "./pages/hotel/RoomManagementPage";
 import MembershipsPage from "./pages/club/MembershipsPage";
 
+// New Gym Module Pages
+import GymMembersPage from "./pages/gym/MembersPage";
+import GymLeadsPage from "./pages/gym/LeadsPage";
+import GymStaffPage from "./pages/gym/StaffPage";
+import GymFinancePage from "./pages/gym/FinancePage";
+import GymAttendancePage from "./pages/gym/AttendancePage";
+
+// Profile Pages
+import ProfilePage from "./pages/profile/ProfilePage";
+import BillingPage from "./pages/profile/BillingPage";
+
 // Create a React Query client
 const queryClient = new QueryClient();
 
@@ -58,6 +69,17 @@ const App = () => (
               <Route path="/dashboard/services" element={<ServicesPage />} />
               <Route path="/dashboard/room-management" element={<RoomManagementPage />} />
               <Route path="/dashboard/memberships" element={<MembershipsPage />} />
+              
+              {/* New Gym Module Routes */}
+              <Route path="/dashboard/gym/members" element={<GymMembersPage />} />
+              <Route path="/dashboard/gym/leads" element={<GymLeadsPage />} />
+              <Route path="/dashboard/gym/staff" element={<GymStaffPage />} />
+              <Route path="/dashboard/gym/finance" element={<GymFinancePage />} />
+              <Route path="/dashboard/gym/attendance" element={<GymAttendancePage />} />
+              
+              {/* Profile Routes */}
+              <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/profile/billing" element={<BillingPage />} />
               
               {/* Auth Routes */}
               <Route path="/login" element={<Login />} />
