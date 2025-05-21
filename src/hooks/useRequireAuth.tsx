@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
 export function useRequireAuth(redirectTo = '/login') {
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { isAuthenticated, isLoading, user, profile } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -20,5 +20,5 @@ export function useRequireAuth(redirectTo = '/login') {
     }
   }, [isAuthenticated, isLoading, navigate, redirectTo, toast]);
 
-  return { isLoading, user, isAuthenticated };
+  return { isLoading, user, isAuthenticated, profile };
 }
