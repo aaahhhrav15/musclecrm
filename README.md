@@ -1,73 +1,69 @@
-# Welcome to your Lovable project
 
-## Project info
+# FlexCRM - Gym Management System
 
-**URL**: https://lovable.dev/projects/1f68122a-4fb4-4c63-9273-9ec69a84dbc8
+A comprehensive CRM system for gym management with MongoDB backend.
 
-## How can I edit this code?
+## Project Structure
 
-There are several ways of editing your application.
+- `src/` - Frontend React application
+- `server/` - Backend Node.js API
 
-**Use Lovable**
+## Setup Instructions
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/1f68122a-4fb4-4c63-9273-9ec69a84dbc8) and start prompting.
+### Backend Setup
 
-Changes made via Lovable will be committed automatically to this repo.
+1. Navigate to the server directory: `cd server`
+2. Install dependencies: `npm install`
+3. Create a `.env` file based on `.env.example`
+4. Start the server: `npm run dev`
 
-**Use your preferred IDE**
+### Frontend Setup
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+1. Install dependencies: `npm install`
+2. Start the development server: `npm run dev`
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## Environment Variables
 
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+### Backend (server/.env)
+```
+PORT=5000
+NODE_ENV=development
+FRONTEND_URL=http://localhost:5173
+MONGODB_URI=mongodb://localhost:27017/flexcrm
+JWT_SECRET=your_jwt_secret_key_here
 ```
 
-**Edit a file directly in GitHub**
+### Frontend (.env.development)
+```
+VITE_API_URL=http://localhost:5000/api
+```
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## API Routes
 
-**Use GitHub Codespaces**
+### Authentication
+- POST /api/auth/signup - Register a new user
+- POST /api/auth/login - Login user
+- POST /api/auth/logout - Logout user
+- GET /api/auth/profile - Get user profile
+- PUT /api/auth/profile - Update user profile
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+### Members
+- GET /api/members - Get all members
+- GET /api/members/:id - Get single member
+- POST /api/members - Create new member
+- PUT /api/members/:id - Update member
+- DELETE /api/members/:id - Delete member
 
-## What technologies are used for this project?
+### Staff
+- GET /api/staff - Get all staff
+- GET /api/staff/:id - Get single staff member
+- POST /api/staff - Create new staff member
+- PUT /api/staff/:id - Update staff member
+- DELETE /api/staff/:id - Delete staff member
 
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/1f68122a-4fb4-4c63-9273-9ec69a84dbc8) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+### Attendance
+- GET /api/attendance - Get all attendance records
+- POST /api/attendance/check-in - Check-in a member
+- PUT /api/attendance/check-out/:id - Check-out a member
+- GET /api/attendance/active - Get active (checked-in) members
+- GET /api/attendance/range - Get attendance by date range

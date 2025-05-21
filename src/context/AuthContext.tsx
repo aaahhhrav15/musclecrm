@@ -2,6 +2,12 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import axios from 'axios';
+
+// Configure axios
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+axios.defaults.withCredentials = true;
 
 interface User {
   id: string;
@@ -11,7 +17,7 @@ interface User {
   role?: 'admin' | 'staff' | 'member';
   membershipType?: string;
   joinDate?: string;
-  accessToken?: string;
+  token?: string;
 }
 
 interface AuthContextType {
@@ -39,8 +45,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const savedUser = localStorage.getItem('user');
         if (savedUser) {
           const parsedUser = JSON.parse(savedUser);
-          setUser(parsedUser);
-          setIsAuthenticated(true);
+          
+          // Set token in axios default headers
+          if (parsedUser.token) {
+            axios.defaults.headers.common['Authorization'] = `Bearer ${parsedUser.token}`;
+          }
+          
+          try {
+            // Verify token by fetching profile
+            const { data } = await axios.get(`${API_URL}/auth/profile`);
+            if (data.success) {
+              setUser(parsedUser);
+              setIsAuthenticated(true);
+            } else {
+              // Token invalid, remove from storage
+              localStorage.removeItem('user');
+              delete axios.defaults.headers.common['Authorization'];
+            }
+          } catch (error) {
+            console.error('Token validation error:', error);
+            localStorage.removeItem('user');
+            delete axios.defaults.headers.common['Authorization'];
+          }
         }
       } catch (error) {
         console.error('Auth restoration error:', error);
@@ -53,44 +79,50 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     checkAuth();
   }, []);
 
-  // Mock authentication functions
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     
     try {
-      // This would be replaced with a real API call
-      console.log('Login with:', email, password);
-      
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock successful login with JWT-like token
-      const mockUser = {
-        id: '1',
-        name: 'Demo User',
-        email: email,
-        industry: 'gym',
-        role: 'admin' as const,
-        membershipType: 'Gold',
-        joinDate: '2025-01-01',
-        accessToken: `mock-jwt-token-${Math.random().toString(36).substr(2, 9)}`
-      };
-      
-      setUser(mockUser);
-      setIsAuthenticated(true);
-      localStorage.setItem('user', JSON.stringify(mockUser));
-
-      toast({
-        title: "Login successful",
-        description: "Welcome back to the system!",
+      const { data } = await axios.post(`${API_URL}/auth/login`, {
+        email,
+        password
       });
-    } catch (error) {
+      
+      if (data.success) {
+        const userData = {
+          id: data.user.id,
+          name: data.user.name,
+          email: data.user.email,
+          industry: data.user.industry,
+          role: data.user.role,
+          membershipType: data.user.membershipType,
+          joinDate: data.user.joinDate,
+          token: data.token
+        };
+        
+        setUser(userData);
+        setIsAuthenticated(true);
+        
+        // Set token in axios default headers
+        axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
+        
+        // Save to localStorage
+        localStorage.setItem('user', JSON.stringify(userData));
+
+        toast({
+          title: "Login successful",
+          description: "Welcome back to the system!",
+        });
+      }
+    } catch (error: any) {
       console.error('Login error:', error);
+      
       toast({
         title: "Login failed",
-        description: "Invalid credentials. Please try again.",
+        description: error.response?.data?.message || "Invalid credentials. Please try again.",
         variant: "destructive",
       });
+      
       throw error;
     } finally {
       setIsLoading(false);
@@ -101,48 +133,64 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     
     try {
-      // This would be replaced with a real API call
-      console.log('Signup with:', name, email, password, industry);
-      
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock successful signup with JWT-like token
-      const mockUser = {
-        id: Math.random().toString(36).substr(2, 9),
-        name: name,
-        email: email,
-        industry: industry,
-        role: 'admin' as const,
-        joinDate: new Date().toISOString().split('T')[0],
-        accessToken: `mock-jwt-token-${Math.random().toString(36).substr(2, 9)}`
-      };
-      
-      setUser(mockUser);
-      setIsAuthenticated(true);
-      localStorage.setItem('user', JSON.stringify(mockUser));
-
-      toast({
-        title: "Account created",
-        description: "Your account has been successfully created.",
+      const { data } = await axios.post(`${API_URL}/auth/signup`, {
+        name,
+        email,
+        password,
+        industry
       });
-    } catch (error) {
+      
+      if (data.success) {
+        const userData = {
+          id: data.user.id,
+          name: data.user.name,
+          email: data.user.email,
+          industry: data.user.industry,
+          role: data.user.role,
+          joinDate: data.user.joinDate,
+          token: data.token
+        };
+        
+        setUser(userData);
+        setIsAuthenticated(true);
+        
+        // Set token in axios default headers
+        axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
+        
+        // Save to localStorage
+        localStorage.setItem('user', JSON.stringify(userData));
+
+        toast({
+          title: "Account created",
+          description: "Your account has been successfully created.",
+        });
+      }
+    } catch (error: any) {
       console.error('Signup error:', error);
+      
       toast({
         title: "Signup failed",
-        description: "There was a problem creating your account.",
+        description: error.response?.data?.message || "There was a problem creating your account.",
         variant: "destructive",
       });
+      
       throw error;
     } finally {
       setIsLoading(false);
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await axios.post(`${API_URL}/auth/logout`);
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+    
     setUser(null);
     setIsAuthenticated(false);
     localStorage.removeItem('user');
+    delete axios.defaults.headers.common['Authorization'];
     
     toast({
       title: "Logged out",
@@ -154,13 +202,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     
     try {
-      // This would be replaced with a real API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const { data } = await axios.put(`${API_URL}/auth/profile`, userData);
       
-      // Update user data
-      if (user) {
-        const updatedUser = { ...user, ...userData };
-        setUser(updatedUser);
+      if (data.success) {
+        const updatedUser = { ...user, ...data.user };
+        setUser(updatedUser as User);
         localStorage.setItem('user', JSON.stringify(updatedUser));
         
         toast({
@@ -168,13 +214,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           description: "Your profile has been successfully updated.",
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Profile update error:', error);
+      
       toast({
         title: "Update failed",
-        description: "There was a problem updating your profile.",
+        description: error.response?.data?.message || "There was a problem updating your profile.",
         variant: "destructive",
       });
+      
       throw error;
     } finally {
       setIsLoading(false);
