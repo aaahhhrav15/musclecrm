@@ -24,7 +24,7 @@ interface DashboardLayoutProps {
 }
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
-  const { user, logout } = useAuth();
+  const { user, profile, logout } = useAuth();
   const { selectedIndustry } = useIndustry();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -105,12 +105,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                 <Button variant="ghost" className="relative h-8 rounded-full" asChild>
                   <div className="flex items-center space-x-2">
                     <Avatar className="w-8 h-8">
-                      <AvatarImage src="/placeholder.svg" />
+                      <AvatarImage src={profile?.avatar_url || "/placeholder.svg"} />
                       <AvatarFallback>
-                        {user?.name?.charAt(0) || 'U'}
+                        {profile?.full_name ? profile.full_name.charAt(0) : 'U'}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="hidden md:inline-flex">{user?.name}</span>
+                    <span className="hidden md:inline-flex">{profile?.full_name || "User"}</span>
                     <ChevronDown className="w-4 h-4" />
                   </div>
                 </Button>

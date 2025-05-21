@@ -23,7 +23,13 @@ import Footer from '@/components/common/Footer';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters' }),
-  email: z.string().email({ message: 'Please enter a valid email address' }),
+  email: z.string()
+    .email({ message: 'Please enter a valid email address' })
+    .refine((email) => {
+      // Additional email validation
+      const pattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return pattern.test(email);
+    }, { message: 'Please enter a valid email address' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters' }),
   industry: z.string().min(1, { message: 'Please select an industry' }),
 });
@@ -49,6 +55,11 @@ const Signup: React.FC = () => {
 
   const onSubmit = async (values: FormValues) => {
     setIsLoading(true);
+    console.log("Signup attempt with:", { 
+      name: values.name, 
+      email: values.email, 
+      industry: values.industry 
+    });
     
     try {
       await signup(values.name, values.email, values.password, values.industry);
@@ -60,10 +71,11 @@ const Signup: React.FC = () => {
       });
       
       navigate('/setup');
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Signup error:', error);
       toast({
         title: 'Signup failed',
-        description: 'There was a problem creating your account.',
+        description: error.message || 'There was a problem creating your account.',
         variant: 'destructive',
       });
     } finally {
@@ -113,7 +125,7 @@ const Signup: React.FC = () => {
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input placeholder="name@example.com" {...field} />
+                        <Input placeholder="name@example.com" type="email" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

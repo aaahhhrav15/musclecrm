@@ -101,11 +101,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []);
 
+  // Validate email format
+  const isValidEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
   // Login with email and password
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     
     try {
+      if (!isValidEmail(email)) {
+        toast({
+          title: "Invalid email format",
+          description: "Please enter a valid email address.",
+          variant: "destructive",
+        });
+        throw new Error("Invalid email format");
+      }
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -139,6 +154,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     
     try {
+      // Validate email before sending to Supabase
+      if (!isValidEmail(email)) {
+        toast({
+          title: "Invalid email format",
+          description: "Please enter a valid email address.",
+          variant: "destructive",
+        });
+        throw new Error("Invalid email format");
+      }
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -215,14 +240,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
       
       // Fetch the updated profile
-      const updatedProfile = await fetchUserProfile(user.id);
+      await fetchUserProfile(user.id);
       
       toast({
         title: "Profile updated",
         description: "Your profile has been successfully updated.",
       });
-
-      return updatedProfile;
     } catch (error: any) {
       console.error('Profile update error:', error);
       toast({
