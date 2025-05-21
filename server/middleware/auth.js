@@ -4,7 +4,7 @@ const User = require('../models/User');
 
 const auth = async (req, res, next) => {
   try {
-    // Get token from header or cookies
+    // Get token from cookies or authorization header
     const token = req.cookies.token || req.header('Authorization')?.replace('Bearer ', '');
     
     if (!token) {

@@ -1,6 +1,5 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import axios from 'axios';
 
@@ -17,7 +16,6 @@ interface User {
   role?: 'admin' | 'staff' | 'member';
   membershipType?: string;
   joinDate?: string;
-  token?: string;
 }
 
 interface AuthContextType {
@@ -38,39 +36,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
-  // Check for saved auth on load
+  // Check for token in cookies on load
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const savedUser = localStorage.getItem('user');
-        if (savedUser) {
-          const parsedUser = JSON.parse(savedUser);
-          
-          // Set token in axios default headers
-          if (parsedUser.token) {
-            axios.defaults.headers.common['Authorization'] = `Bearer ${parsedUser.token}`;
-          }
-          
-          try {
-            // Verify token by fetching profile
-            const { data } = await axios.get(`${API_URL}/auth/profile`);
-            if (data.success) {
-              setUser(parsedUser);
-              setIsAuthenticated(true);
-            } else {
-              // Token invalid, remove from storage
-              localStorage.removeItem('user');
-              delete axios.defaults.headers.common['Authorization'];
-            }
-          } catch (error) {
-            console.error('Token validation error:', error);
-            localStorage.removeItem('user');
-            delete axios.defaults.headers.common['Authorization'];
-          }
+        // The server will check the cookie, no need to send token explicitly
+        const response = await axios.get(`${API_URL}/auth/profile`);
+        
+        if (response.data.success) {
+          const userData = response.data.user;
+          setUser({
+            id: userData._id,
+            name: userData.name,
+            email: userData.email,
+            industry: userData.industry,
+            role: userData.role,
+            membershipType: userData.membershipType,
+            joinDate: userData.joinDate
+          });
+          setIsAuthenticated(true);
         }
       } catch (error) {
-        console.error('Auth restoration error:', error);
-        localStorage.removeItem('user');
+        console.error('Auth check error:', error);
+        // User is not authenticated, which is fine
       } finally {
         setIsLoading(false);
       }
@@ -83,32 +71,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     
     try {
-      const { data } = await axios.post(`${API_URL}/auth/login`, {
+      const response = await axios.post(`${API_URL}/auth/login`, {
         email,
         password
       });
       
-      if (data.success) {
-        const userData = {
-          id: data.user.id,
-          name: data.user.name,
-          email: data.user.email,
-          industry: data.user.industry,
-          role: data.user.role,
-          membershipType: data.user.membershipType,
-          joinDate: data.user.joinDate,
-          token: data.token
-        };
+      if (response.data.success) {
+        const userData = response.data.user;
         
-        setUser(userData);
+        setUser({
+          id: userData.id,
+          name: userData.name,
+          email: userData.email,
+          industry: userData.industry,
+          role: userData.role,
+          membershipType: userData.membershipType,
+          joinDate: userData.joinDate
+        });
         setIsAuthenticated(true);
         
-        // Set token in axios default headers
-        axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
-        
-        // Save to localStorage
-        localStorage.setItem('user', JSON.stringify(userData));
-
         toast({
           title: "Login successful",
           description: "Welcome back to the system!",
@@ -133,33 +114,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     
     try {
-      const { data } = await axios.post(`${API_URL}/auth/signup`, {
+      const response = await axios.post(`${API_URL}/auth/signup`, {
         name,
         email,
         password,
         industry
       });
       
-      if (data.success) {
-        const userData = {
-          id: data.user.id,
-          name: data.user.name,
-          email: data.user.email,
-          industry: data.user.industry,
-          role: data.user.role,
-          joinDate: data.user.joinDate,
-          token: data.token
-        };
+      if (response.data.success) {
+        const userData = response.data.user;
         
-        setUser(userData);
+        setUser({
+          id: userData.id,
+          name: userData.name,
+          email: userData.email,
+          industry: userData.industry,
+          role: userData.role,
+          joinDate: userData.joinDate
+        });
         setIsAuthenticated(true);
         
-        // Set token in axios default headers
-        axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
-        
-        // Save to localStorage
-        localStorage.setItem('user', JSON.stringify(userData));
-
         toast({
           title: "Account created",
           description: "Your account has been successfully created.",
@@ -183,31 +157,42 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = async () => {
     try {
       await axios.post(`${API_URL}/auth/logout`);
+      
+      setUser(null);
+      setIsAuthenticated(false);
+      
+      toast({
+        title: "Logged out",
+        description: "You have been successfully logged out.",
+      });
     } catch (error) {
       console.error('Logout error:', error);
+      
+      toast({
+        title: "Logout error",
+        description: "There was a problem logging out.",
+        variant: "destructive",
+      });
     }
-    
-    setUser(null);
-    setIsAuthenticated(false);
-    localStorage.removeItem('user');
-    delete axios.defaults.headers.common['Authorization'];
-    
-    toast({
-      title: "Logged out",
-      description: "You have been successfully logged out.",
-    });
   };
 
   const updateUserProfile = async (userData: Partial<User>) => {
     setIsLoading(true);
     
     try {
-      const { data } = await axios.put(`${API_URL}/auth/profile`, userData);
+      const response = await axios.put(`${API_URL}/auth/profile`, userData);
       
-      if (data.success) {
-        const updatedUser = { ...user, ...data.user };
-        setUser(updatedUser as User);
-        localStorage.setItem('user', JSON.stringify(updatedUser));
+      if (response.data.success) {
+        const updatedUserData = response.data.user;
+        setUser(prevUser => {
+          if (!prevUser) return null;
+          return {
+            ...prevUser,
+            name: updatedUserData.name || prevUser.name,
+            email: updatedUserData.email || prevUser.email,
+            industry: updatedUserData.industry || prevUser.industry,
+          };
+        });
         
         toast({
           title: "Profile updated",
