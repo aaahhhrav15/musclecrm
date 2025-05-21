@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -16,62 +16,45 @@ import { useRequireAuth } from '@/hooks/useRequireAuth';
 
 // Form validation schema
 const profileFormSchema = z.object({
-  full_name: z.string().min(2, { message: 'Name must be at least 2 characters' }),
+  name: z.string().min(2, { message: 'Name must be at least 2 characters' }),
   email: z.string().email({ message: 'Please enter a valid email address' }),
+  role: z.string().optional(),
   phone: z.string().optional(),
+  bio: z.string().optional(),
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
 const ProfilePage: React.FC = () => {
-  const { user, profile, updateUserProfile } = useAuth();
+  const { user, updateUserProfile } = useAuth();
   const [isUpdating, setIsUpdating] = useState(false);
   
   // Use the auth hook to check authentication
-  const auth = useRequireAuth();
+  useRequireAuth();
   
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
-      full_name: '',
-      email: '',
+      name: user?.name || '',
+      email: user?.email || '',
+      role: user?.role || '',
       phone: '',
+      bio: '',
     },
   });
   
-  // Update form values when profile data is available
-  useEffect(() => {
-    if (profile) {
-      form.reset({
-        full_name: profile.full_name || '',
-        email: profile.email || '',
-        phone: profile.phone || '',
-      });
-    }
-  }, [profile, form]);
-
   const onSubmit = async (data: ProfileFormValues) => {
     setIsUpdating(true);
     try {
       await updateUserProfile({
-        full_name: data.full_name,
+        name: data.name,
         email: data.email,
-        phone: data.phone || null,
+        role: data.role as 'admin' | 'staff' | 'member' | undefined,
       });
     } finally {
       setIsUpdating(false);
     }
   };
-  
-  if (auth.isLoading) {
-    return (
-      <DashboardLayout>
-        <div className="flex justify-center items-center h-[50vh]">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      </DashboardLayout>
-    );
-  }
   
   return (
     <DashboardLayout>
@@ -94,25 +77,25 @@ const ProfilePage: React.FC = () => {
             <CardHeader className="text-center">
               <div className="flex justify-center mb-4">
                 <Avatar className="w-24 h-24">
-                  <AvatarImage src={profile?.avatar_url || ""} />
-                  <AvatarFallback className="text-lg">{profile?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}</AvatarFallback>
+                  <AvatarImage src="/placeholder.svg" />
+                  <AvatarFallback className="text-lg">{user?.name?.charAt(0) || 'U'}</AvatarFallback>
                 </Avatar>
               </div>
-              <CardTitle>{profile?.full_name || 'User'}</CardTitle>
-              <CardDescription>{profile?.email || user?.email}</CardDescription>
+              <CardTitle>{user?.name}</CardTitle>
+              <CardDescription>{user?.email}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-1">
                 <h4 className="text-sm font-medium">Role</h4>
-                <p className="text-sm capitalize">Admin</p>
+                <p className="text-sm capitalize">{user?.role || 'Member'}</p>
               </div>
               <div className="space-y-1">
                 <h4 className="text-sm font-medium">Industry</h4>
-                <p className="text-sm capitalize">{profile?.industry || 'Not specified'}</p>
+                <p className="text-sm capitalize">{user?.industry || 'Not specified'}</p>
               </div>
               <div className="space-y-1">
                 <h4 className="text-sm font-medium">Joined</h4>
-                <p className="text-sm">{user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'Not specified'}</p>
+                <p className="text-sm">{user?.joinDate || 'Not specified'}</p>
               </div>
             </CardContent>
           </Card>
@@ -130,7 +113,7 @@ const ProfilePage: React.FC = () => {
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                   <FormField
                     control={form.control}
-                    name="full_name"
+                    name="name"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Name</FormLabel>
