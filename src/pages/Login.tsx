@@ -7,7 +7,6 @@ import * as z from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
@@ -55,7 +54,7 @@ const Login: React.FC = () => {
       navigate(from, { replace: true });
     } catch (error) {
       console.error('Login error:', error);
-      // Toast is now handled in the auth context
+      // Toast is handled in the auth context
     } finally {
       setIsSubmitting(false);
     }

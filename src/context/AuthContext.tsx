@@ -80,7 +80,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const userData = response.data.user;
         
         setUser({
-          id: userData.id,
+          id: userData._id,
           name: userData.name,
           email: userData.email,
           industry: userData.industry,
@@ -125,7 +125,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const userData = response.data.user;
         
         setUser({
-          id: userData.id,
+          id: userData._id,
           name: userData.name,
           email: userData.email,
           industry: userData.industry,

@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -13,12 +12,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/context/AuthContext';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
+import { useToast } from '@/hooks/use-toast';
+import ProfileService, { ProfileUpdateData } from '@/services/ProfileService';
 
 // Form validation schema
 const profileFormSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters' }),
   email: z.string().email({ message: 'Please enter a valid email address' }),
-  role: z.string().optional(),
   phone: z.string().optional(),
   bio: z.string().optional(),
 });
@@ -28,6 +28,8 @@ type ProfileFormValues = z.infer<typeof profileFormSchema>;
 const ProfilePage: React.FC = () => {
   const { user, updateUserProfile } = useAuth();
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
   
   // Use the auth hook to check authentication
   useRequireAuth();
@@ -37,24 +39,88 @@ const ProfilePage: React.FC = () => {
     defaultValues: {
       name: user?.name || '',
       email: user?.email || '',
-      role: user?.role || '',
       phone: '',
       bio: '',
     },
   });
   
+  // Load profile data
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!user) return;
+      
+      try {
+        setIsLoading(true);
+        const profileData = await ProfileService.getProfile();
+        
+        form.reset({
+          name: profileData.name,
+          email: profileData.email,
+          phone: profileData.phone || '',
+          bio: profileData.bio || '',
+        });
+      } catch (error) {
+        console.error('Error loading profile:', error);
+        toast({
+          title: 'Failed to load profile',
+          description: 'There was a problem loading your profile data.',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadProfile();
+  }, [user, form, toast]);
+  
   const onSubmit = async (data: ProfileFormValues) => {
     setIsUpdating(true);
+    
     try {
+      // First, update through the Auth context to keep authentication state in sync
       await updateUserProfile({
         name: data.name,
         email: data.email,
-        role: data.role as 'admin' | 'staff' | 'member' | undefined,
+      });
+      
+      // Then use the ProfileService to update additional fields
+      const profileData: ProfileUpdateData = {
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        bio: data.bio,
+      };
+      
+      await ProfileService.updateProfile(profileData);
+      
+      toast({
+        title: 'Profile updated',
+        description: 'Your profile has been successfully updated.',
+      });
+    } catch (error: any) {
+      console.error('Profile update error:', error);
+      
+      toast({
+        title: 'Update failed',
+        description: error.response?.data?.message || 'There was a problem updating your profile.',
+        variant: 'destructive',
       });
     } finally {
       setIsUpdating(false);
     }
   };
+  
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-full py-12">
+          <Loader2 className="w-12 h-12 animate-spin text-primary" />
+          <span className="ml-2">Loading profile...</span>
+        </div>
+      </DashboardLayout>
+    );
+  }
   
   return (
     <DashboardLayout>

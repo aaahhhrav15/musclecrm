@@ -1,7 +1,7 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { CreditCard, Download, Search, Filter } from 'lucide-react';
+import { CreditCard, Download, Search, Filter, Loader2, Eye, Trash2 } from 'lucide-react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,17 +16,87 @@ import {
 import {
   Badge
 } from '@/components/ui/badge';
-
-// Mock data for invoices
-const invoices = [
-  { id: 'INV-0001', customer: 'Alice Johnson', amount: '$150.00', status: 'Paid', date: '2025-05-15' },
-  { id: 'INV-0002', customer: 'Bob Smith', amount: '$85.50', status: 'Pending', date: '2025-05-16' },
-  { id: 'INV-0003', customer: 'Carol Davis', amount: '$220.00', status: 'Paid', date: '2025-05-10' },
-  { id: 'INV-0004', customer: 'David Wilson', amount: '$75.00', status: 'Overdue', date: '2025-04-28' },
-  { id: 'INV-0005', customer: 'Eve Brown', amount: '$190.00', status: 'Pending', date: '2025-05-18' },
-];
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
+import InvoiceService, { Invoice, InvoiceFilterOptions } from '@/services/InvoiceService';
 
 const InvoicesPage: React.FC = () => {
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'All' | 'Paid' | 'Pending' | 'Overdue'>('All');
+  const { toast } = useToast();
+
+  // Load invoices from backend
+  useEffect(() => {
+    const fetchInvoices = async () => {
+      setIsLoading(true);
+      try {
+        const filters: InvoiceFilterOptions = {};
+        
+        if (statusFilter !== 'All') {
+          filters.status = statusFilter;
+        }
+
+        const response = await InvoiceService.getInvoices(filters);
+        setInvoices(response.invoices);
+      } catch (error) {
+        console.error('Error fetching invoices:', error);
+        toast({
+          title: 'Failed to load invoices',
+          description: 'There was a problem loading your invoices.',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchInvoices();
+  }, [statusFilter, toast]);
+
+  // Handle creating a new invoice
+  const handleCreateInvoice = () => {
+    toast({
+      title: 'Create Invoice',
+      description: 'This will connect to the backend API when implemented.',
+    });
+    // Future implementation:
+    // Navigate to create invoice page or open modal
+  };
+
+  // Filter invoices by search query
+  const filteredInvoices = invoices.filter(invoice => 
+    invoice.customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    invoice.id.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Handle viewing an invoice
+  const handleViewInvoice = (invoiceId: string) => {
+    toast({
+      title: 'View Invoice',
+      description: `Viewing invoice ${invoiceId}. This will connect to the backend when implemented.`,
+    });
+    // Future implementation:
+    // Navigate to invoice details page
+  };
+
+  // Handle downloading an invoice
+  const handleDownloadInvoice = (invoiceId: string) => {
+    toast({
+      title: 'Download Invoice',
+      description: `Downloading invoice ${invoiceId}. This will connect to the backend when implemented.`,
+    });
+    // Future implementation:
+    // Call backend to generate PDF and download
+  };
+
   return (
     <DashboardLayout>
       <motion.div
@@ -42,7 +112,7 @@ const InvoicesPage: React.FC = () => {
               Manage your billing and payment collection.
             </p>
           </div>
-          <Button>
+          <Button onClick={handleCreateInvoice}>
             <CreditCard className="mr-2 h-4 w-4" /> New Invoice
           </Button>
         </div>
@@ -53,53 +123,93 @@ const InvoicesPage: React.FC = () => {
             <Input
               placeholder="Search invoices..."
               className="pl-8"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <Button variant="outline" className="w-full sm:w-auto">
-            <Filter className="mr-2 h-4 w-4" />
-            Filters
-          </Button>
+          <Select 
+            value={statusFilter}
+            onValueChange={(value) => setStatusFilter(value as 'All' | 'Paid' | 'Pending' | 'Overdue')}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="All">All Statuses</SelectItem>
+              <SelectItem value="Paid">Paid</SelectItem>
+              <SelectItem value="Pending">Pending</SelectItem>
+              <SelectItem value="Overdue">Overdue</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Invoice ID</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead className="w-[100px]">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {invoices.map((invoice) => (
-                <TableRow key={invoice.id}>
-                  <TableCell className="font-medium">{invoice.id}</TableCell>
-                  <TableCell>{invoice.customer}</TableCell>
-                  <TableCell>{invoice.amount}</TableCell>
-                  <TableCell>
-                    <Badge variant={
-                      invoice.status === 'Paid' 
-                        ? 'default' 
-                        : invoice.status === 'Pending' 
-                        ? 'secondary' 
-                        : 'destructive'
-                    }>
-                      {invoice.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{invoice.date}</TableCell>
-                  <TableCell>
-                    <Button variant="ghost" size="icon">
-                      <Download className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
+          {isLoading ? (
+            <div className="flex justify-center items-center p-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <span className="ml-2">Loading invoices...</span>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Invoice ID</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredInvoices.length > 0 ? (
+                  filteredInvoices.map((invoice) => (
+                    <TableRow key={invoice.id}>
+                      <TableCell className="font-medium">{invoice.id}</TableCell>
+                      <TableCell>{invoice.customer.name}</TableCell>
+                      <TableCell>${invoice.total.toFixed(2)}</TableCell>
+                      <TableCell>
+                        <Badge variant={
+                          invoice.status === 'Paid' 
+                            ? 'default' 
+                            : invoice.status === 'Pending' 
+                            ? 'secondary' 
+                            : 'destructive'
+                        }>
+                          {invoice.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{new Date(invoice.date).toLocaleDateString()}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end space-x-2">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => handleViewInvoice(invoice.id)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => handleDownloadInvoice(invoice.id)}
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={6} className="h-24 text-center">
+                      No invoices found
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
         </div>
       </motion.div>
     </DashboardLayout>

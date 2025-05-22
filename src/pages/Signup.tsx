@@ -20,6 +20,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useIndustry } from '@/context/IndustryContext';
 import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
+import { Loader2 } from 'lucide-react';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters' }),
@@ -60,10 +61,12 @@ const Signup: React.FC = () => {
       });
       
       navigate('/setup');
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Signup error:', error);
+      
       toast({
         title: 'Signup failed',
-        description: 'There was a problem creating your account.',
+        description: error.response?.data?.message || 'There was a problem creating your account.',
         variant: 'destructive',
       });
     } finally {
@@ -162,7 +165,12 @@ const Signup: React.FC = () => {
                 />
                 
                 <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? 'Creating account...' : 'Create Account'}
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Creating account...
+                    </>
+                  ) : 'Create Account'}
                 </Button>
               </form>
             </Form>
