@@ -1,5 +1,5 @@
 
-import { ApiService } from './ApiService';
+import { ApiService, ApiResponse, ApiInvoiceResponse, ApiInvoicesResponse } from './ApiService';
 
 export interface Invoice {
   id: string;
@@ -85,7 +85,7 @@ const InvoiceService = {
         }
       }
       
-      const response = await ApiService.get(url);
+      const response = await ApiService.get<ApiInvoicesResponse>(url);
       
       if (response.success) {
         return {
@@ -106,7 +106,7 @@ const InvoiceService = {
    */
   getInvoiceById: async (invoiceId: string): Promise<Invoice> => {
     try {
-      const response = await ApiService.get(`/invoices/${invoiceId}`);
+      const response = await ApiService.get<ApiInvoiceResponse>(`/invoices/${invoiceId}`);
       
       if (response.success) {
         return response.invoice;
@@ -124,7 +124,7 @@ const InvoiceService = {
    */
   createInvoice: async (invoiceData: CreateInvoiceData): Promise<Invoice> => {
     try {
-      const response = await ApiService.post('/invoices', invoiceData);
+      const response = await ApiService.post<ApiInvoiceResponse>('/invoices', invoiceData);
       
       if (response.success) {
         return response.invoice;
@@ -142,7 +142,7 @@ const InvoiceService = {
    */
   updateInvoiceStatus: async (invoiceId: string, status: 'Paid' | 'Pending' | 'Overdue'): Promise<Invoice> => {
     try {
-      const response = await ApiService.patch(`/invoices/${invoiceId}/status`, { status });
+      const response = await ApiService.patch<ApiInvoiceResponse>(`/invoices/${invoiceId}/status`, { status });
       
       if (response.success) {
         return response.invoice;
@@ -160,7 +160,7 @@ const InvoiceService = {
    */
   deleteInvoice: async (invoiceId: string): Promise<boolean> => {
     try {
-      const response = await ApiService.delete(`/invoices/${invoiceId}`);
+      const response = await ApiService.delete<ApiResponse>(`/invoices/${invoiceId}`);
       
       return response.success;
     } catch (error) {

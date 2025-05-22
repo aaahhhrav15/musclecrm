@@ -5,6 +5,35 @@ import { useToast } from '@/hooks/use-toast';
 // Configure base API settings
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
+// Response interfaces
+export interface ApiResponse {
+  success: boolean;
+  message?: string;
+}
+
+export interface ApiUserResponse extends ApiResponse {
+  user: {
+    _id: string;
+    name: string;
+    email: string;
+    industry: string;
+    role?: string;
+    phone?: string;
+    bio?: string;
+    membershipType?: string;
+    joinDate?: string;
+  };
+}
+
+export interface ApiInvoiceResponse extends ApiResponse {
+  invoice: any;
+}
+
+export interface ApiInvoicesResponse extends ApiResponse {
+  invoices: any[];
+  total: number;
+}
+
 // Create axios instance with default config
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_URL,

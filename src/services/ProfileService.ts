@@ -1,5 +1,5 @@
 
-import { ApiService } from './ApiService';
+import { ApiService, ApiUserResponse, ApiResponse } from './ApiService';
 
 export interface UserProfile {
   id: string;
@@ -27,7 +27,7 @@ const ProfileService = {
    */
   getProfile: async (): Promise<UserProfile> => {
     try {
-      const response = await ApiService.get('/auth/profile');
+      const response = await ApiService.get<ApiUserResponse>('/auth/profile');
       
       if (response.success) {
         const userData = response.user;
@@ -56,7 +56,7 @@ const ProfileService = {
    */
   updateProfile: async (data: ProfileUpdateData): Promise<UserProfile> => {
     try {
-      const response = await ApiService.put('/auth/profile', data);
+      const response = await ApiService.put<ApiUserResponse>('/auth/profile', data);
       
       if (response.success) {
         const userData = response.user;
@@ -85,14 +85,14 @@ const ProfileService = {
    */
   changePassword: async (currentPassword: string, newPassword: string): Promise<{ success: boolean; message: string }> => {
     try {
-      const response = await ApiService.put('/auth/change-password', {
+      const response = await ApiService.put<ApiResponse>('/auth/change-password', {
         currentPassword,
         newPassword
       });
       
       return {
         success: response.success,
-        message: response.message
+        message: response.message || ''
       };
     } catch (error: any) {
       console.error('Error changing password:', error);
