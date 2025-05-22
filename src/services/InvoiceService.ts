@@ -1,7 +1,5 @@
 
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+import { ApiService } from './ApiService';
 
 export interface Invoice {
   id: string;
@@ -53,7 +51,7 @@ const InvoiceService = {
    */
   getInvoices: async (filters?: InvoiceFilterOptions): Promise<{ invoices: Invoice[]; total: number }> => {
     try {
-      let url = `${API_URL}/invoices`;
+      let url = '/invoices';
       
       if (filters) {
         const queryParams = new URLSearchParams();
@@ -87,15 +85,15 @@ const InvoiceService = {
         }
       }
       
-      const response = await axios.get(url);
+      const response = await ApiService.get(url);
       
-      if (response.data.success) {
+      if (response.success) {
         return {
-          invoices: response.data.invoices,
-          total: response.data.total
+          invoices: response.invoices,
+          total: response.total
         };
       } else {
-        throw new Error(response.data.message || 'Failed to fetch invoices');
+        throw new Error(response.message || 'Failed to fetch invoices');
       }
     } catch (error) {
       console.error('Error fetching invoices:', error);
@@ -108,12 +106,12 @@ const InvoiceService = {
    */
   getInvoiceById: async (invoiceId: string): Promise<Invoice> => {
     try {
-      const response = await axios.get(`${API_URL}/invoices/${invoiceId}`);
+      const response = await ApiService.get(`/invoices/${invoiceId}`);
       
-      if (response.data.success) {
-        return response.data.invoice;
+      if (response.success) {
+        return response.invoice;
       } else {
-        throw new Error(response.data.message || 'Failed to fetch invoice');
+        throw new Error(response.message || 'Failed to fetch invoice');
       }
     } catch (error) {
       console.error(`Error fetching invoice ${invoiceId}:`, error);
@@ -126,12 +124,12 @@ const InvoiceService = {
    */
   createInvoice: async (invoiceData: CreateInvoiceData): Promise<Invoice> => {
     try {
-      const response = await axios.post(`${API_URL}/invoices`, invoiceData);
+      const response = await ApiService.post('/invoices', invoiceData);
       
-      if (response.data.success) {
-        return response.data.invoice;
+      if (response.success) {
+        return response.invoice;
       } else {
-        throw new Error(response.data.message || 'Failed to create invoice');
+        throw new Error(response.message || 'Failed to create invoice');
       }
     } catch (error) {
       console.error('Error creating invoice:', error);
@@ -144,12 +142,12 @@ const InvoiceService = {
    */
   updateInvoiceStatus: async (invoiceId: string, status: 'Paid' | 'Pending' | 'Overdue'): Promise<Invoice> => {
     try {
-      const response = await axios.patch(`${API_URL}/invoices/${invoiceId}/status`, { status });
+      const response = await ApiService.patch(`/invoices/${invoiceId}/status`, { status });
       
-      if (response.data.success) {
-        return response.data.invoice;
+      if (response.success) {
+        return response.invoice;
       } else {
-        throw new Error(response.data.message || 'Failed to update invoice status');
+        throw new Error(response.message || 'Failed to update invoice status');
       }
     } catch (error) {
       console.error(`Error updating invoice ${invoiceId} status:`, error);
@@ -162,9 +160,9 @@ const InvoiceService = {
    */
   deleteInvoice: async (invoiceId: string): Promise<boolean> => {
     try {
-      const response = await axios.delete(`${API_URL}/invoices/${invoiceId}`);
+      const response = await ApiService.delete(`/invoices/${invoiceId}`);
       
-      return response.data.success;
+      return response.success;
     } catch (error) {
       console.error(`Error deleting invoice ${invoiceId}:`, error);
       throw error;

@@ -1,7 +1,5 @@
 
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+import { ApiService } from './ApiService';
 
 export interface UserProfile {
   id: string;
@@ -29,10 +27,10 @@ const ProfileService = {
    */
   getProfile: async (): Promise<UserProfile> => {
     try {
-      const response = await axios.get(`${API_URL}/auth/profile`);
+      const response = await ApiService.get('/auth/profile');
       
-      if (response.data.success) {
-        const userData = response.data.user;
+      if (response.success) {
+        const userData = response.user;
         return {
           id: userData._id,
           name: userData.name,
@@ -45,7 +43,7 @@ const ProfileService = {
           joinDate: userData.joinDate
         };
       } else {
-        throw new Error(response.data.message || 'Failed to fetch profile');
+        throw new Error(response.message || 'Failed to fetch profile');
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -58,10 +56,10 @@ const ProfileService = {
    */
   updateProfile: async (data: ProfileUpdateData): Promise<UserProfile> => {
     try {
-      const response = await axios.put(`${API_URL}/auth/profile`, data);
+      const response = await ApiService.put('/auth/profile', data);
       
-      if (response.data.success) {
-        const userData = response.data.user;
+      if (response.success) {
+        const userData = response.user;
         return {
           id: userData._id,
           name: userData.name,
@@ -74,7 +72,7 @@ const ProfileService = {
           joinDate: userData.joinDate
         };
       } else {
-        throw new Error(response.data.message || 'Failed to update profile');
+        throw new Error(response.message || 'Failed to update profile');
       }
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -87,14 +85,14 @@ const ProfileService = {
    */
   changePassword: async (currentPassword: string, newPassword: string): Promise<{ success: boolean; message: string }> => {
     try {
-      const response = await axios.put(`${API_URL}/auth/change-password`, {
+      const response = await ApiService.put('/auth/change-password', {
         currentPassword,
         newPassword
       });
       
       return {
-        success: response.data.success,
-        message: response.data.message
+        success: response.success,
+        message: response.message
       };
     } catch (error: any) {
       console.error('Error changing password:', error);

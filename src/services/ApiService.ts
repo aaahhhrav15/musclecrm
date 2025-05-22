@@ -1,5 +1,5 @@
 
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { useToast } from '@/hooks/use-toast';
 
 // Configure base API settings
@@ -32,7 +32,7 @@ apiClient.interceptors.response.use(
 
 // Request interceptor for handling auth token
 apiClient.interceptors.request.use(
-  (config: AxiosRequestConfig) => {
+  (config: InternalAxiosRequestConfig) => {
     // You can add auth token handling here if needed
     return config;
   },
