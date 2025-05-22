@@ -49,6 +49,9 @@ const Header: React.FC<HeaderProps> = ({ transparent = false }) => {
           <Link to="/pricing" className="text-sm font-medium transition-colors hover:text-primary">
             Pricing
           </Link>
+          <Link to="/contact" className="text-sm font-medium transition-colors hover:text-primary">
+            Contact
+          </Link>
         </nav>
 
         <div className="hidden space-x-4 md:flex">
@@ -128,6 +131,13 @@ const Header: React.FC<HeaderProps> = ({ transparent = false }) => {
                   onClick={() => setIsMenuOpen(false)}
                 >
                   Pricing
+                </Link>
+                <Link 
+                  to="/contact" 
+                  className="text-xl font-medium hover:text-primary"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Contact
                 </Link>
               </nav>
 

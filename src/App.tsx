@@ -15,6 +15,7 @@ import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import NotFound from "./pages/NotFound";
+import ContactPage from "./pages/ContactPage";
 
 // Core CRM Pages
 import CustomersPage from "./pages/customers/CustomersPage";
@@ -70,6 +71,7 @@ const App = () => (
               <Route path="/industries/:industry" element={<IndustryDetail />} />
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
+              <Route path="/contact" element={<ContactPage />} />
               
               {/* Protected routes */}
               <Route path="/setup" element={<ProtectedRoute element={<SetupPage />} />} />
