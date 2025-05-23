@@ -51,9 +51,9 @@ const queryClient = new QueryClient({
   },
 });
 
-// Protected route component
+// COMMENTED OUT Protected route component for testing - now all routes are accessible
 const ProtectedRoute = ({ element }: { element: React.ReactNode }) => {
-  // AuthCheck is handled in the components with useRequireAuth
+  // AuthCheck is bypassed for testing
   return <>{element}</>;
 };
 
@@ -73,7 +73,7 @@ const App = () => (
               <Route path="/signup" element={<Signup />} />
               <Route path="/contact" element={<ContactPage />} />
               
-              {/* Protected routes */}
+              {/* All routes now accessible without authentication for testing */}
               <Route path="/setup" element={<ProtectedRoute element={<SetupPage />} />} />
               <Route path="/dashboard" element={<ProtectedRoute element={<Dashboard />} />} />
               <Route path="/dashboard/customers" element={<ProtectedRoute element={<CustomersPage />} />} />
