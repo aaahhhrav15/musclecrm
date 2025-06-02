@@ -70,6 +70,23 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
+// Get total count of customers
+router.get('/count', auth, async (req, res) => {
+  try {
+    console.log('Getting customer count for user:', req.user._id);
+    const count = await Customer.countDocuments({ userId: req.user._id });
+    console.log('Total customers found:', count);
+    res.json({ success: true, count });
+  } catch (error) {
+    console.error('Error getting customer count:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error getting customer count',
+      error: error.message 
+    });
+  }
+});
+
 // Get single customer
 router.get('/:id', auth, async (req, res) => {
   try {
