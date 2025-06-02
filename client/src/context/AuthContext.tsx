@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import axios from 'axios';
@@ -56,9 +55,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           });
           setIsAuthenticated(true);
         }
-      } catch (error) {
-        console.error('Auth check error:', error);
+      } catch (error: any) {
+        // Only log error if it's not a 401 (unauthorized) error
+        if (error.response?.status !== 401) {
+          console.error('Auth check error:', error);
+        }
         // User is not authenticated, which is fine
+        setUser(null);
+        setIsAuthenticated(false);
       } finally {
         setIsLoading(false);
       }
