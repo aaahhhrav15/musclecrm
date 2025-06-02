@@ -1,0 +1,11 @@
+{
+    "name": "flexcrm-monorepo",
+    "private": true,
+    "scripts": {
+      "dev": "cd client && npm run dev",
+      "build": "cd client && npm run build",
+      "start": "cd server && npm start"
+    },
+    "workspaces": ["client", "server"]
+  }
+  
