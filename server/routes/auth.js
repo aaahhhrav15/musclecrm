@@ -1,3 +1,4 @@
+
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
@@ -39,8 +40,7 @@ router.post('/signup', async (req, res) => {
       httpOnly: true,
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/'
+      sameSite: 'strict'
     });
 
     res.status(201).json({
@@ -86,8 +86,7 @@ router.post('/login', async (req, res) => {
       httpOnly: true,
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/'
+      sameSite: 'strict'
     });
 
     res.json({
