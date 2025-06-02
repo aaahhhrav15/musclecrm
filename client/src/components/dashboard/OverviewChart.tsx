@@ -15,7 +15,7 @@ const data = [
   { name: 'Aug', value: 3490 },
   { name: 'Sep', value: 4000 },
   { name: 'Oct', value: 4500 },
-  { name: 'Nov', value: 5000 },
+  { name: 'Nov', value: 5001 },
   { name: 'Dec', value: 6000 },
 ];
 
