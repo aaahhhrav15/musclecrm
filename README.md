@@ -26,7 +26,7 @@ A comprehensive CRM system for gym management with MongoDB backend.
 
 ### Backend (server/.env)
 ```
-PORT=5001
+PORT=5000
 NODE_ENV=development
 FRONTEND_URL=http://localhost:5173
 MONGODB_URI=mongodb://localhost:27017/flexcrm
@@ -35,7 +35,7 @@ JWT_SECRET=your_jwt_secret_key_here
 
 ### Frontend (.env.development)
 ```
-VITE_API_URL=http://localhost:5001/api
+VITE_API_URL=http://localhost:5000/api
 ```
 
 ## API Routes

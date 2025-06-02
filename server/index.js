@@ -1,3 +1,4 @@
+
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -13,7 +14,6 @@ const invoicesRoutes = require('./routes/invoices');
 const bookingsRoutes = require('./routes/bookings');
 const customersRoutes = require('./routes/customers');
 const notificationsRoutes = require('./routes/notifications');
-const purchasesRoutes = require('./routes/purchases');
 
 const app = express();
 
@@ -26,7 +26,7 @@ mongoose.connect(process.env.MONGODB_URI)
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? process.env.FRONTEND_URL 
-    : 'http://localhost:5173',
+    : 'http://localhost:3000',
   credentials: true
 }));
 app.use(express.json());
@@ -41,7 +41,6 @@ app.use('/api/invoices', invoicesRoutes);
 app.use('/api/bookings', bookingsRoutes);
 app.use('/api/customers', customersRoutes);
 app.use('/api/notifications', notificationsRoutes);
-app.use('/api/purchases', purchasesRoutes);
 
 // Root route
 app.get('/', (req, res) => {
@@ -57,7 +56,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

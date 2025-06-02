@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -6,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { useIndustry } from '@/context/IndustryContext';
 import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
-import { usePurchaseFlow } from '@/hooks/usePurchaseFlow';
 
 interface IndustryModule {
   name: string;
@@ -27,7 +27,6 @@ const IndustryDetail: React.FC = () => {
   const { industry } = useParams<{ industry: string }>();
   const navigate = useNavigate();
   const { setSelectedIndustry } = useIndustry();
-  const { handleBuyClick } = usePurchaseFlow();
 
   // Industry-specific data
   const industryData: Record<string, IndustryData> = {
@@ -151,8 +150,9 @@ const IndustryDetail: React.FC = () => {
     { name: 'Notifications', description: 'Automated email and SMS notifications' }
   ];
 
-  const handleBuyNow = () => {
-    handleBuyClick(data.name);
+  const handleBuyClick = () => {
+    setSelectedIndustry(data.name as any);
+    navigate('/setup');
   };
 
   return (
@@ -178,7 +178,7 @@ const IndustryDetail: React.FC = () => {
                 {data.description}
               </p>
               <div className="mt-8">
-                <Button size="lg" variant="secondary" onClick={handleBuyNow}>
+                <Button size="lg" variant="secondary" onClick={handleBuyClick}>
                   Buy FlexCRM for {data.name.charAt(0).toUpperCase() + data.name.slice(1)}
                 </Button>
               </div>
@@ -294,7 +294,7 @@ const IndustryDetail: React.FC = () => {
             </ul>
 
             <div className="mt-8">
-              <Button className="w-full" onClick={handleBuyNow}>
+              <Button className="w-full" onClick={handleBuyClick}>
                 Buy CRM for {data.name.charAt(0).toUpperCase() + data.name.slice(1)}
               </Button>
             </div>
@@ -316,7 +316,7 @@ const IndustryDetail: React.FC = () => {
               Join hundreds of {data.name} businesses that trust FlexCRM.
             </p>
             <div className="flex flex-col justify-center gap-4 mt-8 sm:flex-row">
-              <Button size="lg" variant="secondary" onClick={handleBuyNow}>
+              <Button size="lg" variant="secondary" onClick={handleBuyClick}>
                 Buy CRM Now
               </Button>
               <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-primary" asChild>
