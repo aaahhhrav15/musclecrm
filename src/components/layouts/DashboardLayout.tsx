@@ -29,7 +29,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   
-  // Use the auth hook - now bypassed for testing
+  // Use the auth hook to check authentication
   const { isLoading } = useRequireAuth();
 
   const handleLogout = () => {
@@ -37,8 +37,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     navigate('/login');
   };
 
-  // COMMENTED OUT loading state for testing
-  /*
+  // Show loading state while checking authentication
   if (isLoading) {
     return (
       <div className="flex h-screen overflow-hidden bg-background">
@@ -68,14 +67,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       </div>
     );
   }
-  */
-
-  // Mock user for testing when no user is available
-  const displayUser = user || { 
-    name: 'Test User', 
-    email: 'test@example.com',
-    industry: 'gym' 
-  };
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -116,10 +107,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                     <Avatar className="w-8 h-8">
                       <AvatarImage src="/placeholder.svg" />
                       <AvatarFallback>
-                        {displayUser?.name?.charAt(0) || 'T'}
+                        {user?.name?.charAt(0) || 'U'}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="hidden md:inline-flex">{displayUser?.name}</span>
+                    <span className="hidden md:inline-flex">{user?.name}</span>
                     <ChevronDown className="w-4 h-4" />
                   </div>
                 </Button>

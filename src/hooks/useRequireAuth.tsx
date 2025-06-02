@@ -9,8 +9,6 @@ export function useRequireAuth(redirectTo = '/login') {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // COMMENTED OUT FOR TESTING - bypassing auth check
-  /*
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       toast({
@@ -21,17 +19,6 @@ export function useRequireAuth(redirectTo = '/login') {
       navigate(redirectTo);
     }
   }, [isAuthenticated, isLoading, navigate, redirectTo, toast]);
-  */
 
-  // Return mock data for testing
-  return { 
-    isLoading: false, 
-    user: user || { 
-      id: 'test-user', 
-      name: 'Test User', 
-      email: 'test@example.com', 
-      industry: 'gym' 
-    }, 
-    isAuthenticated: true 
-  };
+  return { isLoading, user, isAuthenticated };
 }
