@@ -1,95 +1,147 @@
+import { ApiService, ApiResponse } from './ApiService';
 
-import { ApiService, ApiResponse, ApiInvoiceResponse, ApiInvoicesResponse } from './ApiService';
+export interface InvoiceItem {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  amount: number;
+}
 
 export interface Invoice {
   id: string;
+  invoiceNumber: string;
+  customerId: string;
   customer: {
     id: string;
     name: string;
     email: string;
+    phone?: string;
+    address?: string;
   };
-  amount: number;
-  status: 'Paid' | 'Pending' | 'Overdue';
   date: string;
-  dueDate?: string;
-  items?: {
-    description: string;
-    quantity: number;
-    unitPrice: number;
-    total: number;
-  }[];
-  subtotal?: number;
-  tax?: number;
+  dueDate: string;
+  items: InvoiceItem[];
+  subtotal: number;
+  tax: number;
   total: number;
+  status: 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
   notes?: string;
+  paymentMethod: 'cash' | 'card' | 'bank_transfer' | 'upi' | 'other';
+  paymentStatus: 'pending' | 'paid' | 'partial' | 'failed';
+  paidAmount: number;
+  remainingAmount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface ApiInvoicesResponse extends ApiResponse {
+  invoices: Array<{
+    _id: string;
+    invoiceNumber: string;
+    customerId: {
+      _id: string;
+      name: string;
+      email: string;
+      phone?: string;
+      address?: string;
+    };
+    date: string;
+    dueDate: string;
+    items: InvoiceItem[];
+    subtotal: number;
+    tax: number;
+    total: number;
+    status: string;
+    notes?: string;
+    paymentMethod: string;
+    paymentStatus: string;
+    paidAmount: number;
+    remainingAmount: number;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+  total: number;
+}
+
+interface ApiInvoiceResponse extends ApiResponse {
+  invoice: {
+    _id: string;
+    invoiceNumber: string;
+    customerId: {
+      _id: string;
+      name: string;
+      email: string;
+      phone?: string;
+      address?: string;
+    };
+    date: string;
+    dueDate: string;
+    items: InvoiceItem[];
+    subtotal: number;
+    tax: number;
+    total: number;
+    status: string;
+    notes?: string;
+    paymentMethod: string;
+    paymentStatus: string;
+    paidAmount: number;
+    remainingAmount: number;
+    createdAt: string;
+    updatedAt: string;
+  };
 }
 
 export interface InvoiceFilterOptions {
-  status?: 'Paid' | 'Pending' | 'Overdue' | 'All';
+  search?: string;
+  status?: string;
+  paymentStatus?: string;
   startDate?: string;
   endDate?: string;
-  customerId?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
   page?: number;
   limit?: number;
 }
 
-export interface CreateInvoiceData {
-  customerId: string;
-  items: {
-    description: string;
-    quantity: number;
-    unitPrice: number;
-  }[];
-  dueDate?: string;
-  notes?: string;
-  tax?: number;
-}
+const mapInvoiceFromApi = (apiInvoice: any): Invoice => ({
+  id: apiInvoice._id,
+  invoiceNumber: apiInvoice.invoiceNumber,
+  customerId: apiInvoice.customerId._id,
+  customer: {
+    id: apiInvoice.customerId._id,
+    name: apiInvoice.customerId.name,
+    email: apiInvoice.customerId.email,
+    phone: apiInvoice.customerId.phone,
+    address: apiInvoice.customerId.address
+  },
+  date: apiInvoice.date,
+  dueDate: apiInvoice.dueDate,
+  items: apiInvoice.items,
+  subtotal: apiInvoice.subtotal,
+  tax: apiInvoice.tax,
+  total: apiInvoice.total,
+  status: apiInvoice.status,
+  notes: apiInvoice.notes,
+  paymentMethod: apiInvoice.paymentMethod,
+  paymentStatus: apiInvoice.paymentStatus,
+  paidAmount: apiInvoice.paidAmount,
+  remainingAmount: apiInvoice.remainingAmount,
+  createdAt: apiInvoice.createdAt,
+  updatedAt: apiInvoice.updatedAt
+});
 
-const InvoiceService = {
+export const InvoiceService = {
   /**
-   * Get all invoices with optional filters
+   * Get all invoices with optional filtering
    */
-  getInvoices: async (filters?: InvoiceFilterOptions): Promise<{ invoices: Invoice[]; total: number }> => {
+  getInvoices: async (filters: InvoiceFilterOptions = {}): Promise<{ invoices: Invoice[], total: number }> => {
     try {
-      let url = '/invoices';
-      
-      if (filters) {
-        const queryParams = new URLSearchParams();
-        
-        if (filters.status && filters.status !== 'All') {
-          queryParams.append('status', filters.status);
-        }
-        
-        if (filters.startDate) {
-          queryParams.append('startDate', filters.startDate);
-        }
-        
-        if (filters.endDate) {
-          queryParams.append('endDate', filters.endDate);
-        }
-        
-        if (filters.customerId) {
-          queryParams.append('customerId', filters.customerId);
-        }
-        
-        if (filters.page) {
-          queryParams.append('page', filters.page.toString());
-        }
-        
-        if (filters.limit) {
-          queryParams.append('limit', filters.limit.toString());
-        }
-        
-        if (queryParams.toString()) {
-          url = `${url}?${queryParams.toString()}`;
-        }
-      }
-      
-      const response = await ApiService.get<ApiInvoicesResponse>(url);
+      const response = await ApiService.get<ApiInvoicesResponse>('/invoices', filters);
       
       if (response.success) {
+        const invoices = response.invoices.map(mapInvoiceFromApi);
         return {
-          invoices: response.invoices,
+          invoices,
           total: response.total
         };
       } else {
@@ -100,34 +152,34 @@ const InvoiceService = {
       throw error;
     }
   },
-  
+
   /**
-   * Get a specific invoice by ID
+   * Get a single invoice by ID
    */
-  getInvoiceById: async (invoiceId: string): Promise<Invoice> => {
+  getInvoice: async (id: string): Promise<Invoice> => {
     try {
-      const response = await ApiService.get<ApiInvoiceResponse>(`/invoices/${invoiceId}`);
+      const response = await ApiService.get<ApiInvoiceResponse>(`/invoices/${id}`);
       
       if (response.success) {
-        return response.invoice;
+        return mapInvoiceFromApi(response.invoice);
       } else {
         throw new Error(response.message || 'Failed to fetch invoice');
       }
     } catch (error) {
-      console.error(`Error fetching invoice ${invoiceId}:`, error);
+      console.error('Error fetching invoice:', error);
       throw error;
     }
   },
-  
+
   /**
    * Create a new invoice
    */
-  createInvoice: async (invoiceData: CreateInvoiceData): Promise<Invoice> => {
+  createInvoice: async (invoiceData: Omit<Invoice, 'id' | 'invoiceNumber' | 'createdAt' | 'updatedAt'>): Promise<Invoice> => {
     try {
       const response = await ApiService.post<ApiInvoiceResponse>('/invoices', invoiceData);
       
       if (response.success) {
-        return response.invoice;
+        return mapInvoiceFromApi(response.invoice);
       } else {
         throw new Error(response.message || 'Failed to create invoice');
       }
@@ -136,35 +188,35 @@ const InvoiceService = {
       throw error;
     }
   },
-  
+
   /**
-   * Update an invoice's status
+   * Update an existing invoice
    */
-  updateInvoiceStatus: async (invoiceId: string, status: 'Paid' | 'Pending' | 'Overdue'): Promise<Invoice> => {
+  updateInvoice: async (id: string, invoiceData: Partial<Invoice>): Promise<Invoice> => {
     try {
-      const response = await ApiService.patch<ApiInvoiceResponse>(`/invoices/${invoiceId}/status`, { status });
+      const response = await ApiService.put<ApiInvoiceResponse>(`/invoices/${id}`, invoiceData);
       
       if (response.success) {
-        return response.invoice;
+        return mapInvoiceFromApi(response.invoice);
       } else {
-        throw new Error(response.message || 'Failed to update invoice status');
+        throw new Error(response.message || 'Failed to update invoice');
       }
     } catch (error) {
-      console.error(`Error updating invoice ${invoiceId} status:`, error);
+      console.error('Error updating invoice:', error);
       throw error;
     }
   },
-  
+
   /**
    * Delete an invoice
    */
-  deleteInvoice: async (invoiceId: string): Promise<boolean> => {
+  deleteInvoice: async (id: string): Promise<boolean> => {
     try {
-      const response = await ApiService.delete<ApiResponse>(`/invoices/${invoiceId}`);
+      const response = await ApiService.delete<ApiResponse>(`/invoices/${id}`);
       
       return response.success;
     } catch (error) {
-      console.error(`Error deleting invoice ${invoiceId}:`, error);
+      console.error('Error deleting invoice:', error);
       throw error;
     }
   }

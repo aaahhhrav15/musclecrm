@@ -1,7 +1,7 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Search, Filter } from 'lucide-react';
+import { Plus, Search, Filter, MoreVertical, Pencil, Trash2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,88 +13,225 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { CustomerService, Customer } from '@/services/CustomerService';
+import { format } from 'date-fns';
+import { AddCustomerModal } from '@/components/customers/AddCustomerModal';
+import { EditCustomerModal } from '@/components/customers/EditCustomerModal';
+import { FilterModal } from '@/components/customers/FilterModal';
+import { useToast } from '@/hooks/use-toast';
 
-// Mock data for customers
-const customers = [
-  { id: 1, name: 'Alice Johnson', email: 'alice@example.com', phone: '555-1234', status: 'Active', lastVisit: '2025-05-15' },
-  { id: 2, name: 'Bob Smith', email: 'bob@example.com', phone: '555-5678', status: 'Active', lastVisit: '2025-05-10' },
-  { id: 3, name: 'Carol Davis', email: 'carol@example.com', phone: '555-9012', status: 'Inactive', lastVisit: '2025-04-22' },
-  { id: 4, name: 'David Wilson', email: 'david@example.com', phone: '555-3456', status: 'Active', lastVisit: '2025-05-18' },
-  { id: 5, name: 'Eve Brown', email: 'eve@example.com', phone: '555-7890', status: 'Active', lastVisit: '2025-05-12' },
-];
+interface FilterState {
+  membershipType?: string;
+  source?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}
 
 const CustomersPage: React.FC = () => {
+  const { toast } = useToast();
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [filters, setFilters] = useState<FilterState>({});
+  const limit = 10;
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['customers', search, page, filters],
+    queryFn: () => CustomerService.getCustomers({ search, page, ...filters }),
+  });
+
+  const handleDelete = async (customerId: string) => {
+    if (window.confirm('Are you sure you want to delete this customer?')) {
+      try {
+        await CustomerService.deleteCustomer(customerId);
+        toast({
+          title: 'Success',
+          description: 'Customer deleted successfully',
+        });
+      } catch (error) {
+        toast({
+          title: 'Error',
+          description: error instanceof Error ? error.message : 'Failed to delete customer',
+          variant: 'destructive',
+        });
+      }
+    }
+  };
+
+  const handleFilterApply = (newFilters: FilterState) => {
+    setFilters(newFilters);
+    setPage(1); // Reset to first page when filters change
+  };
+
+  const formatDate = (date: string) => {
+    return format(new Date(date), 'MMM d, yyyy');
+  };
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <p className="mt-4 text-lg">Loading customers...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center text-red-600">
+            <p className="text-lg">Error loading customers</p>
+            <p className="text-sm">Please try refreshing the page</p>
+            <p className="text-xs mt-2">{error instanceof Error ? error.message : 'Unknown error'}</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-        className="space-y-6"
-      >
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Customers</h1>
-            <p className="text-muted-foreground">
-              Manage your customer base and their information.
-            </p>
-          </div>
-          <Button>
-            <Plus className="mr-2 h-4 w-4" /> Add Customer
+      <div className="space-y-6">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="flex items-center justify-between"
+        >
+          <h1 className="text-2xl font-bold">Customers</h1>
+          <Button onClick={() => setIsAddModalOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Customer
           </Button>
-        </div>
+        </motion.div>
 
-        <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex items-center space-x-4">
           <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <Input
               placeholder="Search customers..."
-              className="pl-8"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
             />
           </div>
-          <Button variant="outline" className="w-full sm:w-auto">
-            <Filter className="mr-2 h-4 w-4" />
-            Filters
+          <Button variant="outline" onClick={() => setIsFilterModalOpen(true)}>
+            <Filter className="w-4 h-4 mr-2" />
+            Filter
           </Button>
         </div>
 
-        <div className="rounded-md border">
+        <div className="border rounded-lg">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Phone</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>Membership Type</TableHead>
                 <TableHead>Last Visit</TableHead>
-                <TableHead className="w-[100px]">Actions</TableHead>
+                <TableHead>Total Spent</TableHead>
+                <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {customers.map((customer) => (
+              {data?.customers.map((customer: Customer) => (
                 <TableRow key={customer.id}>
                   <TableCell className="font-medium">{customer.name}</TableCell>
                   <TableCell>{customer.email}</TableCell>
-                  <TableCell>{customer.phone}</TableCell>
+                  <TableCell>{customer.phone || '-'}</TableCell>
+                  <TableCell>{customer.membershipType || '-'}</TableCell>
+                  <TableCell>{customer.lastVisit ? formatDate(customer.lastVisit) : '-'}</TableCell>
+                  <TableCell>Rs. {customer.totalSpent.toLocaleString()}</TableCell>
                   <TableCell>
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      customer.status === 'Active' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {customer.status}
-                    </span>
-                  </TableCell>
-                  <TableCell>{customer.lastVisit}</TableCell>
-                  <TableCell>
-                    <Button variant="ghost" size="sm">View</Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => setSelectedCustomer(customer)}
+                        >
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleDelete(customer.id)}
+                          className="text-red-600"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))}
+              {(!data?.customers || data.customers.length === 0) && (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    No customers found
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </div>
-      </motion.div>
+
+        {data && data.total > limit && (
+          <div className="flex justify-center space-x-2">
+            <Button
+              variant="outline"
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setPage(p => p + 1)}
+              disabled={page * limit >= data.total}
+            >
+              Next
+            </Button>
+          </div>
+        )}
+
+        <AddCustomerModal
+          isOpen={isAddModalOpen}
+          onClose={() => setIsAddModalOpen(false)}
+        />
+
+        {selectedCustomer && (
+          <EditCustomerModal
+            isOpen={!!selectedCustomer}
+            onClose={() => setSelectedCustomer(null)}
+            customer={selectedCustomer}
+          />
+        )}
+
+        <FilterModal
+          isOpen={isFilterModalOpen}
+          onClose={() => setIsFilterModalOpen(false)}
+          onApply={handleFilterApply}
+          currentFilters={filters}
+        />
+      </div>
     </DashboardLayout>
   );
 };

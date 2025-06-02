@@ -1,5 +1,4 @@
-
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 
 export type IndustryType = 'gym' | 'spa' | 'hotel' | 'club' | null;
 
@@ -13,8 +12,29 @@ interface IndustryContextType {
 const IndustryContext = createContext<IndustryContextType | undefined>(undefined);
 
 export const IndustryProvider = ({ children }: { children: ReactNode }) => {
-  const [selectedIndustry, setSelectedIndustry] = useState<IndustryType>(null);
-  const [isSetupComplete, setIsSetupComplete] = useState(false);
+  // Initialize state from localStorage if available
+  const [selectedIndustry, setSelectedIndustry] = useState<IndustryType>(() => {
+    const saved = localStorage.getItem('selectedIndustry');
+    return (saved as IndustryType) || null;
+  });
+  
+  const [isSetupComplete, setIsSetupComplete] = useState(() => {
+    const saved = localStorage.getItem('isSetupComplete');
+    return saved === 'true';
+  });
+
+  // Update localStorage when state changes
+  useEffect(() => {
+    if (selectedIndustry) {
+      localStorage.setItem('selectedIndustry', selectedIndustry);
+    } else {
+      localStorage.removeItem('selectedIndustry');
+    }
+  }, [selectedIndustry]);
+
+  useEffect(() => {
+    localStorage.setItem('isSetupComplete', isSetupComplete.toString());
+  }, [isSetupComplete]);
 
   return (
     <IndustryContext.Provider value={{ 

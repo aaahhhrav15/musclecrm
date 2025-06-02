@@ -1,102 +1,47 @@
-
 import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Clock } from 'lucide-react';
 
 interface Activity {
   id: string;
   title: string;
-  time: string;
   description: string;
-  type: 'booking' | 'customer' | 'invoice' | 'message';
+  date: string;
+  status: string;
 }
 
 interface RecentActivitiesCardProps {
-  activities?: Activity[];
+  activities: Activity[];
 }
 
-// Mock data for recent activities
-const defaultActivities: Activity[] = [
-  {
-    id: '1',
-    title: 'New booking',
-    time: '10 minutes ago',
-    description: 'John Doe booked a session for tomorrow at 2:00 PM',
-    type: 'booking'
-  },
-  {
-    id: '2',
-    title: 'Invoice paid',
-    time: '2 hours ago',
-    description: 'Jane Smith paid invoice #1234 for $150',
-    type: 'invoice'
-  },
-  {
-    id: '3',
-    title: 'New customer',
-    time: '3 hours ago',
-    description: 'Michael Johnson signed up as a new customer',
-    type: 'customer'
-  },
-  {
-    id: '4',
-    title: 'Message received',
-    time: '5 hours ago',
-    description: 'Sarah Williams sent a message about her appointment',
-    type: 'message'
-  },
-  {
-    id: '5',
-    title: 'Booking canceled',
-    time: 'Yesterday',
-    description: 'Robert Brown canceled his appointment for today',
-    type: 'booking'
-  }
-];
-
-const getActivityIcon = (type: Activity['type']) => {
-  switch (type) {
-    case 'booking':
-      return <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-600">📅</div>;
-    case 'customer':
-      return <div className="flex items-center justify-center w-8 h-8 rounded-full bg-green-100 text-green-600">👤</div>;
-    case 'invoice':
-      return <div className="flex items-center justify-center w-8 h-8 rounded-full bg-amber-100 text-amber-600">💰</div>;
-    case 'message':
-      return <div className="flex items-center justify-center w-8 h-8 rounded-full bg-purple-100 text-purple-600">💬</div>;
-    default:
-      return <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100">📌</div>;
-  }
-};
-
-const RecentActivitiesCard: React.FC<RecentActivitiesCardProps> = ({ activities = defaultActivities }) => {
+const RecentActivitiesCard: React.FC<RecentActivitiesCardProps> = ({ activities }) => {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Recent Activities</CardTitle>
-        <CardDescription>The latest activities in your CRM</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {activities.map((activity) => (
-            <div key={activity.id} className="flex items-start">
-              {getActivityIcon(activity.type)}
-              <div className="flex-1 ml-4">
-                <div className="flex justify-between">
-                  <p className="font-medium">{activity.title}</p>
-                  <span className="text-xs text-muted-foreground">{activity.time}</span>
-                </div>
-                <p className="mt-1 text-sm text-muted-foreground">{activity.description}</p>
-              </div>
+    <div className="p-6 border rounded-lg">
+      <h2 className="mb-4 text-xl font-semibold">Recent Activities</h2>
+      <div className="space-y-4">
+        {activities.map((activity) => (
+          <div key={activity.id} className="flex items-start space-x-4">
+            <div className="p-2 bg-primary/10 rounded-full">
+              <Clock className="w-4 h-4 text-primary" />
             </div>
-          ))}
-        </div>
-        <div className="mt-5 text-center">
-          <button className="text-sm font-medium text-primary hover:underline">
-            View all activities
-          </button>
-        </div>
-      </CardContent>
-    </Card>
+            <div className="flex-1">
+              <h3 className="font-medium">{activity.title}</h3>
+              <p className="text-sm text-muted-foreground">{activity.description}</p>
+              <p className="text-xs text-muted-foreground mt-1">{activity.date}</p>
+            </div>
+            <span className={`px-2 py-1 text-xs rounded-full ${
+              activity.status === 'completed' ? 'bg-green-100 text-green-800' :
+              activity.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+              'bg-gray-100 text-gray-800'
+            }`}>
+              {activity.status}
+            </span>
+          </div>
+        ))}
+        {activities.length === 0 && (
+          <p className="text-center text-muted-foreground">No recent activities</p>
+        )}
+      </div>
+    </div>
   );
 };
 

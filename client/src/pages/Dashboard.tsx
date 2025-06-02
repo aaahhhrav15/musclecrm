@@ -1,148 +1,206 @@
-
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Users, Calendar, CreditCard, TrendingUp, BarChart, Dumbbell, Waves, Hotel, GlassWater } from 'lucide-react';
-import { useIndustry } from '@/context/IndustryContext';
+import { useQuery } from '@tanstack/react-query';
+import axios from 'axios';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
-import DashboardCard from '@/components/dashboard/DashboardCard';
-import OverviewChart from '@/components/dashboard/OverviewChart';
-import RecentActivitiesCard from '@/components/dashboard/RecentActivitiesCard';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { formatCurrency } from '@/lib/utils';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+
+// Default data for metrics
+const defaultMetrics = {
+  members: {
+    totalMembers: 0,
+    activeMembers: 0,
+    inactiveMembers: 0,
+    todayEmployees: 0,
+    todayExpiry: 0,
+    expiredPackages: 0,
+    todayEnrolled: 0,
+    totalMemberAmount: 0,
+    todayEmployeeBirthdays: 0,
+    todayInvoices: 0,
+    totalInvoices: 0,
+    todayDueAmount: 0,
+    todayMemberBirthdays: 0,
+    todayExpense: 0,
+    totalExpense: 0,
+    todayEnquiry: 0,
+    todayFollowUps: 0
+  },
+  memberProfit: {
+    memberAmount: 0,
+    memberExpense: 0,
+    totalMemberProfit: 0
+  },
+  pos: {
+    todayPurchase: 0,
+    totalPurchase: 0,
+    totalStockValue: 0,
+    lowStockValue: 0,
+    totalClearingAmount: 0,
+    todaySell: 0,
+    totalSell: 0,
+    totalSellPurchaseValue: 0,
+    todaySellInvoice: 0,
+    totalSellInvoice: 0,
+    sellDueAmount: 0,
+    totalPosExpense: 0,
+    todayPosExpense: 0
+  },
+  posProfit: {
+    posProfit: 0,
+    posExpense: 0
+  },
+  overallProfit: {
+    totalProfit: 0
+  }
+};
 
 const Dashboard: React.FC = () => {
-  const { selectedIndustry } = useIndustry();
-  
-  // Function to get industry-specific icon
-  const getIndustryIcon = () => {
-    switch (selectedIndustry) {
-      case 'gym':
-        return <Dumbbell className="w-6 h-6 text-primary" />;
-      case 'spa':
-        return <Waves className="w-6 h-6 text-primary" />;
-      case 'hotel':
-        return <Hotel className="w-6 h-6 text-primary" />;
-      case 'club':
-        return <GlassWater className="w-6 h-6 text-primary" />;
-      default:
-        return <BarChart className="w-6 h-6 text-primary" />;
+  // Fetch total members count
+  const { data: totalMembersData, isLoading: isLoadingMembers } = useQuery({
+    queryKey: ['totalMembers'],
+    queryFn: async () => {
+      const response = await axios.get(`${API_URL}/customers/count`, {
+        withCredentials: true
+      });
+      return response.data;
+    }
+  });
+
+  // Using default metrics but updating totalMembers with fetched data
+  const metrics = {
+    ...defaultMetrics,
+    members: {
+      ...defaultMetrics.members,
+      totalMembers: totalMembersData?.count || 0
     }
   };
-
-  // Function to get industry-specific stats
-  const getIndustryStats = () => {
-    switch (selectedIndustry) {
-      case 'gym':
-        return {
-          title: 'Active Members',
-          value: '245',
-          trend: { value: 12, isPositive: true }
-        };
-      case 'spa':
-        return {
-          title: 'Services Booked',
-          value: '187',
-          trend: { value: 8, isPositive: true }
-        };
-      case 'hotel':
-        return {
-          title: 'Room Occupancy',
-          value: '78%',
-          trend: { value: 5, isPositive: true }
-        };
-      case 'club':
-        return {
-          title: 'Members',
-          value: '312',
-          trend: { value: 15, isPositive: true }
-        };
-      default:
-        return {
-          title: 'Customers',
-          value: '0',
-          trend: { value: 0, isPositive: true }
-        };
-    }
-  };
-
-  // Shared metrics for all industries
-  const metrics = [
-    {
-      title: 'Total Customers',
-      value: '358',
-      icon: <Users className="w-6 h-6 text-primary" />,
-      trend: { value: 8, isPositive: true },
-      color: 'default'
-    },
-    {
-      title: 'Monthly Bookings',
-      value: '526',
-      icon: <Calendar className="w-6 h-6 text-primary" />,
-      trend: { value: 12, isPositive: true },
-      color: 'default'
-    },
-    {
-      title: 'Revenue',
-      value: '$12,586',
-      icon: <CreditCard className="w-6 h-6 text-primary" />,
-      trend: { value: 3, isPositive: true },
-      color: 'default'
-    },
-    {
-      title: getIndustryStats().title,
-      value: getIndustryStats().value,
-      icon: getIndustryIcon(),
-      trend: getIndustryStats().trend,
-      color: 'default'
-    }
-  ];
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <motion.h1
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="text-2xl font-bold"
-        >
-          Dashboard
-        </motion.h1>
-
-        {/* Metrics Cards */}
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-          {metrics.map((metric, index) => (
-            <DashboardCard
-              key={index}
-              title={metric.title}
-              value={metric.value}
-              icon={metric.icon}
-              trend={metric.trend}
-              color={metric.color as any}
+      <div className="space-y-8">
+        {/* Members Section */}
+        <section>
+          <h2 className="text-2xl font-bold mb-4">🔹 Members</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <MetricCard 
+              title="Total Member" 
+              value={metrics.members.totalMembers} 
+              isLoading={isLoadingMembers}
             />
-          ))}
-        </div>
-
-        {/* Charts and Activity */}
-        <div className="grid gap-6 lg:grid-cols-2">
-          <OverviewChart 
-            title="Revenue Overview" 
-            valuePrefix="$" 
-          />
-          <RecentActivitiesCard />
-        </div>
-
-        {/* Industry-specific modules section */}
-        {selectedIndustry && (
-          <div className="p-6 border rounded-lg">
-            <h2 className="mb-4 text-xl font-semibold">
-              {selectedIndustry.charAt(0).toUpperCase() + selectedIndustry.slice(1)} Modules
-            </h2>
-            <p className="text-muted-foreground">
-              Your industry-specific modules are activated. Click on the modules in the sidebar to access them.
-            </p>
+            <MetricCard title="Total Active Member" value={metrics.members.activeMembers} />
+            <MetricCard title="Total InActive Member" value={metrics.members.inactiveMembers} />
+            <MetricCard title="Today Employees" value={metrics.members.todayEmployees} />
+            <MetricCard title="Today Expiry" value={metrics.members.todayExpiry} />
+            <MetricCard title="All Expire Package" value={metrics.members.expiredPackages} />
+            <MetricCard title="Today Enrolled" value={metrics.members.todayEnrolled} />
+            <MetricCard title="Total Member Amount" value={metrics.members.totalMemberAmount} format="currency" />
+            <MetricCard title="Today Employee's Birthdays" value={metrics.members.todayEmployeeBirthdays} />
+            <MetricCard title="Today Invoices" value={metrics.members.todayInvoices} />
+            <MetricCard title="Total Invoices" value={metrics.members.totalInvoices} />
+            <MetricCard title="Today Due Amount" value={metrics.members.todayDueAmount} format="currency" />
+            <MetricCard title="Today Member's Birthdays" value={metrics.members.todayMemberBirthdays} />
+            <MetricCard title="Today Expense" value={metrics.members.todayExpense} format="currency" />
+            <MetricCard title="Total Expense" value={metrics.members.totalExpense} format="currency" />
+            <MetricCard title="Today Enquiry" value={metrics.members.todayEnquiry} />
+            <MetricCard title="Today Follow-Ups" value={metrics.members.todayFollowUps} />
           </div>
-        )}
+        </section>
+
+        {/* Member Profit Section */}
+        <section>
+          <h2 className="text-2xl font-bold mb-4">🔹 Member Profit</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <MetricCard title="Member Amount" value={metrics.memberProfit.memberAmount} format="currency" />
+            <MetricCard title="Member Expense" value={metrics.memberProfit.memberExpense} format="currency" />
+            <MetricCard title="Total Member Profit" value={metrics.memberProfit.totalMemberProfit} format="currency" />
+          </div>
+        </section>
+
+        {/* POS Section */}
+        <section>
+          <h2 className="text-2xl font-bold mb-4">🔹 POS</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <MetricCard title="Today Purchase" value={metrics.pos.todayPurchase} format="currency" />
+            <MetricCard title="Total Purchase" value={metrics.pos.totalPurchase} format="currency" />
+            <MetricCard title="Total Stock Value" value={metrics.pos.totalStockValue} format="currency" />
+            <MetricCard title="Low Stock Value" value={metrics.pos.lowStockValue} format="currency" />
+            <MetricCard title="Total Clearing Amount" value={metrics.pos.totalClearingAmount} format="currency" />
+            <MetricCard title="Today Sell" value={metrics.pos.todaySell} format="currency" />
+            <MetricCard title="Total Sell" value={metrics.pos.totalSell} format="currency" />
+            <MetricCard title="Total Sell Purchase Value" value={metrics.pos.totalSellPurchaseValue} format="currency" />
+            <MetricCard title="Today Sell Invoice" value={metrics.pos.todaySellInvoice} />
+            <MetricCard title="Total Sell Invoice" value={metrics.pos.totalSellInvoice} />
+            <MetricCard title="Sell Due Amount" value={metrics.pos.sellDueAmount} format="currency" />
+            <MetricCard title="Total Pos Expense" value={metrics.pos.totalPosExpense} format="currency" />
+            <MetricCard title="Today Pos Expense" value={metrics.pos.todayPosExpense} format="currency" />
+          </div>
+        </section>
+
+        {/* POS Profit Section */}
+        <section>
+          <h2 className="text-2xl font-bold mb-4">🔹 POS Profit</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <MetricCard title="POS Profit" value={metrics.posProfit.posProfit} format="currency" />
+            <MetricCard title="POS Expense" value={metrics.posProfit.posExpense} format="currency" />
+          </div>
+        </section>
+
+        {/* Overall Profit Section */}
+        <section>
+          <h2 className="text-2xl font-bold mb-4">🔹 Overall Profit</h2>
+          <div className="grid grid-cols-1 gap-4">
+            <MetricCard title="Total Profit" value={metrics.overallProfit.totalProfit} format="currency" />
+          </div>
+        </section>
       </div>
     </DashboardLayout>
+  );
+};
+
+interface MetricCardProps {
+  title: string;
+  value?: number;
+  format?: 'number' | 'currency';
+  isLoading?: boolean;
+}
+
+const MetricCard: React.FC<MetricCardProps> = ({ 
+  title, 
+  value = 0, 
+  format = 'number',
+  isLoading = false 
+}) => {
+  const formattedValue = format === 'currency' 
+    ? formatCurrency(value)
+    : value.toLocaleString();
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      <Card className="hover:shadow-lg transition-shadow">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium text-muted-foreground">
+            {title}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">
+            {isLoading ? (
+              <div className="h-8 w-24 bg-gray-200 animate-pulse rounded" />
+            ) : (
+              formattedValue
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 };
 

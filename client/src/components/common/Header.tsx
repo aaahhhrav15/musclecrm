@@ -1,10 +1,16 @@
-
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, Menu } from 'lucide-react';
+import { X, Menu, User, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/context/AuthContext';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface HeaderProps {
   transparent?: boolean;
@@ -12,6 +18,7 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ transparent = false }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { user, isAuthenticated, logout } = useAuth();
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -21,6 +28,11 @@ const Header: React.FC<HeaderProps> = ({ transparent = false }) => {
     'fixed top-0 left-0 right-0 z-50 w-full transition-all duration-300',
     transparent ? 'bg-transparent' : 'bg-background/95 backdrop-blur-sm border-b border-border'
   );
+
+  const handleLogout = async () => {
+    await logout();
+    setIsMenuOpen(false);
+  };
 
   return (
     <header className={headerClass}>
@@ -34,6 +46,19 @@ const Header: React.FC<HeaderProps> = ({ transparent = false }) => {
           <Link to="/" className="text-sm font-medium transition-colors hover:text-primary">
             Home
           </Link>
+          {isAuthenticated && (
+            <>
+              <Link to="/dashboard" className="text-sm font-medium transition-colors hover:text-primary">
+                Dashboard
+              </Link>
+              <Link to="/dashboard/customers" className="text-sm font-medium transition-colors hover:text-primary">
+                Customers
+              </Link>
+              <Link to="/dashboard/bookings" className="text-sm font-medium transition-colors hover:text-primary">
+                Bookings
+              </Link>
+            </>
+          )}
           <Link to="/industries/gym" className="text-sm font-medium transition-colors hover:text-primary">
             Gym
           </Link>
@@ -55,12 +80,37 @@ const Header: React.FC<HeaderProps> = ({ transparent = false }) => {
         </nav>
 
         <div className="hidden space-x-4 md:flex">
-          <Button variant="ghost" asChild>
-            <Link to="/login">Login</Link>
-          </Button>
-          <Button asChild>
-            <Link to="/signup">Get Started</Link>
-          </Button>
+          {isAuthenticated ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="flex items-center gap-2">
+                  <User className="w-4 h-4" />
+                  <span>{user?.name}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem asChild>
+                  <Link to="/profile">Profile</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/dashboard/settings">Settings</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleLogout} className="text-red-600">
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <>
+              <Button variant="ghost" asChild>
+                <Link to="/login">Login</Link>
+              </Button>
+              <Button asChild>
+                <Link to="/signup">Get Started</Link>
+              </Button>
+            </>
+          )}
         </div>
 
         {/* Mobile menu button */}
@@ -97,6 +147,31 @@ const Header: React.FC<HeaderProps> = ({ transparent = false }) => {
                 >
                   Home
                 </Link>
+                {isAuthenticated && (
+                  <>
+                    <Link 
+                      to="/dashboard" 
+                      className="text-xl font-medium hover:text-primary"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      Dashboard
+                    </Link>
+                    <Link 
+                      to="/dashboard/customers" 
+                      className="text-xl font-medium hover:text-primary"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      Customers
+                    </Link>
+                    <Link 
+                      to="/dashboard/bookings" 
+                      className="text-xl font-medium hover:text-primary"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      Bookings
+                    </Link>
+                  </>
+                )}
                 <Link 
                   to="/industries/gym" 
                   className="text-xl font-medium hover:text-primary"
@@ -142,16 +217,40 @@ const Header: React.FC<HeaderProps> = ({ transparent = false }) => {
               </nav>
 
               <div className="flex flex-col w-full mt-auto mb-8 space-y-4">
-                <Button variant="outline" asChild className="w-full">
-                  <Link to="/login" onClick={() => setIsMenuOpen(false)}>
-                    Login
-                  </Link>
-                </Button>
-                <Button asChild className="w-full">
-                  <Link to="/signup" onClick={() => setIsMenuOpen(false)}>
-                    Get Started
-                  </Link>
-                </Button>
+                {isAuthenticated ? (
+                  <>
+                    <Button variant="outline" asChild className="w-full">
+                      <Link to="/profile" onClick={() => setIsMenuOpen(false)}>
+                        Profile
+                      </Link>
+                    </Button>
+                    <Button variant="outline" asChild className="w-full">
+                      <Link to="/dashboard/settings" onClick={() => setIsMenuOpen(false)}>
+                        Settings
+                      </Link>
+                    </Button>
+                    <Button 
+                      variant="destructive" 
+                      className="w-full"
+                      onClick={handleLogout}
+                    >
+                      Logout
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button variant="outline" asChild className="w-full">
+                      <Link to="/login" onClick={() => setIsMenuOpen(false)}>
+                        Login
+                      </Link>
+                    </Button>
+                    <Button asChild className="w-full">
+                      <Link to="/signup" onClick={() => setIsMenuOpen(false)}>
+                        Get Started
+                      </Link>
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           </motion.div>

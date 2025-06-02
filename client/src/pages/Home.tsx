@@ -83,7 +83,7 @@ const Home: React.FC = () => {
   const pricing = [
     {
       title: 'Starter',
-      price: '$49',
+      price: 'Rs.49',
       description: 'Essential features for small businesses',
       features: [
         { text: 'Up to 500 customers', included: true },
@@ -100,7 +100,7 @@ const Home: React.FC = () => {
     },
     {
       title: 'Professional',
-      price: '$99',
+      price: 'Rs.99',
       description: 'Comprehensive solution for growing businesses',
       features: [
         { text: 'Unlimited customers', included: true },

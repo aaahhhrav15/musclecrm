@@ -1,9 +1,8 @@
-
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { useToast } from '@/hooks/use-toast';
 
 // Configure base API settings
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+const API_URL = '/api';
 
 // Response interfaces
 export interface ApiResponse {
@@ -77,7 +76,10 @@ export const ApiService = {
   // GET request
   get: async <T>(url: string, params?: any): Promise<T> => {
     try {
+      console.log('Making GET request to:', url);
+      console.log('With params:', params);
       const response = await apiClient.get<T>(url, { params });
+      console.log('Response:', response.data);
       return response.data;
     } catch (error) {
       console.error(`GET request failed: ${url}`, error);

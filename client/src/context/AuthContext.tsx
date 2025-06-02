@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import axios from 'axios';
+import { useIndustry } from './IndustryContext';
 
 // Configure axios
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
@@ -34,6 +35,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+  const { setSelectedIndustry } = useIndustry();
 
   // Check for token in cookies on load
   useEffect(() => {
@@ -54,6 +56,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             joinDate: userData.joinDate
           });
           setIsAuthenticated(true);
+          // Set the industry when user data is loaded
+          setSelectedIndustry(userData.industry);
         }
       } catch (error: any) {
         // Only log error if it's not a 401 (unauthorized) error
@@ -63,13 +67,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // User is not authenticated, which is fine
         setUser(null);
         setIsAuthenticated(false);
+        setSelectedIndustry(null);
       } finally {
         setIsLoading(false);
       }
     };
     
     checkAuth();
-  }, []);
+  }, [setSelectedIndustry]);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
@@ -93,6 +98,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           joinDate: userData.joinDate
         });
         setIsAuthenticated(true);
+        // Set the industry when user logs in
+        setSelectedIndustry(userData.industry);
         
         toast({
           title: "Login successful",
@@ -164,6 +171,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       setUser(null);
       setIsAuthenticated(false);
+      setSelectedIndustry(null);
       
       toast({
         title: "Logged out",

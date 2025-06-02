@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -60,8 +59,8 @@ const ProtectedRoute = ({ element }: { element: React.ReactNode }) => {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <AuthProvider>
-        <IndustryProvider>
+      <IndustryProvider>
+        <AuthProvider>
           <Toaster />
           <Sonner />
           <BrowserRouter>
@@ -103,8 +102,8 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
-        </IndustryProvider>
-      </AuthProvider>
+        </AuthProvider>
+      </IndustryProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

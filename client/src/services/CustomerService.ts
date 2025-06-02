@@ -1,4 +1,3 @@
-
 import { ApiService, ApiResponse } from './ApiService';
 
 export interface Customer {
@@ -19,19 +18,70 @@ export interface Customer {
 }
 
 interface ApiCustomersResponse extends ApiResponse {
-  customers: Customer[];
+  customers: Array<{
+    _id: string;
+    name: string;
+    email: string;
+    phone?: string;
+    address?: string;
+    source?: string;
+    notes?: string;
+    membershipType?: string;
+    joinDate: string;
+    birthday?: string;
+    totalSpent: number;
+    lastVisit?: string;
+    createdAt: string;
+    updatedAt: string;
+  }>;
   total: number;
 }
 
 interface ApiCustomerResponse extends ApiResponse {
-  customer: Customer;
+  customer: {
+    _id: string;
+    name: string;
+    email: string;
+    phone?: string;
+    address?: string;
+    source?: string;
+    notes?: string;
+    membershipType?: string;
+    joinDate: string;
+    birthday?: string;
+    totalSpent: number;
+    lastVisit?: string;
+    createdAt: string;
+    updatedAt: string;
+  };
 }
 
 export interface CustomerFilterOptions {
   search?: string;
   page?: number;
   limit?: number;
+  membershipType?: string;
+  source?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
 }
+
+const mapCustomerFromApi = (apiCustomer: any): Customer => ({
+  id: apiCustomer._id,
+  name: apiCustomer.name,
+  email: apiCustomer.email,
+  phone: apiCustomer.phone,
+  address: apiCustomer.address,
+  source: apiCustomer.source,
+  notes: apiCustomer.notes,
+  membershipType: apiCustomer.membershipType,
+  joinDate: apiCustomer.joinDate,
+  birthday: apiCustomer.birthday,
+  totalSpent: apiCustomer.totalSpent || 0,
+  lastVisit: apiCustomer.lastVisit,
+  createdAt: apiCustomer.createdAt,
+  updatedAt: apiCustomer.updatedAt
+});
 
 export const CustomerService = {
   /**
@@ -39,18 +89,34 @@ export const CustomerService = {
    */
   getCustomers: async (filters: CustomerFilterOptions = {}): Promise<{ customers: Customer[], total: number }> => {
     try {
+      console.log('Making API request to /customers with filters:', filters);
+      console.log('API URL:', import.meta.env.VITE_API_URL || 'http://localhost:5001/api');
+      
       const response = await ApiService.get<ApiCustomersResponse>('/customers', filters);
+      console.log('Raw API response:', response);
       
       if (response.success) {
+        const customers = response.customers.map(mapCustomerFromApi);
+        console.log('Mapped customers:', customers);
         return {
-          customers: response.customers,
+          customers,
           total: response.total
         };
       } else {
+        console.error('API returned error:', response.message);
         throw new Error(response.message || 'Failed to fetch customers');
       }
     } catch (error) {
       console.error('Error fetching customers:', error);
+      if (error.response) {
+        console.error('Error response data:', error.response.data);
+        console.error('Error response status:', error.response.status);
+        console.error('Error response headers:', error.response.headers);
+      } else if (error.request) {
+        console.error('Error request:', error.request);
+      } else {
+        console.error('Error message:', error.message);
+      }
       throw error;
     }
   },
@@ -63,7 +129,7 @@ export const CustomerService = {
       const response = await ApiService.get<ApiCustomerResponse>(`/customers/${id}`);
       
       if (response.success) {
-        return response.customer;
+        return mapCustomerFromApi(response.customer);
       } else {
         throw new Error(response.message || 'Failed to fetch customer');
       }
@@ -81,7 +147,7 @@ export const CustomerService = {
       const response = await ApiService.post<ApiCustomerResponse>('/customers', customerData);
       
       if (response.success) {
-        return response.customer;
+        return mapCustomerFromApi(response.customer);
       } else {
         throw new Error(response.message || 'Failed to create customer');
       }
@@ -99,7 +165,7 @@ export const CustomerService = {
       const response = await ApiService.put<ApiCustomerResponse>(`/customers/${id}`, customerData);
       
       if (response.success) {
-        return response.customer;
+        return mapCustomerFromApi(response.customer);
       } else {
         throw new Error(response.message || 'Failed to update customer');
       }

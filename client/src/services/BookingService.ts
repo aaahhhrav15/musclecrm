@@ -1,144 +1,177 @@
-
-import { ApiService, ApiResponse } from './ApiService';
-
-export interface Customer {
-  id: string;
-  name: string;
-  email: string;
-  phone?: string;
-}
-
-export interface Service {
-  name: string;
-  duration: number;
-  price: number;
-}
-
-export interface Staff {
-  id: string;
-  name: string;
-}
+import axios, { AxiosError } from 'axios';
+import { API_URL } from '@/config';
 
 export interface Booking {
-  id: string;
-  customer: Customer;
-  service: Service;
-  staff?: Staff;
-  date: string;
+  _id: string;
+  userId: string;
+  customerId: string | { _id: string; name: string; email: string; phone: string };
+  type: 'class' | 'personal_training' | 'equipment';
   startTime: string;
   endTime: string;
-  status: 'Confirmed' | 'Pending' | 'Cancelled' | 'Completed' | 'No-show';
+  classId?: string;
+  trainerId?: string;
+  equipmentId?: string;
+  status: 'scheduled' | 'completed' | 'cancelled' | 'no_show';
   notes?: string;
+  createdBy: string;
   createdAt: string;
   updatedAt: string;
 }
 
-interface ApiBookingsResponse extends ApiResponse {
-  bookings: Booking[];
-  total: number;
+export interface BookingFilters {
+  page?: number;
+  limit?: number;
+  type?: string;
+  startDate?: string;
+  endDate?: string;
+  trainerId?: string;
+  classId?: string;
+  customerId?: string;
+  status?: string;
 }
 
-interface ApiBookingResponse extends ApiResponse {
+export interface CreateBookingData {
+  customerId: string;
+  type: 'class' | 'personal_training' | 'equipment';
+  startTime: string;
+  endTime: string;
+  classId?: string;
+  trainerId?: string;
+  equipmentId?: string;
+  notes?: string;
+}
+
+export interface UpdateBookingData {
+  startTime?: string;
+  endTime?: string;
+  status?: 'scheduled' | 'completed' | 'cancelled' | 'no_show';
+  notes?: string;
+}
+
+export interface BookingResponse {
+  success: boolean;
+  bookings: Booking[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
+
+export interface SingleBookingResponse {
+  success: boolean;
   booking: Booking;
 }
 
-export interface BookingFilterOptions {
-  status?: string;
-  date?: string;
-  customerId?: string;
-  page?: number;
-  limit?: number;
+export interface CalendarResponse {
+  success: boolean;
+  bookings: Booking[];
 }
 
-export const BookingService = {
-  /**
-   * Get all bookings with optional filtering
-   */
-  getBookings: async (filters: BookingFilterOptions = {}): Promise<{ bookings: Booking[], total: number }> => {
-    try {
-      const response = await ApiService.get<ApiBookingsResponse>('/bookings', filters);
+export class BookingService {
+  private static handleError(error: unknown): never {
+    if (axios.isAxiosError(error)) {
+      const axiosError = error as AxiosError<{ message: string; errors?: string[] }>;
+      const response = axiosError.response?.data;
       
-      if (response.success) {
-        return {
-          bookings: response.bookings,
-          total: response.total
-        };
-      } else {
-        throw new Error(response.message || 'Failed to fetch bookings');
+      if (response?.errors) {
+        throw new Error(response.errors.join('\n'));
       }
-    } catch (error) {
-      console.error('Error fetching bookings:', error);
+      
+      const message = response?.message || axiosError.message;
+      throw new Error(message);
+    }
+    if (error instanceof Error) {
       throw error;
     }
-  },
-  
-  /**
-   * Get a single booking by ID
-   */
-  getBooking: async (id: string): Promise<Booking> => {
+    throw new Error('An unexpected error occurred');
+  }
+
+  static async getBookings(filters: BookingFilters = {}): Promise<BookingResponse> {
     try {
-      const response = await ApiService.get<ApiBookingResponse>(`/bookings/${id}`);
-      
-      if (response.success) {
-        return response.booking;
-      } else {
-        throw new Error(response.message || 'Failed to fetch booking');
-      }
+      const response = await axios.get(`${API_URL}/bookings`, {
+        params: filters,
+        withCredentials: true
+      });
+      return response.data;
     } catch (error) {
-      console.error('Error fetching booking:', error);
-      throw error;
-    }
-  },
-  
-  /**
-   * Create a new booking
-   */
-  createBooking: async (bookingData: Omit<Booking, 'id' | 'createdAt' | 'updatedAt'>): Promise<Booking> => {
-    try {
-      const response = await ApiService.post<ApiBookingResponse>('/bookings', bookingData);
-      
-      if (response.success) {
-        return response.booking;
-      } else {
-        throw new Error(response.message || 'Failed to create booking');
-      }
-    } catch (error) {
-      console.error('Error creating booking:', error);
-      throw error;
-    }
-  },
-  
-  /**
-   * Update an existing booking
-   */
-  updateBooking: async (id: string, bookingData: Partial<Booking>): Promise<Booking> => {
-    try {
-      const response = await ApiService.put<ApiBookingResponse>(`/bookings/${id}`, bookingData);
-      
-      if (response.success) {
-        return response.booking;
-      } else {
-        throw new Error(response.message || 'Failed to update booking');
-      }
-    } catch (error) {
-      console.error('Error updating booking:', error);
-      throw error;
-    }
-  },
-  
-  /**
-   * Delete a booking
-   */
-  deleteBooking: async (id: string): Promise<boolean> => {
-    try {
-      const response = await ApiService.delete<ApiResponse>(`/bookings/${id}`);
-      
-      return response.success;
-    } catch (error) {
-      console.error('Error deleting booking:', error);
+      BookingService.handleError(error);
       throw error;
     }
   }
-};
+
+  static async getCalendarData(startDate: string, endDate: string, type?: string): Promise<CalendarResponse> {
+    try {
+      const response = await axios.get(`${API_URL}/bookings/calendar`, {
+        params: { startDate, endDate, type },
+        withCredentials: true
+      });
+      return response.data;
+    } catch (error) {
+      BookingService.handleError(error);
+      throw error;
+    }
+  }
+
+  static async getBooking(id: string): Promise<SingleBookingResponse> {
+    try {
+      const response = await axios.get(`${API_URL}/bookings/${id}`, {
+        withCredentials: true
+      });
+      return response.data;
+    } catch (error) {
+      BookingService.handleError(error);
+      throw error;
+    }
+  }
+
+  static async createBooking(data: CreateBookingData): Promise<SingleBookingResponse> {
+    try {
+      console.log('Creating booking with data:', data);
+
+      // Validate required fields based on booking type
+      if (data.type === 'class' && !data.classId) {
+        throw new Error('Class ID is required for class bookings');
+      }
+      if (data.type === 'personal_training' && !data.trainerId) {
+        throw new Error('Trainer ID is required for personal training bookings');
+      }
+      if (data.type === 'equipment' && !data.equipmentId) {
+        throw new Error('Equipment ID is required for equipment bookings');
+      }
+
+      const response = await axios.post(`${API_URL}/bookings`, data, {
+        withCredentials: true
+      });
+      return response.data;
+    } catch (error) {
+      BookingService.handleError(error);
+      throw error;
+    }
+  }
+
+  static async updateBooking(id: string, data: Partial<Booking>): Promise<Booking> {
+    try {
+      console.log('Updating booking with data:', { id, data });
+      const response = await axios.put(`${API_URL}/bookings/${id}`, data, {
+        withCredentials: true
+      });
+      return response.data.booking;
+    } catch (error) {
+      BookingService.handleError(error);
+      throw error;
+    }
+  }
+
+  static async deleteBooking(id: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await axios.delete(`${API_URL}/bookings/${id}`, {
+        withCredentials: true
+      });
+      return response.data;
+    } catch (error) {
+      BookingService.handleError(error);
+      throw error;
+    }
+  }
+}
 
 export default BookingService;

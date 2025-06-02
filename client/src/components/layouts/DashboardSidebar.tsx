@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -117,7 +116,25 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen, setIsOpen }
           { icon: <User className="w-5 h-5" />, label: 'Staff Management', href: '/dashboard/gym/staff' },
           { icon: <DollarSign className="w-5 h-5" />, label: 'Finance & Billing', href: '/dashboard/gym/finance' },
           { icon: <QrCode className="w-5 h-5" />, label: 'Attendance System', href: '/dashboard/gym/attendance' },
-          { icon: <Dumbbell className="w-5 h-5" />, label: 'Workout Plans', href: '/dashboard/workout-plans' }
+          { icon: <Dumbbell className="w-5 h-5" />, label: 'Workout Plans', href: '/dashboard/gym/workout-plans' },
+          { icon: <CalendarIcon className="w-5 h-5" />, label: 'Class Schedule', href: '/dashboard/gym/class-schedule' },
+          { icon: <FileText className="w-5 h-5" />, label: 'Membership Plans', href: '/dashboard/gym/membership-plans' },
+          { icon: <MessageSquare className="w-5 h-5" />, label: 'Feedback & Reviews', href: '/dashboard/gym/feedback' },
+          { icon: <Clock className="w-5 h-5" />, label: 'Equipment Maintenance', href: '/dashboard/gym/equipment' },
+          { icon: <RefreshCw className="w-5 h-5" />, label: 'Training Programs', href: '/dashboard/gym/training' },
+          { icon: <UserPlus className="w-5 h-5" />, label: 'Personal Trainers', href: '/dashboard/gym/trainers' },
+          { icon: <File className="w-5 h-5" />, label: 'Reports & Analytics', href: '/dashboard/gym/reports' },
+          { icon: <CalendarIcon className="w-5 h-5" />, label: 'Class Bookings', href: '/dashboard/gym/class-bookings' },
+          { icon: <Users className="w-5 h-5" />, label: 'Group Classes', href: '/dashboard/gym/group-classes' },
+          { icon: <Dumbbell className="w-5 h-5" />, label: 'Personal Training', href: '/dashboard/gym/personal-training' },
+          { icon: <FileText className="w-5 h-5" />, label: 'Nutrition Plans', href: '/dashboard/gym/nutrition' },
+          { icon: <Clock className="w-5 h-5" />, label: 'Equipment Booking', href: '/dashboard/gym/equipment-booking' },
+          { icon: <MessageSquare className="w-5 h-5" />, label: 'Member Communication', href: '/dashboard/gym/communication' },
+          { icon: <File className="w-5 h-5" />, label: 'Health Assessments', href: '/dashboard/gym/health-assessments' },
+          { icon: <Users className="w-5 h-5" />, label: 'Guest Passes', href: '/dashboard/gym/guest-passes' },
+          { icon: <CalendarIcon className="w-5 h-5" />, label: 'Events & Workshops', href: '/dashboard/gym/events' },
+          { icon: <DollarSign className="w-5 h-5" />, label: 'Retail Sales', href: '/dashboard/gym/retail' },
+          { icon: <FileText className="w-5 h-5" />, label: 'Waiver Forms', href: '/dashboard/gym/waivers' }
         ];
       case 'spa':
         return [
