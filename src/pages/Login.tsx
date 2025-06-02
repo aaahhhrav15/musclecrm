@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -13,6 +12,7 @@ import { useAuth } from '@/context/AuthContext';
 import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
 import { Loader2 } from 'lucide-react';
+import { usePurchaseFlow } from '@/hooks/usePurchaseFlow';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address' }),
@@ -26,17 +26,23 @@ const Login: React.FC = () => {
   const location = useLocation();
   const { login, isAuthenticated, isLoading } = useAuth();
   const { toast } = useToast();
+  const { handleLoginRedirect } = usePurchaseFlow();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Redirect if there's a specified return URL in the location state
-  const from = location.state?.from?.pathname || '/dashboard';
+  // Get return URL and industry from location state
+  const returnUrl = location.state?.returnUrl;
+  const industry = location.state?.industry;
 
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated && !isLoading) {
-      navigate(from, { replace: true });
+      if (returnUrl || industry) {
+        handleLoginRedirect(industry, returnUrl);
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
     }
-  }, [isAuthenticated, isLoading, navigate, from]);
+  }, [isAuthenticated, isLoading, navigate, returnUrl, industry, handleLoginRedirect]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -51,7 +57,7 @@ const Login: React.FC = () => {
     
     try {
       await login(values.email, values.password);
-      navigate(from, { replace: true });
+      // Redirect logic is handled in useEffect after successful login
     } catch (error) {
       console.error('Login error:', error);
       // Toast is handled in the auth context

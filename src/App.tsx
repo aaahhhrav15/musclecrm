@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,6 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import { IndustryProvider } from "@/context/IndustryContext";
+import { PurchaseProvider } from "@/context/PurchaseContext";
+import PaymentPage from "./pages/PaymentPage";
 
 // Pages
 import Home from "./pages/Home";
@@ -62,47 +63,45 @@ const App = () => (
     <TooltipProvider>
       <AuthProvider>
         <IndustryProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              {/* Public routes */}
-              <Route path="/" element={<Home />} />
-              <Route path="/industries/:industry" element={<IndustryDetail />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<Signup />} />
-              <Route path="/contact" element={<ContactPage />} />
-              
-              {/* Protected routes */}
-              <Route path="/setup" element={<ProtectedRoute element={<SetupPage />} />} />
-              <Route path="/dashboard" element={<ProtectedRoute element={<Dashboard />} />} />
-              <Route path="/dashboard/customers" element={<ProtectedRoute element={<CustomersPage />} />} />
-              <Route path="/dashboard/bookings" element={<ProtectedRoute element={<BookingsPage />} />} />
-              <Route path="/dashboard/invoices" element={<ProtectedRoute element={<InvoicesPage />} />} />
-              <Route path="/dashboard/notifications" element={<ProtectedRoute element={<NotificationsPage />} />} />
-              <Route path="/dashboard/settings" element={<ProtectedRoute element={<SettingsPage />} />} />
-              
-              {/* Industry-Specific Routes */}
-              <Route path="/dashboard/workout-plans" element={<ProtectedRoute element={<WorkoutPlansPage />} />} />
-              <Route path="/dashboard/services" element={<ProtectedRoute element={<ServicesPage />} />} />
-              <Route path="/dashboard/room-management" element={<ProtectedRoute element={<RoomManagementPage />} />} />
-              <Route path="/dashboard/memberships" element={<ProtectedRoute element={<MembershipsPage />} />} />
-              
-              {/* New Gym Module Routes */}
-              <Route path="/dashboard/gym/members" element={<ProtectedRoute element={<GymMembersPage />} />} />
-              <Route path="/dashboard/gym/leads" element={<ProtectedRoute element={<GymLeadsPage />} />} />
-              <Route path="/dashboard/gym/staff" element={<ProtectedRoute element={<GymStaffPage />} />} />
-              <Route path="/dashboard/gym/finance" element={<ProtectedRoute element={<GymFinancePage />} />} />
-              <Route path="/dashboard/gym/attendance" element={<ProtectedRoute element={<GymAttendancePage />} />} />
-              
-              {/* Profile Routes */}
-              <Route path="/profile" element={<ProtectedRoute element={<ProfilePage />} />} />
-              <Route path="/profile/billing" element={<ProtectedRoute element={<BillingPage />} />} />
-              
-              {/* Catch-all route */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
+          <PurchaseProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                {/* Public routes */}
+                <Route path="/" element={<Home />} />
+                <Route path="/industries/:industry" element={<IndustryDetail />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/signup" element={<Signup />} />
+                <Route path="/contact" element={<ContactPage />} />
+                
+                {/* Protected routes */}
+                <Route path="/setup" element={<ProtectedRoute element={<SetupPage />} />} />
+                <Route path="/payment" element={<ProtectedRoute element={<PaymentPage />} />} />
+                <Route path="/dashboard" element={<ProtectedRoute element={<Dashboard />} />} />
+                
+                {/* Industry-Specific Routes */}
+                <Route path="/dashboard/workout-plans" element={<ProtectedRoute element={<WorkoutPlansPage />} />} />
+                <Route path="/dashboard/services" element={<ProtectedRoute element={<ServicesPage />} />} />
+                <Route path="/dashboard/room-management" element={<ProtectedRoute element={<RoomManagementPage />} />} />
+                <Route path="/dashboard/memberships" element={<ProtectedRoute element={<MembershipsPage />} />} />
+                
+                {/* New Gym Module Routes */}
+                <Route path="/dashboard/gym/members" element={<ProtectedRoute element={<GymMembersPage />} />} />
+                <Route path="/dashboard/gym/leads" element={<ProtectedRoute element={<GymLeadsPage />} />} />
+                <Route path="/dashboard/gym/staff" element={<ProtectedRoute element={<GymStaffPage />} />} />
+                <Route path="/dashboard/gym/finance" element={<ProtectedRoute element={<GymFinancePage />} />} />
+                <Route path="/dashboard/gym/attendance" element={<ProtectedRoute element={<GymAttendancePage />} />} />
+                
+                {/* Profile Routes */}
+                <Route path="/profile" element={<ProtectedRoute element={<ProfilePage />} />} />
+                <Route path="/profile/billing" element={<ProtectedRoute element={<BillingPage />} />} />
+                
+                {/* Catch-all route */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </PurchaseProvider>
         </IndustryProvider>
       </AuthProvider>
     </TooltipProvider>
