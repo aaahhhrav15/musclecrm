@@ -1,7 +1,7 @@
-
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Gym = require('../models/Gym');
 const auth = require('../middleware/auth');
 
 const router = express.Router();
@@ -24,12 +24,50 @@ router.post('/signup', async (req, res) => {
       return res.status(400).json({ success: false, message: 'User already exists' });
     }
 
+    let gymId = null;
+    // Create a default gym if the user is from the gym industry
+    if (industry === 'gym') {
+      const defaultGym = await Gym.create({
+        name: `${name}'s Gym`,
+        address: {
+          city: 'Your City',
+          state: 'Your State'
+        },
+        operatingHours: {
+          monday: { open: '06:00', close: '22:00' },
+          tuesday: { open: '06:00', close: '22:00' },
+          wednesday: { open: '06:00', close: '22:00' },
+          thursday: { open: '06:00', close: '22:00' },
+          friday: { open: '06:00', close: '22:00' },
+          saturday: { open: '08:00', close: '20:00' },
+          sunday: { open: '08:00', close: '20:00' }
+        },
+        facilities: ['Cardio Area', 'Weight Training', 'Group Classes', 'Swimming Pool'],
+        membershipTypes: [
+          {
+            name: 'Basic',
+            price: 49.99,
+            duration: 1,
+            features: ['Access to all facilities', 'Group classes']
+          },
+          {
+            name: 'Premium',
+            price: 79.99,
+            duration: 1,
+            features: ['Access to all facilities', 'Group classes', 'Personal trainer', 'Spa access']
+          }
+        ]
+      });
+      gymId = defaultGym._id;
+    }
+
     // Create user
     const user = await User.create({
       name,
       email,
       password,
-      industry
+      industry,
+      gymId
     });
 
     // Generate token
@@ -51,6 +89,7 @@ router.post('/signup', async (req, res) => {
         email: user.email,
         industry: user.industry,
         role: user.role,
+        gymId: user.gymId,
         joinDate: user.joinDate
       },
       token

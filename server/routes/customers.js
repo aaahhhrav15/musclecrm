@@ -1,4 +1,3 @@
-
 const express = require('express');
 const Customer = require('../models/Customer');
 const auth = require('../middleware/auth');
@@ -8,7 +7,18 @@ const router = express.Router();
 // Get all customers
 router.get('/', auth, async (req, res) => {
   try {
-    const { page = 1, limit = 10, search } = req.query;
+    const { 
+      page = 1, 
+      limit = 10, 
+      search,
+      membershipType,
+      source,
+      sortBy = 'name',
+      sortOrder = 'asc'
+    } = req.query;
+    
+    console.log('Received filter parameters:', { search, membershipType, source, sortBy, sortOrder });
+    
     const query = { userId: req.user._id };
     
     // Add search query if provided
@@ -19,15 +29,35 @@ router.get('/', auth, async (req, res) => {
         { phone: { $regex: search, $options: 'i' } }
       ];
     }
+
+    // Add membership type filter if provided
+    if (membershipType) {
+      query.membershipType = membershipType;
+    }
+
+    // Add source filter if provided
+    if (source) {
+      query.source = source;
+    }
+    
+    console.log('Final query:', query);
+    
+    // Build sort object
+    const sortOptions = {};
+    sortOptions[sortBy] = sortOrder === 'asc' ? 1 : -1;
+    
+    console.log('Sort options:', sortOptions);
     
     const options = {
       limit: parseInt(limit),
       skip: (parseInt(page) - 1) * parseInt(limit),
-      sort: { name: 1 }
+      sort: sortOptions
     };
     
     const customers = await Customer.find(query, null, options);
     const total = await Customer.countDocuments(query);
+    
+    console.log('Found customers:', customers.length);
     
     res.json({
       success: true,

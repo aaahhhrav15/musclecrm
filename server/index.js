@@ -1,4 +1,3 @@
-
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -14,6 +13,7 @@ const invoicesRoutes = require('./routes/invoices');
 const bookingsRoutes = require('./routes/bookings');
 const customersRoutes = require('./routes/customers');
 const notificationsRoutes = require('./routes/notifications');
+const dashboardRoutes = require('./routes/dashboard');
 
 const app = express();
 
@@ -34,6 +34,7 @@ app.use(cookieParser());
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/gym/members', membersRoutes);
 app.use('/api/gym/staff', staffRoutes);
 app.use('/api/gym/attendance', attendanceRoutes);
