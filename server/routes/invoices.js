@@ -2,6 +2,9 @@ const express = require('express');
 const Invoice = require('../models/Invoice');
 const Customer = require('../models/Customer');
 const auth = require('../middleware/auth');
+const Booking = require('../models/Booking');
+const PDFDocument = require('pdfkit');
+const { format } = require('date-fns');
 
 const router = express.Router();
 
@@ -196,6 +199,97 @@ router.delete('/:id', auth, async (req, res) => {
   } catch (error) {
     console.error('Delete invoice error:', error);
     res.status(500).json({ success: false, message: 'Error deleting invoice' });
+  }
+});
+
+// Generate invoice PDF
+router.get('/:id/pdf', async (req, res) => {
+  try {
+    const invoice = await Invoice.findById(req.params.id)
+      .populate('customerId', 'name email')
+      .populate('bookingId', 'type startTime endTime');
+    
+    if (!invoice) {
+      return res.status(404).json({ message: 'Invoice not found' });
+    }
+
+    const doc = new PDFDocument();
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=invoice-${invoice._id}.pdf`);
+    doc.pipe(res);
+
+    // Add content to PDF
+    doc.fontSize(25).text('Invoice', { align: 'center' });
+    doc.moveDown();
+    
+    // Customer details
+    doc.fontSize(12).text(`Customer: ${invoice.customerId.name}`);
+    doc.text(`Email: ${invoice.customerId.email}`);
+    doc.moveDown();
+
+    // Booking details
+    doc.text(`Booking Type: ${invoice.bookingId.type}`);
+    doc.text(`Date: ${format(new Date(invoice.bookingId.startTime), 'PPP')}`);
+    doc.text(`Time: ${format(new Date(invoice.bookingId.startTime), 'p')} - ${format(new Date(invoice.bookingId.endTime), 'p')}`);
+    doc.moveDown();
+
+    // Items table
+    doc.text('Items:', { underline: true });
+    doc.moveDown(0.5);
+
+    // Table headers
+    const tableTop = doc.y;
+    doc.text('Description', 50, tableTop);
+    doc.text('Quantity', 250, tableTop);
+    doc.text('Unit Price', 350, tableTop);
+    doc.text('Amount', 450, tableTop);
+    doc.moveDown();
+
+    // Table rows
+    let y = doc.y;
+    invoice.items.forEach(item => {
+      doc.text(item.description, 50, y);
+      doc.text(item.quantity.toString(), 250, y);
+      doc.text(`${invoice.currency} ${item.unitPrice.toFixed(2)}`, 350, y);
+      doc.text(`${invoice.currency} ${item.amount.toFixed(2)}`, 450, y);
+      y += 20;
+    });
+
+    // Total
+    doc.moveDown();
+    doc.text(`Total Amount: ${invoice.currency} ${invoice.amount.toFixed(2)}`, { align: 'right' });
+    doc.text(`Due Date: ${format(new Date(invoice.dueDate), 'PPP')}`, { align: 'right' });
+    doc.text(`Status: ${invoice.status.toUpperCase()}`, { align: 'right' });
+
+    doc.end();
+  } catch (error) {
+    console.error('Error generating PDF:', error);
+    res.status(500).json({ message: 'Error generating PDF' });
+  }
+});
+
+// Update invoice status
+router.patch('/:id/status', async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!['pending', 'paid', 'cancelled'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid status' });
+    }
+
+    const invoice = await Invoice.findByIdAndUpdate(
+      req.params.id,
+      { status },
+      { new: true }
+    );
+
+    if (!invoice) {
+      return res.status(404).json({ message: 'Invoice not found' });
+    }
+
+    res.json(invoice);
+  } catch (error) {
+    console.error('Error updating invoice status:', error);
+    res.status(500).json({ message: 'Error updating invoice status' });
   }
 });
 

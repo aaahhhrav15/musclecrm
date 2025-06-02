@@ -3,6 +3,8 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const Booking = require('../models/Booking');
 const Customer = require('../models/Customer');
+const Invoice = require('../models/Invoice');
+const { addDays } = require('date-fns');
 
 // Get all bookings with filters
 router.get('/', auth, async (req, res) => {
@@ -127,7 +129,9 @@ router.post('/', auth, async (req, res) => {
       trainerId,
       equipmentId,
       notes,
-      status
+      status,
+      price,
+      currency
     } = req.body;
 
     console.log('Received booking data:', req.body);
@@ -142,6 +146,42 @@ router.post('/', auth, async (req, res) => {
       });
     }
 
+    // Check for overlapping bookings
+    const overlappingBooking = await Booking.findOne({
+      userId: req.user._id,
+      $or: [
+        // New booking starts during an existing booking
+        {
+          startTime: { $lte: new Date(startTime) },
+          endTime: { $gt: new Date(startTime) }
+        },
+        // New booking ends during an existing booking
+        {
+          startTime: { $lt: new Date(endTime) },
+          endTime: { $gte: new Date(endTime) }
+        },
+        // New booking completely contains an existing booking
+        {
+          startTime: { $gte: new Date(startTime) },
+          endTime: { $lte: new Date(endTime) }
+        }
+      ]
+    });
+
+    if (overlappingBooking) {
+      return res.status(400).json({
+        success: false,
+        message: 'A booking already exists for this time slot',
+        details: {
+          existingBooking: {
+            startTime: overlappingBooking.startTime,
+            endTime: overlappingBooking.endTime,
+            type: overlappingBooking.type
+          }
+        }
+      });
+    }
+
     // For class bookings, validate class exists
     if (type === 'class') {
       if (!classId) {
@@ -150,8 +190,8 @@ router.post('/', auth, async (req, res) => {
           message: 'Class ID is required for class bookings' 
         });
       }
-      // Since we're using static class IDs, we'll just validate the format
-      if (!['class1', 'class2'].includes(classId)) {
+      // Since we're using static class IDs, we'll just validate it's not empty
+      if (typeof classId !== 'string' || classId.trim() === '') {
         return res.status(400).json({
           success: false,
           message: 'Invalid class ID'
@@ -201,6 +241,14 @@ router.post('/', auth, async (req, res) => {
       });
     }
 
+    // Validate price
+    if (!price || price < 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Valid price is required'
+      });
+    }
+
     // Create a simplified booking object
     const bookingData = {
       userId: req.user._id,
@@ -210,7 +258,9 @@ router.post('/', auth, async (req, res) => {
       endTime,
       notes,
       status,
-      createdBy: req.user._id
+      createdBy: req.user._id,
+      price,
+      currency: currency || 'INR'
     };
 
     // Add type-specific fields
@@ -223,11 +273,38 @@ router.post('/', auth, async (req, res) => {
     }
 
     const newBooking = await Booking.create(bookingData);
+    let invoice = null;
+
+    try {
+      // Create invoice for the booking
+      invoice = new Invoice({
+        bookingId: newBooking._id,
+        customerId: newBooking.customerId,
+        amount: newBooking.price,
+        currency: newBooking.currency,
+        dueDate: addDays(new Date(), 7), // Due in 7 days
+        items: [{
+          description: `${newBooking.type} booking`,
+          quantity: 1,
+          unitPrice: newBooking.price,
+          amount: newBooking.price
+        }]
+      });
+      await invoice.save();
+    } catch (invoiceError) {
+      console.error('Error creating invoice:', invoiceError);
+      // Continue with the response even if invoice creation fails
+    }
 
     const populatedBooking = await Booking.findById(newBooking._id)
       .populate('customerId', 'name email phone');
 
-    res.status(201).json({ success: true, booking: populatedBooking });
+    return res.status(201).json({ 
+      success: true, 
+      booking: populatedBooking, 
+      invoice,
+      message: 'Booking created successfully'
+    });
   } catch (error) {
     console.error('Create booking error:', error);
     
@@ -241,16 +318,8 @@ router.post('/', auth, async (req, res) => {
       });
     }
 
-    // Handle duplicate key errors
-    if (error.code === 11000) {
-      return res.status(400).json({
-        success: false,
-        message: 'A booking already exists for this time slot'
-      });
-    }
-
     // Handle other errors
-    res.status(500).json({ 
+    return res.status(500).json({ 
       success: false, 
       message: 'Error creating booking',
       error: error.message 

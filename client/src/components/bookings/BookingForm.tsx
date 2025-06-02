@@ -30,7 +30,8 @@ import { API_URL } from '@/config';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Check, ChevronsUpDown } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils';
+import { useQueryClient } from '@tanstack/react-query';
 
 // Form schema for the form data
 const formSchema = z.object({
@@ -51,6 +52,8 @@ const formSchema = z.object({
   classId: z.string().optional(),
   trainerId: z.string().optional(),
   equipmentId: z.string().optional(),
+  price: z.number().min(0, 'Price must be greater than or equal to 0'),
+  currency: z.string().default('INR'),
 }).superRefine((data, ctx) => {
   // Validate required fields based on booking type
   if (data.type === 'class' && !data.classId) {
@@ -95,6 +98,8 @@ const apiDataSchema = z.object({
   classId: z.string().optional(),
   trainerId: z.string().optional(),
   equipmentId: z.string().optional(),
+  price: z.number().min(0),
+  currency: z.string(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -103,8 +108,8 @@ type ApiData = z.infer<typeof apiDataSchema>;
 interface BookingFormProps {
   open: boolean;
   onClose: () => void;
-  booking?: Booking | null;
-  onSubmit: (data: ApiData) => Promise<{ success: boolean }>;
+  booking?: Booking;
+  onSubmit: (data: ApiData) => Promise<{ success: boolean; message?: string }>;
 }
 
 interface Customer {
@@ -137,6 +142,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
   booking,
   onSubmit,
 }) => {
+  const queryClient = useQueryClient();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [trainers, setTrainers] = useState<Trainer[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
@@ -165,14 +171,16 @@ const BookingForm: React.FC<BookingFormProps> = ({
   const defaultValues = booking
     ? {
         type: booking.type,
-        customerId: booking.customerId?._id || '',
+        customerId: typeof booking.customerId === 'string' ? booking.customerId : booking.customerId._id,
         startTime: new Date(booking.startTime),
         endTime: new Date(booking.endTime),
         status: booking.status,
         notes: booking.notes || '',
-        classId: booking.classId?._id || '',
-        trainerId: booking.trainerId?._id || '',
-        equipmentId: booking.equipmentId?._id || '',
+        classId: booking.classId || '',
+        trainerId: booking.trainerId || '',
+        equipmentId: booking.equipmentId || '',
+        price: booking.price,
+        currency: booking.currency || 'INR',
       }
     : {
         type: 'class' as const,
@@ -184,6 +192,8 @@ const BookingForm: React.FC<BookingFormProps> = ({
         classId: '',
         trainerId: '',
         equipmentId: '',
+        price: 0,
+        currency: 'INR',
       };
 
   const form = useForm<FormData>({
@@ -202,6 +212,8 @@ const BookingForm: React.FC<BookingFormProps> = ({
         ...values,
         startTime: values.startTime.toISOString(),
         endTime: values.endTime.toISOString(),
+        price: values.price,
+        currency: values.currency,
       };
 
       // Clear type-specific fields that aren't needed
@@ -230,15 +242,44 @@ const BookingForm: React.FC<BookingFormProps> = ({
       }
 
       console.log('Submitting booking with data:', apiData);
-      await onSubmit(apiData);
-      toast.success(booking ? 'Booking updated successfully' : 'Booking created successfully');
-      onClose();
+      const response = await onSubmit(apiData);
+      
+      if (response?.success) {
+        toast.success(response.message || (booking ? 'Booking updated successfully' : 'Booking created successfully'));
+        // Close the form
+        onClose();
+        // Invalidate and refetch bookings query
+        queryClient.invalidateQueries({ queryKey: ['bookings'] });
+        // Invalidate and refetch invoices query
+        queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      } else {
+        toast.error(response?.message || (booking ? 'Failed to update booking' : 'Failed to create booking'));
+      }
     } catch (error) {
       console.error('Error submitting booking:', error);
       const errorMessage = error instanceof Error ? error.message : (booking ? 'Failed to update booking' : 'Failed to create booking');
       toast.error(errorMessage);
     }
   };
+
+  const getDefaultPrice = (type: string) => {
+    switch (type) {
+      case 'class':
+        return 500; // ₹500 per class
+      case 'personal_training':
+        return 1000; // ₹1000 per session
+      case 'equipment':
+        return 200; // ₹200 per hour
+      default:
+        return 0;
+    }
+  };
+
+  // Update price when type changes
+  useEffect(() => {
+    const type = form.getValues('type');
+    form.setValue('price', getDefaultPrice(type));
+  }, [bookingType]);
 
   if (loading) {
     return (
@@ -498,6 +539,53 @@ const BookingForm: React.FC<BookingFormProps> = ({
                       placeholder="Add any additional notes (optional)"
                     />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="price"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Price (₹)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      {...field}
+                      onChange={(e) => field.onChange(Number(e.target.value))}
+                      value={field.value}
+                      min={0}
+                      step={0.01}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="currency"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Currency</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select currency" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="INR">Indian Rupee (₹)</SelectItem>
+                      <SelectItem value="USD">US Dollar ($)</SelectItem>
+                      <SelectItem value="EUR">Euro (€)</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

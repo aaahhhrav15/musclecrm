@@ -16,6 +16,9 @@ export interface Booking {
   createdBy: string;
   createdAt: string;
   updatedAt: string;
+  price: number;
+  currency: string;
+  invoiceId?: string;
 }
 
 export interface BookingFilters {
@@ -39,6 +42,8 @@ export interface CreateBookingData {
   trainerId?: string;
   equipmentId?: string;
   notes?: string;
+  price: number;
+  currency: string;
 }
 
 export interface UpdateBookingData {
@@ -46,6 +51,7 @@ export interface UpdateBookingData {
   endTime?: string;
   status?: 'scheduled' | 'completed' | 'cancelled' | 'no_show';
   notes?: string;
+  price?: number;
 }
 
 export interface BookingResponse {
@@ -123,28 +129,18 @@ export class BookingService {
     }
   }
 
-  static async createBooking(data: CreateBookingData): Promise<SingleBookingResponse> {
+  static async createBooking(data: CreateBookingData): Promise<{ success: boolean; booking?: Booking; message?: string }> {
     try {
       console.log('Creating booking with data:', data);
-
-      // Validate required fields based on booking type
-      if (data.type === 'class' && !data.classId) {
-        throw new Error('Class ID is required for class bookings');
-      }
-      if (data.type === 'personal_training' && !data.trainerId) {
-        throw new Error('Trainer ID is required for personal training bookings');
-      }
-      if (data.type === 'equipment' && !data.equipmentId) {
-        throw new Error('Equipment ID is required for equipment bookings');
-      }
-
-      const response = await axios.post(`${API_URL}/bookings`, data, {
-        withCredentials: true
-      });
+      const response = await axios.post(`${API_URL}/bookings`, data, { withCredentials: true });
       return response.data;
     } catch (error) {
-      BookingService.handleError(error);
-      throw error;
+      console.error('Error creating booking:', error);
+      if (axios.isAxiosError(error)) {
+        const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message;
+        return { success: false, message: errorMessage };
+      }
+      return { success: false, message: 'Failed to create booking' };
     }
   }
 

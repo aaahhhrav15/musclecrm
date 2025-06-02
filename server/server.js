@@ -4,10 +4,12 @@ const userRoutes = require('./routes/users');
 const customerRoutes = require('./routes/customers');
 const invoiceRoutes = require('./routes/invoices');
 const dashboardRoutes = require('./routes/dashboard');
+const bookingRoutes = require('./routes/bookings');
 
 // Use routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/invoices', invoiceRoutes);
-app.use('/api/dashboard', dashboardRoutes); 
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/bookings', bookingRoutes); 

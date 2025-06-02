@@ -22,6 +22,28 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { formatCurrency } from '@/lib/utils';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Badge,
+  BadgeProps,
+} from "@/components/ui/badge";
+import {
+  MoreHorizontal,
+} from "lucide-react";
 
 const BookingsPage: React.FC = () => {
   const [view, setView] = useState<'list' | 'calendar'>('list');
@@ -59,11 +81,18 @@ const BookingsPage: React.FC = () => {
 
   const handleCreateBooking = async (bookingData: any) => {
     try {
-      await BookingService.createBooking(bookingData);
-      setShowBookingForm(false);
-      refetch();
+      const response = await BookingService.createBooking(bookingData);
+      if (response.success) {
+        setShowBookingForm(false);
+        refetch();
+        toast.success('Booking created successfully');
+      } else {
+        toast.error(response.message || 'Failed to create booking');
+      }
     } catch (error) {
       console.error('Error creating booking:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create booking';
+      toast.error(errorMessage);
     }
   };
 
@@ -150,15 +179,76 @@ const BookingsPage: React.FC = () => {
                 <CardTitle>Bookings</CardTitle>
               </CardHeader>
               <CardContent>
-                <BookingList
-                  bookings={data?.bookings || []}
-                  isLoading={isLoading}
-                  onEdit={setSelectedBooking}
-                  onDelete={handleDeleteBooking}
-                  page={filters.page || 1}
-                  totalPages={data?.totalPages || 1}
-                  onPageChange={(page) => setFilters(prev => ({ ...prev, page }))}
-                />
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Start Time</TableHead>
+                      <TableHead>End Time</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Price</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {data?.bookings.map((booking) => (
+                      <TableRow key={booking._id}>
+                        <TableCell className="capitalize">{booking.type.replace('_', ' ')}</TableCell>
+                        <TableCell>
+                          {typeof booking.customerId === 'string'
+                            ? 'Loading...'
+                            : booking.customerId.name}
+                        </TableCell>
+                        <TableCell>
+                          {format(new Date(booking.startTime), 'MMM d, yyyy h:mm a')}
+                        </TableCell>
+                        <TableCell>
+                          {format(new Date(booking.endTime), 'MMM d, yyyy h:mm a')}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              booking.status === 'completed'
+                                ? 'success'
+                                : booking.status === 'cancelled'
+                                ? 'destructive'
+                                : booking.status === 'no_show'
+                                ? 'warning'
+                                : 'default'
+                            }
+                          >
+                            {booking.status.replace('_', ' ')}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {formatCurrency(booking.price, booking.currency || 'INR')}
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">Open menu</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => setSelectedBooking(booking)}>
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-destructive"
+                                onClick={() => handleDeleteBooking(booking._id)}
+                              >
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </CardContent>
             </Card>
           </TabsContent>
