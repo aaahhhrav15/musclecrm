@@ -35,13 +35,31 @@ const bookingSchema = new mongoose.Schema({
       return this.type === 'class';
     }
   },
+  className: {
+    type: String,
+    required: function() {
+      return this.type === 'class';
+    }
+  },
   trainerId: {
     type: String,
     required: function() {
       return this.type === 'personal_training';
     }
   },
+  trainerName: {
+    type: String,
+    required: function() {
+      return this.type === 'personal_training';
+    }
+  },
   equipmentId: {
+    type: String,
+    required: function() {
+      return this.type === 'equipment';
+    }
+  },
+  equipmentName: {
     type: String,
     required: function() {
       return this.type === 'equipment';

@@ -58,6 +58,7 @@ export interface CustomerFormData {
   source: 'website' | 'referral' | 'walk-in' | 'social_media' | 'other';
   membershipType: 'none' | 'basic' | 'premium' | 'vip';
   membershipFees: number;
+  totalSpent?: number;
   notes?: string;
   birthday?: Date;
 }

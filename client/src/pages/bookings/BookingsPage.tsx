@@ -224,25 +224,25 @@ const BookingsPage: React.FC = () => {
                     {data?.bookings.map((booking) => (
                       <TableRow key={booking._id}>
                         <TableCell>
-                          {typeof booking.customerId === 'string'
-                            ? 'Loading...'
-                            : booking.customerId.name}
+                          {typeof booking.customerId === 'string' 
+                            ? 'Loading...' 
+                            : booking.customerId?.name || 'N/A'}
                         </TableCell>
                         <TableCell className="capitalize">{booking.type.replace('_', ' ')}</TableCell>
                         <TableCell>
                           {booking.type === 'personal_training' ? (
                             booking.trainerId && typeof booking.trainerId === 'object' 
-                              ? String(booking.trainerId.name)
-                              : String(booking.trainerId || '-')
+                              ? booking.trainerId.name || 'N/A'
+                              : 'N/A'
                           ) : booking.type === 'class' ? (
                             booking.classId && typeof booking.classId === 'object'
-                              ? String(booking.classId.name)
-                              : String(booking.classId || 'Class')
+                              ? booking.classId.name || 'N/A'
+                              : 'N/A'
                           ) : booking.type === 'equipment' ? (
                             booking.equipmentId && typeof booking.equipmentId === 'object'
-                              ? String(booking.equipmentId.name)
-                              : String(booking.equipmentId || 'Equipment')
-                          ) : '-'}
+                              ? booking.equipmentId.name || 'N/A'
+                              : 'N/A'
+                          ) : 'N/A'}
                         </TableCell>
                         <TableCell>
                           {format(new Date(booking.startTime), 'MMM d, yyyy h:mm a')}
@@ -268,7 +268,7 @@ const BookingsPage: React.FC = () => {
                                       : 'outline'
                                   }
                                 >
-                                  {booking.status.replace('_', ' ')}
+                                  {booking.status.charAt(0).toUpperCase() + booking.status.slice(1).replace('_', ' ')}
                                 </Badge>
                               </SelectValue>
                             </SelectTrigger>
@@ -284,17 +284,19 @@ const BookingsPage: React.FC = () => {
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" className="h-8 w-8 p-0">
-                                <span className="sr-only">Open menu</span>
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => setSelectedBooking(booking)}>
+                              <DropdownMenuItem onClick={() => {
+                                setSelectedBooking(booking);
+                                setShowBookingForm(true);
+                              }}>
                                 Edit
                               </DropdownMenuItem>
                               <DropdownMenuItem
-                                className="text-destructive"
                                 onClick={() => handleDeleteBooking(booking._id)}
+                                className="text-red-600"
                               >
                                 Delete
                               </DropdownMenuItem>

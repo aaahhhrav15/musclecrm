@@ -33,6 +33,8 @@ const BookingList: React.FC<BookingListProps> = ({
   totalPages,
   onPageChange,
 }) => {
+  console.log('Bookings data:', bookings);
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'scheduled':
@@ -61,6 +63,21 @@ const BookingList: React.FC<BookingListProps> = ({
     }
   };
 
+  const getServiceProvided = (booking: Booking) => {
+    if (!booking) return 'N/A';
+
+    switch (booking.type) {
+      case 'class':
+        return booking.className || 'N/A';
+      case 'personal_training':
+        return booking.trainerName || 'N/A';
+      case 'equipment':
+        return booking.equipmentName || 'N/A';
+      default:
+        return 'N/A';
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -80,6 +97,7 @@ const BookingList: React.FC<BookingListProps> = ({
             <TableRow>
               <TableHead>Type</TableHead>
               <TableHead>Customer</TableHead>
+              <TableHead>Service Provided</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Time</TableHead>
               <TableHead>Status</TableHead>
@@ -91,6 +109,11 @@ const BookingList: React.FC<BookingListProps> = ({
               <TableRow key={booking._id}>
                 <TableCell>{getTypeLabel(booking.type)}</TableCell>
                 <TableCell>{booking.customerId?.name || 'N/A'}</TableCell>
+                <TableCell>
+                  {booking.type === 'class' && booking.classId}
+                  {booking.type === 'personal_training' && booking.trainerId}
+                  {booking.type === 'equipment' && booking.equipmentId}
+                </TableCell>
                 <TableCell>
                   {format(new Date(booking.startTime), 'MMM dd, yyyy')}
                 </TableCell>

@@ -81,6 +81,10 @@ export function EditCustomerModal({ isOpen, onClose, customer }: EditCustomerMod
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       setIsSubmitting(true);
+      const oldFees = customer.membershipFees || 0;
+      const newFees = values.membershipFees || 0;
+      const feeDifference = newFees - oldFees;
+
       await CustomerService.updateCustomer(customer.id, {
         name: values.name,
         email: values.email,
@@ -91,6 +95,7 @@ export function EditCustomerModal({ isOpen, onClose, customer }: EditCustomerMod
         membershipType: values.membershipType,
         birthday: values.birthday,
         membershipFees: values.membershipFees,
+        totalSpent: customer.totalSpent + feeDifference
       });
       
       toast({
@@ -233,7 +238,11 @@ export function EditCustomerModal({ isOpen, onClose, customer }: EditCustomerMod
                       type="number" 
                       placeholder="Enter membership fees" 
                       {...field}
-                      onChange={(e) => field.onChange(Number(e.target.value))}
+                      value={field.value || ''}
+                      onChange={(e) => {
+                        const value = e.target.value === '' ? 0 : Number(e.target.value);
+                        field.onChange(value);
+                      }}
                       min={0}
                     />
                   </FormControl>

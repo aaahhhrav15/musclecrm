@@ -10,15 +10,18 @@ export interface InvoiceItem {
 
 export interface Invoice {
   _id: string;
+  userId: string;
   bookingId: string;
   customerId: string | { _id: string; name: string; email: string };
+  invoiceNumber: string;
   amount: number;
   currency: string;
   status: 'pending' | 'paid' | 'cancelled';
   dueDate: string;
+  items: InvoiceItem[];
+  notes?: string;
   createdAt: string;
   updatedAt: string;
-  items: InvoiceItem[];
 }
 
 export interface CreateInvoiceData {

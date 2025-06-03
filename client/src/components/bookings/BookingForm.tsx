@@ -100,6 +100,9 @@ const apiDataSchema = z.object({
   equipmentId: z.string().optional(),
   price: z.number().min(0),
   currency: z.string(),
+  className: z.string().optional(),
+  trainerName: z.string().optional(),
+  equipmentName: z.string().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -176,9 +179,9 @@ const BookingForm: React.FC<BookingFormProps> = ({
         endTime: new Date(booking.endTime),
         status: booking.status,
         notes: booking.notes || '',
-        classId: booking.classId || '',
-        trainerId: booking.trainerId || '',
-        equipmentId: booking.equipmentId || '',
+        classId: typeof booking.classId === 'string' ? booking.classId : booking.classId?._id || '',
+        trainerId: typeof booking.trainerId === 'string' ? booking.trainerId : booking.trainerId?._id || '',
+        equipmentId: typeof booking.equipmentId === 'string' ? booking.equipmentId : booking.equipmentId?._id || '',
         price: booking.price,
         currency: booking.currency || 'INR',
       }
@@ -216,15 +219,30 @@ const BookingForm: React.FC<BookingFormProps> = ({
         currency: values.currency,
       };
 
+      // Add service names based on type
+      if (apiData.type === 'class') {
+        apiData.classId = values.classId;
+        apiData.className = values.classId;
+      } else if (apiData.type === 'personal_training') {
+        apiData.trainerId = values.trainerId;
+        apiData.trainerName = values.trainerId;
+      } else if (apiData.type === 'equipment') {
+        apiData.equipmentId = values.equipmentId;
+        apiData.equipmentName = values.equipmentId;
+      }
+
       // Clear type-specific fields that aren't needed
       if (apiData.type !== 'class') {
         apiData.classId = undefined;
+        apiData.className = undefined;
       }
       if (apiData.type !== 'personal_training') {
         apiData.trainerId = undefined;
+        apiData.trainerName = undefined;
       }
       if (apiData.type !== 'equipment') {
         apiData.equipmentId = undefined;
+        apiData.equipmentName = undefined;
       }
 
       // Validate required fields based on booking type
@@ -441,6 +459,8 @@ const BookingForm: React.FC<BookingFormProps> = ({
                       <SelectContent>
                         <SelectItem value="class1">Class 1</SelectItem>
                         <SelectItem value="class2">Class 2</SelectItem>
+                        <SelectItem value="class3">Class 3</SelectItem>
+                        <SelectItem value="class4">Class 4</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -468,6 +488,8 @@ const BookingForm: React.FC<BookingFormProps> = ({
                       <SelectContent>
                         <SelectItem value="trainer1">Trainer 1</SelectItem>
                         <SelectItem value="trainer2">Trainer 2</SelectItem>
+                        <SelectItem value="trainer3">Trainer 3</SelectItem>
+                        <SelectItem value="trainer4">Trainer 4</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />

@@ -116,6 +116,7 @@ router.post('/', auth, async (req, res) => {
     const customer = await Customer.create({
       userId: req.user._id,
       ...customerData,
+      membershipFees: membershipFees || 0,
       totalSpent: membershipFees || 0
     });
 
@@ -150,17 +151,40 @@ router.post('/', auth, async (req, res) => {
 // Update customer
 router.put('/:id', auth, async (req, res) => {
   try {
-    const { name, email, phone, address, source, notes, membershipType, birthday } = req.body;
+    const { name, email, phone, address, source, notes, membershipType, birthday, membershipFees } = req.body;
+    
+    // First get the current customer to calculate the total spent difference
+    const currentCustomer = await Customer.findOne({ 
+      _id: req.params.id, 
+      userId: req.user._id 
+    });
+    
+    if (!currentCustomer) {
+      return res.status(404).json({ success: false, message: 'Customer not found' });
+    }
+
+    // Calculate the new total spent
+    const oldFees = currentCustomer.membershipFees || 0;
+    const newFees = membershipFees || 0;
+    const feeDifference = newFees - oldFees;
+    const newTotalSpent = currentCustomer.totalSpent + feeDifference;
     
     const customer = await Customer.findOneAndUpdate(
       { _id: req.params.id, userId: req.user._id },
-      { name, email, phone, address, source, notes, membershipType, birthday },
+      { 
+        name, 
+        email, 
+        phone, 
+        address, 
+        source, 
+        notes, 
+        membershipType, 
+        birthday, 
+        membershipFees: newFees,
+        totalSpent: newTotalSpent
+      },
       { new: true, runValidators: true }
     );
-    
-    if (!customer) {
-      return res.status(404).json({ success: false, message: 'Customer not found' });
-    }
     
     res.json({ success: true, customer });
   } catch (error) {

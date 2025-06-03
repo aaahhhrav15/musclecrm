@@ -43,10 +43,7 @@ router.get('/', auth, async (req, res) => {
       limit: parseInt(limit),
       sort: { startTime: -1 },
       populate: [
-        { path: 'customerId', select: 'name email phone' },
-        { path: 'trainerId', select: 'name email' },
-        { path: 'classId', select: 'name description' },
-        { path: 'equipmentId', select: 'name description' }
+        { path: 'customerId', select: 'name email phone' }
       ]
     };
 
@@ -129,6 +126,9 @@ router.post('/', auth, async (req, res) => {
       trainerId,
       classId,
       equipmentId,
+      trainerName,
+      className,
+      equipmentName,
       notes,
       price,
       currency
@@ -144,6 +144,9 @@ router.post('/', auth, async (req, res) => {
       trainerId,
       classId,
       equipmentId,
+      trainerName,
+      className,
+      equipmentName,
       notes,
       price,
       currency,

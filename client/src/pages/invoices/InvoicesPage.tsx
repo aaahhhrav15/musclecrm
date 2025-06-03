@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { Download, Filter, MoreHorizontal } from 'lucide-react';
+import { Download, Filter, MoreHorizontal, Plus } from 'lucide-react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -55,7 +55,6 @@ const InvoicesPage: React.FC = () => {
     queryFn: async () => {
       try {
         const response = await InvoiceService.getInvoices();
-        console.log('Fetched invoices:', response);
         return response;
       } catch (error) {
         console.error('Error fetching invoices:', error);
@@ -71,11 +70,12 @@ const InvoicesPage: React.FC = () => {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `invoice-${invoice._id}.pdf`;
+      a.download = `invoice-${invoice.invoiceNumber}.pdf`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+      toast.success('Invoice downloaded successfully');
     } catch (error) {
       console.error('Error downloading invoice:', error);
       toast.error('Failed to download invoice');
@@ -167,99 +167,98 @@ const InvoicesPage: React.FC = () => {
               <Filter className="w-4 h-4 mr-2" />
               Filters
             </Button>
+            <Button>
+              <Plus className="w-4 h-4 mr-2" />
+              New Invoice
+            </Button>
           </div>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>Invoices</CardTitle>
+            <CardTitle>All Invoices</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Invoice ID</TableHead>
                     <TableHead>Customer</TableHead>
-                    <TableHead>Amount</TableHead>
+                    <TableHead>Invoice Number</TableHead>
                     <TableHead>Due Date</TableHead>
+                    <TableHead>Amount</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {invoices && invoices.length > 0 ? (
-                    invoices.map((invoice) => (
-                      <TableRow key={invoice._id}>
-                        <TableCell>{invoice._id}</TableCell>
-                        <TableCell>
-                          {typeof invoice.customerId === 'object' 
-                            ? invoice.customerId.name 
-                            : 'Loading...'}
-                        </TableCell>
-                        <TableCell>{formatCurrency(invoice.amount, invoice.currency)}</TableCell>
-                        <TableCell>
-                          {format(new Date(invoice.dueDate), 'MMM dd, yyyy')}
-                        </TableCell>
-                        <TableCell>
-                          <Select
-                            defaultValue={invoice.status}
-                            onValueChange={(value) => handleStatusChange(invoice._id, value as 'pending' | 'paid' | 'cancelled')}
-                          >
-                            <SelectTrigger className="w-[130px]">
-                              <SelectValue>
-                                <Badge
-                                  variant={
-                                    invoice.status === 'paid'
-                                      ? 'default'
-                                      : invoice.status === 'cancelled'
-                                      ? 'destructive'
-                                      : 'outline'
-                                  }
-                                >
-                                  {invoice.status}
-                                </Badge>
-                              </SelectValue>
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="pending">Pending</SelectItem>
-                              <SelectItem value="paid">Paid</SelectItem>
-                              <SelectItem value="cancelled">Cancelled</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDownloadInvoice(invoice)}
-                            >
-                              <Download className="h-4 w-4" />
+                  {invoices?.map((invoice) => (
+                    <TableRow key={invoice._id}>
+                      <TableCell>
+                        {typeof invoice.customerId === 'string' 
+                          ? 'Loading...' 
+                          : invoice.customerId?.name || 'N/A'}
+                      </TableCell>
+                      <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
+                      <TableCell>
+                        {format(new Date(invoice.dueDate), 'MMM d, yyyy')}
+                      </TableCell>
+                      <TableCell>
+                        {formatCurrency(invoice.amount, invoice.currency)}
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          defaultValue={invoice.status}
+                          onValueChange={(value) => handleStatusChange(invoice._id, value as 'pending' | 'paid' | 'cancelled')}
+                        >
+                          <SelectTrigger className="w-[130px]">
+                            <SelectValue>
+                              <Badge
+                                variant={
+                                  invoice.status === 'paid'
+                                    ? 'default'
+                                    : invoice.status === 'cancelled'
+                                    ? 'destructive'
+                                    : 'secondary'
+                                }
+                              >
+                                {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+                              </Badge>
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="paid">Paid</SelectItem>
+                            <SelectItem value="cancelled">Cancelled</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <MoreHorizontal className="h-4 w-4" />
                             </Button>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="h-8 w-8 p-0">
-                                  <span className="sr-only">Open menu</span>
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem
-                                  className="text-destructive"
-                                  onClick={() => handleDeleteInvoice(invoice)}
-                                >
-                                  Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleDownloadInvoice(invoice)}>
+                              <Download className="w-4 h-4 mr-2" />
+                              Download
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleDeleteInvoice(invoice)}
+                              className="text-red-600"
+                            >
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {(!invoices || invoices.length === 0) && (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-4">
+                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                         No invoices found
                       </TableCell>
                     </TableRow>

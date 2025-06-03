@@ -81,6 +81,7 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
         source: values.source,
         membershipType: values.membershipType,
         membershipFees: values.membershipFees,
+        totalSpent: values.membershipFees,
         notes: values.notes || '',
         birthday: values.birthday
       });
@@ -230,7 +231,11 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                         type="number" 
                         placeholder="Enter membership fees" 
                         {...field}
-                        onChange={(e) => field.onChange(Number(e.target.value))}
+                        value={field.value || ''}
+                        onChange={(e) => {
+                          const value = e.target.value === '' ? 0 : Number(e.target.value);
+                          field.onChange(value);
+                        }}
                         min={0}
                       />
                     </FormControl>

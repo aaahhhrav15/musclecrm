@@ -9,8 +9,11 @@ export interface Booking {
   startTime: string;
   endTime: string;
   classId?: string | { _id: string; name: string };
+  className?: string;
   trainerId?: string | { _id: string; name: string };
+  trainerName?: string;
   equipmentId?: string | { _id: string; name: string };
+  equipmentName?: string;
   status: 'scheduled' | 'completed' | 'cancelled' | 'no_show';
   notes?: string;
   createdBy: string;
@@ -39,8 +42,11 @@ export interface CreateBookingData {
   startTime: string;
   endTime: string;
   classId?: string;
+  className?: string;
   trainerId?: string;
+  trainerName?: string;
   equipmentId?: string;
+  equipmentName?: string;
   notes?: string;
   price: number;
   currency: string;
