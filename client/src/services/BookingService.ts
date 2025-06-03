@@ -8,9 +8,9 @@ export interface Booking {
   type: 'class' | 'personal_training' | 'equipment';
   startTime: string;
   endTime: string;
-  classId?: string;
-  trainerId?: string;
-  equipmentId?: string;
+  classId?: string | { _id: string; name: string };
+  trainerId?: string | { _id: string; name: string };
+  equipmentId?: string | { _id: string; name: string };
   status: 'scheduled' | 'completed' | 'cancelled' | 'no_show';
   notes?: string;
   createdBy: string;
@@ -129,18 +129,29 @@ export class BookingService {
     }
   }
 
-  static async createBooking(data: CreateBookingData): Promise<{ success: boolean; booking?: Booking; message?: string }> {
+  static async createBooking(data: CreateBookingData): Promise<{ success: boolean; message?: string; booking?: Booking; invoiceError?: string }> {
     try {
       console.log('Creating booking with data:', data);
-      const response = await axios.post(`${API_URL}/bookings`, data, { withCredentials: true });
-      return response.data;
+      const response = await axios.post(`${API_URL}/bookings`, data, {
+        withCredentials: true
+      });
+      console.log('Booking creation response:', response.data);
+      
+      if (response.data.success) {
+        return {
+          success: true,
+          message: response.data.message || 'Booking created successfully',
+          booking: response.data.booking
+        };
+      } else {
+        return {
+          success: false,
+          message: response.data.message || 'Failed to create booking'
+        };
+      }
     } catch (error) {
       console.error('Error creating booking:', error);
-      if (axios.isAxiosError(error)) {
-        const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message;
-        return { success: false, message: errorMessage };
-      }
-      return { success: false, message: 'Failed to create booking' };
+      throw error;
     }
   }
 

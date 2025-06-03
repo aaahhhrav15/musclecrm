@@ -245,7 +245,14 @@ const BookingForm: React.FC<BookingFormProps> = ({
       const response = await onSubmit(apiData);
       
       if (response?.success) {
+        // Show success message
         toast.success(response.message || (booking ? 'Booking updated successfully' : 'Booking created successfully'));
+        
+        // If there was an invoice error, show a warning
+        if (response.message?.includes('invoice creation failed')) {
+          toast.warning('Note: Invoice creation failed, but booking was successful');
+        }
+        
         // Close the form
         onClose();
         // Invalidate and refetch bookings query

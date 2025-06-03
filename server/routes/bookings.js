@@ -125,204 +125,83 @@ router.post('/', auth, async (req, res) => {
       type,
       startTime,
       endTime,
-      classId,
       trainerId,
+      classId,
       equipmentId,
       notes,
-      status,
       price,
       currency
     } = req.body;
 
-    console.log('Received booking data:', req.body);
-
-    // Validate customer exists
-    const customer = await Customer.findOne({ _id: customerId, userId: req.user._id });
-    if (!customer) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Customer not found',
-        details: `No customer found with ID: ${customerId}`
-      });
-    }
-
-    // Check for overlapping bookings
-    const overlappingBooking = await Booking.findOne({
-      userId: req.user._id,
-      $or: [
-        // New booking starts during an existing booking
-        {
-          startTime: { $lte: new Date(startTime) },
-          endTime: { $gt: new Date(startTime) }
-        },
-        // New booking ends during an existing booking
-        {
-          startTime: { $lt: new Date(endTime) },
-          endTime: { $gte: new Date(endTime) }
-        },
-        // New booking completely contains an existing booking
-        {
-          startTime: { $gte: new Date(startTime) },
-          endTime: { $lte: new Date(endTime) }
-        }
-      ]
-    });
-
-    if (overlappingBooking) {
-      return res.status(400).json({
-        success: false,
-        message: 'A booking already exists for this time slot',
-        details: {
-          existingBooking: {
-            startTime: overlappingBooking.startTime,
-            endTime: overlappingBooking.endTime,
-            type: overlappingBooking.type
-          }
-        }
-      });
-    }
-
-    // For class bookings, validate class exists
-    if (type === 'class') {
-      if (!classId) {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Class ID is required for class bookings' 
-        });
-      }
-      // Since we're using static class IDs, we'll just validate it's not empty
-      if (typeof classId !== 'string' || classId.trim() === '') {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid class ID'
-        });
-      }
-    }
-
-    // For personal training, validate trainer exists
-    if (type === 'personal_training') {
-      if (!trainerId) {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Trainer ID is required for personal training bookings' 
-        });
-      }
-      // Since we're using trainer names, we'll just validate it's not empty
-      if (typeof trainerId !== 'string' || trainerId.trim() === '') {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid trainer name'
-        });
-      }
-    }
-
-    // For equipment bookings, validate equipment exists
-    if (type === 'equipment') {
-      if (!equipmentId) {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Equipment ID is required for equipment bookings' 
-        });
-      }
-      // Since we're using equipment names, we'll just validate it's not empty
-      if (typeof equipmentId !== 'string' || equipmentId.trim() === '') {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid equipment name'
-        });
-      }
-    }
-
-    // Validate dates
-    if (!startTime || !endTime) {
-      return res.status(400).json({
-        success: false,
-        message: 'Start time and end time are required'
-      });
-    }
-
-    // Validate price
-    if (!price || price < 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Valid price is required'
-      });
-    }
-
-    // Create a simplified booking object
-    const bookingData = {
+    // Create the booking
+    const booking = await Booking.create({
       userId: req.user._id,
       customerId,
       type,
       startTime,
       endTime,
+      trainerId,
+      classId,
+      equipmentId,
       notes,
-      status,
-      createdBy: req.user._id,
       price,
-      currency: currency || 'INR'
-    };
+      currency,
+      status: 'scheduled',
+      createdBy: req.user._id
+    });
 
-    // Add type-specific fields
-    if (type === 'class') {
-      bookingData.classId = classId;
-    } else if (type === 'personal_training') {
-      bookingData.trainerId = trainerId;
-    } else if (type === 'equipment') {
-      bookingData.equipmentId = equipmentId;
-    }
+    // Populate the booking with customer and trainer/class/equipment details
+    const populatedBooking = await Booking.findById(booking._id)
+      .populate('customerId', 'name email')
+      .populate('trainerId', 'name')
+      .populate('classId', 'name')
+      .populate('equipmentId', 'name');
 
-    const newBooking = await Booking.create(bookingData);
-    let invoice = null;
-
+    // Create invoice
     try {
-      // Create invoice for the booking
-      invoice = new Invoice({
-        bookingId: newBooking._id,
-        customerId: newBooking.customerId,
-        amount: newBooking.price,
-        currency: newBooking.currency,
-        dueDate: addDays(new Date(), 7), // Due in 7 days
+      const invoiceNumber = `INV-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const invoice = await Invoice.create({
+        userId: req.user._id,
+        bookingId: booking._id,
+        customerId,
+        amount: price,
+        currency,
+        status: 'pending',
+        invoiceNumber,
+        dueDate: new Date(endTime),
         items: [{
-          description: `${newBooking.type} booking`,
+          description: `${type.replace('_', ' ')} booking`,
           quantity: 1,
-          unitPrice: newBooking.price,
-          amount: newBooking.price
+          unitPrice: price,
+          amount: price
         }]
       });
-      await invoice.save();
+
+      // Update booking with invoice ID
+      await Booking.findByIdAndUpdate(booking._id, { invoiceId: invoice._id });
+
+      res.status(201).json({
+        success: true,
+        message: 'Booking created successfully',
+        booking: populatedBooking,
+        invoice
+      });
     } catch (invoiceError) {
       console.error('Error creating invoice:', invoiceError);
-      // Continue with the response even if invoice creation fails
-    }
-
-    const populatedBooking = await Booking.findById(newBooking._id)
-      .populate('customerId', 'name email phone');
-
-    return res.status(201).json({ 
-      success: true, 
-      booking: populatedBooking, 
-      invoice,
-      message: 'Booking created successfully'
-    });
-  } catch (error) {
-    console.error('Create booking error:', error);
-    
-    // Handle validation errors
-    if (error.name === 'ValidationError') {
-      const messages = Object.values(error.errors).map(err => err.message);
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Validation error', 
-        errors: messages 
+      // Still return success for booking creation
+      res.status(201).json({
+        success: true,
+        message: 'Booking created successfully',
+        booking: populatedBooking,
+        invoiceError: invoiceError.message
       });
     }
-
-    // Handle other errors
-    return res.status(500).json({ 
-      success: false, 
+  } catch (error) {
+    console.error('Create booking error:', error);
+    res.status(500).json({
+      success: false,
       message: 'Error creating booking',
-      error: error.message 
+      error: error.message
     });
   }
 });

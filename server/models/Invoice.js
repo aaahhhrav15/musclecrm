@@ -23,6 +23,11 @@ const invoiceItemSchema = new mongoose.Schema({
 });
 
 const invoiceSchema = new mongoose.Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
   bookingId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Booking',
@@ -68,5 +73,11 @@ invoiceSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
   next();
 });
+
+// Add indexes for common queries
+invoiceSchema.index({ userId: 1, createdAt: -1 });
+invoiceSchema.index({ bookingId: 1 });
+invoiceSchema.index({ customerId: 1 });
+invoiceSchema.index({ status: 1 });
 
 module.exports = mongoose.model('Invoice', invoiceSchema);
