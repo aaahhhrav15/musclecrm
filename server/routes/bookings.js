@@ -159,7 +159,20 @@ router.post('/', auth, async (req, res) => {
 
     // Create invoice
     try {
-      const invoiceNumber = `INV-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      // Check if invoice already exists for this booking
+      const existingInvoice = await Invoice.findOne({ bookingId: booking._id });
+      if (existingInvoice) {
+        console.log('Invoice already exists for this booking:', existingInvoice._id);
+        res.status(201).json({
+          success: true,
+          message: 'Booking created successfully',
+          booking: populatedBooking,
+          invoice: existingInvoice
+        });
+        return;
+      }
+
+      // Create new invoice
       const invoice = await Invoice.create({
         userId: req.user._id,
         bookingId: booking._id,
@@ -167,7 +180,6 @@ router.post('/', auth, async (req, res) => {
         amount: price,
         currency,
         status: 'pending',
-        invoiceNumber,
         dueDate: new Date(endTime),
         items: [{
           description: `${type.replace('_', ' ')} booking`,

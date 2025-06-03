@@ -38,6 +38,12 @@ const invoiceSchema = new mongoose.Schema({
     ref: 'Customer',
     required: true
   },
+  invoiceNumber: {
+    type: String,
+    required: true,
+    unique: true,
+    default: () => `INV-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+  },
   amount: {
     type: Number,
     required: true,
@@ -58,6 +64,7 @@ const invoiceSchema = new mongoose.Schema({
     required: true
   },
   items: [invoiceItemSchema],
+  notes: String,
   createdAt: {
     type: Date,
     default: Date.now
@@ -70,7 +77,15 @@ const invoiceSchema = new mongoose.Schema({
 
 // Update the updatedAt timestamp before saving
 invoiceSchema.pre('save', function(next) {
-  this.updatedAt = Date.now();
+  this.updatedAt = new Date();
+  next();
+});
+
+// Ensure invoice number is set before saving
+invoiceSchema.pre('save', function(next) {
+  if (!this.invoiceNumber) {
+    this.invoiceNumber = `INV-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  }
   next();
 });
 
@@ -80,4 +95,6 @@ invoiceSchema.index({ bookingId: 1 });
 invoiceSchema.index({ customerId: 1 });
 invoiceSchema.index({ status: 1 });
 
-module.exports = mongoose.model('Invoice', invoiceSchema);
+const Invoice = mongoose.model('Invoice', invoiceSchema);
+
+module.exports = Invoice;
