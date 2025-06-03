@@ -9,10 +9,8 @@ export interface Customer {
   source?: string;
   notes?: string;
   membershipType?: string;
-  joinDate: string;
-  birthday?: string;
+  membershipFees: number;
   totalSpent: number;
-  lastVisit?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -27,10 +25,8 @@ interface ApiCustomersResponse extends ApiResponse {
     source?: string;
     notes?: string;
     membershipType?: string;
-    joinDate: string;
-    birthday?: string;
+    membershipFees: number;
     totalSpent: number;
-    lastVisit?: string;
     createdAt: string;
     updatedAt: string;
   }>;
@@ -47,13 +43,23 @@ interface ApiCustomerResponse extends ApiResponse {
     source?: string;
     notes?: string;
     membershipType?: string;
-    joinDate: string;
-    birthday?: string;
+    membershipFees: number;
     totalSpent: number;
-    lastVisit?: string;
     createdAt: string;
     updatedAt: string;
   };
+}
+
+export interface CustomerFormData {
+  name: string;
+  email: string;
+  phone?: string;
+  address?: string;
+  source: 'website' | 'referral' | 'walk-in' | 'social_media' | 'other';
+  membershipType: 'none' | 'basic' | 'premium' | 'vip';
+  membershipFees: number;
+  notes?: string;
+  birthday?: Date;
 }
 
 export interface CustomerFilterOptions {
@@ -75,10 +81,8 @@ const mapCustomerFromApi = (apiCustomer: any): Customer => ({
   source: apiCustomer.source,
   notes: apiCustomer.notes,
   membershipType: apiCustomer.membershipType,
-  joinDate: apiCustomer.joinDate,
-  birthday: apiCustomer.birthday,
+  membershipFees: apiCustomer.membershipFees || 0,
   totalSpent: apiCustomer.totalSpent || 0,
-  lastVisit: apiCustomer.lastVisit,
   createdAt: apiCustomer.createdAt,
   updatedAt: apiCustomer.updatedAt
 });
@@ -142,15 +146,10 @@ export const CustomerService = {
   /**
    * Create a new customer
    */
-  createCustomer: async (customerData: Omit<Customer, 'id' | 'totalSpent' | 'createdAt' | 'updatedAt'>): Promise<Customer> => {
+  createCustomer: async (customerData: CustomerFormData): Promise<ApiResponse> => {
     try {
-      const response = await ApiService.post<ApiCustomerResponse>('/customers', customerData);
-      
-      if (response.success) {
-        return mapCustomerFromApi(response.customer);
-      } else {
-        throw new Error(response.message || 'Failed to create customer');
-      }
+      const response = await ApiService.post<ApiResponse>('/customers', customerData);
+      return response;
     } catch (error) {
       console.error('Error creating customer:', error);
       throw error;
@@ -160,7 +159,7 @@ export const CustomerService = {
   /**
    * Update an existing customer
    */
-  updateCustomer: async (id: string, customerData: Partial<Customer>): Promise<Customer> => {
+  updateCustomer: async (id: string, customerData: Partial<CustomerFormData>): Promise<Customer> => {
     try {
       const response = await ApiService.put<ApiCustomerResponse>(`/customers/${id}`, customerData);
       

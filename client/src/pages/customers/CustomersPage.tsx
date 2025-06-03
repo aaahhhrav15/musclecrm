@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Search, Filter, MoreVertical, Pencil, Trash2 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { Plus, Search, Filter, MoreVertical, Pencil, Trash2, MoreHorizontal } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
+import { ColumnDef } from '@tanstack/react-table';
+import { CustomerService, Customer } from '@/services/CustomerService';
+import { useToast } from '@/hooks/use-toast';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,12 +23,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { CustomerService, Customer } from '@/services/CustomerService';
-import { format } from 'date-fns';
 import { AddCustomerModal } from '@/components/customers/AddCustomerModal';
 import { EditCustomerModal } from '@/components/customers/EditCustomerModal';
+import { formatDate } from '@/lib/utils';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { FilterModal } from '@/components/customers/FilterModal';
-import { useToast } from '@/hooks/use-toast';
 
 interface FilterState {
   membershipType?: string;
@@ -33,46 +37,145 @@ interface FilterState {
   sortOrder?: 'asc' | 'desc';
 }
 
-const CustomersPage: React.FC = () => {
+const columns: ColumnDef<Customer>[] = [
+  {
+    accessorKey: "name",
+    header: "Name",
+    cell: ({ row }) => {
+      const customer = row.original;
+      return (
+        <div className="flex items-center gap-2">
+          <Avatar className="h-8 w-8">
+            <AvatarFallback>
+              {customer.name.charAt(0).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <div>
+            <div className="font-medium">{customer.name}</div>
+            <div className="text-sm text-muted-foreground">{customer.email}</div>
+          </div>
+        </div>
+      );
+    },
+  },
+  {
+    accessorKey: "phone",
+    header: "Phone",
+  },
+  {
+    accessorKey: "membershipType",
+    header: "Membership",
+    cell: ({ row }) => {
+      const membershipType = row.original.membershipType;
+      return (
+        <Badge variant={
+          membershipType === 'vip' ? 'default' :
+          membershipType === 'premium' ? 'secondary' :
+          membershipType === 'basic' ? 'outline' :
+          'secondary'
+        }>
+          {membershipType.charAt(0).toUpperCase() + membershipType.slice(1)}
+        </Badge>
+      );
+    },
+  },
+  {
+    accessorKey: "membershipFees",
+    header: "Membership Fees",
+    cell: ({ row }) => {
+      const fees = row.original.membershipFees;
+      return fees ? `$${fees.toFixed(2)}` : '-';
+    },
+  },
+  {
+    accessorKey: "totalSpent",
+    header: "Total Spent",
+    cell: ({ row }) => {
+      const total = row.original.totalSpent;
+      return `$${total.toFixed(2)}`;
+    },
+  },
+  {
+    accessorKey: "source",
+    header: "Source",
+    cell: ({ row }) => {
+      const source = row.original.source;
+      return source.charAt(0).toUpperCase() + source.slice(1).replace('_', ' ');
+    },
+  },
+  {
+    id: "actions",
+    cell: ({ row }) => {
+      const customer = row.original;
+      return (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-8 w-8 p-0">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => setEditingCustomer(customer)}>
+              Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => handleDelete(customer.id)}
+              className="text-red-600"
+            >
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      );
+    },
+  },
+];
+
+export function CustomersPage() {
   const { toast } = useToast();
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [page, setPage] = useState(1);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [filters, setFilters] = useState<FilterState>({});
   const limit = 10;
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['customers', search, page, filters],
-    queryFn: () => CustomerService.getCustomers({ search, page, ...filters }),
+    queryKey: ['customers', searchQuery, page],
+    queryFn: () => CustomerService.getCustomers({ search: searchQuery, page }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: CustomerService.deleteCustomer,
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Customer deleted successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete customer",
+        variant: "destructive",
+      });
+    },
   });
 
   const handleDelete = async (customerId: string) => {
     if (window.confirm('Are you sure you want to delete this customer?')) {
-      try {
-        await CustomerService.deleteCustomer(customerId);
-        toast({
-          title: 'Success',
-          description: 'Customer deleted successfully',
-        });
-      } catch (error) {
-        toast({
-          title: 'Error',
-          description: error instanceof Error ? error.message : 'Failed to delete customer',
-          variant: 'destructive',
-        });
-      }
+      deleteMutation.mutate(customerId);
     }
   };
 
   const handleFilterApply = (newFilters: FilterState) => {
     setFilters(newFilters);
     setPage(1); // Reset to first page when filters change
-  };
-
-  const formatDate = (date: string) => {
-    return format(new Date(date), 'MMM d, yyyy');
   };
 
   if (isLoading) {
@@ -123,8 +226,8 @@ const CustomersPage: React.FC = () => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <Input
               placeholder="Search customers..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9"
             />
           </div>
@@ -142,8 +245,9 @@ const CustomersPage: React.FC = () => {
                 <TableHead>Email</TableHead>
                 <TableHead>Phone</TableHead>
                 <TableHead>Membership Type</TableHead>
-                <TableHead>Last Visit</TableHead>
+                <TableHead>Membership Fees</TableHead>
                 <TableHead>Total Spent</TableHead>
+                <TableHead>Source</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -154,13 +258,14 @@ const CustomersPage: React.FC = () => {
                   <TableCell>{customer.email}</TableCell>
                   <TableCell>{customer.phone || '-'}</TableCell>
                   <TableCell>{customer.membershipType || '-'}</TableCell>
-                  <TableCell>{customer.lastVisit ? formatDate(customer.lastVisit) : '-'}</TableCell>
+                  <TableCell>Rs. {customer.membershipFees?.toLocaleString() || '-'}</TableCell>
                   <TableCell>Rs. {customer.totalSpent.toLocaleString()}</TableCell>
+                  <TableCell>{customer.source || '-'}</TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="h-8 w-8 p-0">
-                          <MoreVertical className="h-4 w-4" />
+                          <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
@@ -234,6 +339,6 @@ const CustomersPage: React.FC = () => {
       </div>
     </DashboardLayout>
   );
-};
+}
 
 export default CustomersPage;

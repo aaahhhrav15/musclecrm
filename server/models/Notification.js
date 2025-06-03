@@ -1,10 +1,14 @@
-
 const mongoose = require('mongoose');
 
-const NotificationSchema = new mongoose.Schema({
+const notificationSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
+    required: true
+  },
+  type: {
+    type: String,
+    enum: ['booking_created', 'customer_created', 'booking_updated', 'booking_cancelled', 'invoice_created', 'invoice_paid'],
     required: true
   },
   title: {
@@ -15,20 +19,24 @@ const NotificationSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  type: {
-    type: String,
-    enum: ['info', 'success', 'warning', 'error'],
-    default: 'info'
+  data: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {}
   },
   read: {
     type: Boolean,
     default: false
   },
-  link: String,
   createdAt: {
     type: Date,
     default: Date.now
   }
 });
 
-module.exports = mongoose.model('Notification', NotificationSchema);
+// Add indexes for common queries
+notificationSchema.index({ userId: 1, createdAt: -1 });
+notificationSchema.index({ userId: 1, read: 1 });
+
+const Notification = mongoose.model('Notification', notificationSchema);
+
+module.exports = Notification;

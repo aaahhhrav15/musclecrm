@@ -4,6 +4,7 @@ const auth = require('../middleware/auth');
 const Booking = require('../models/Booking');
 const Customer = require('../models/Customer');
 const Invoice = require('../models/Invoice');
+const Notification = require('../models/Notification');
 const { addDays } = require('date-fns');
 
 // Get all bookings with filters
@@ -157,6 +158,24 @@ router.post('/', auth, async (req, res) => {
       .populate('classId', 'name')
       .populate('equipmentId', 'name');
 
+    // Update customer's total spent
+    await Customer.findByIdAndUpdate(customerId, {
+      $inc: { totalSpent: price }
+    });
+
+    // Create notification for booking creation
+    const notification = await Notification.create({
+      userId: req.user._id,
+      type: 'booking_created',
+      title: 'New Booking Created',
+      message: `A new ${type.replace('_', ' ')} booking has been created for ${populatedBooking.customerId.name}`,
+      data: {
+        bookingId: booking._id,
+        type,
+        customerName: populatedBooking.customerId.name
+      }
+    });
+
     // Create invoice
     try {
       // Check if invoice already exists for this booking
@@ -167,7 +186,8 @@ router.post('/', auth, async (req, res) => {
           success: true,
           message: 'Booking created successfully',
           booking: populatedBooking,
-          invoice: existingInvoice
+          invoice: existingInvoice,
+          notification
         });
         return;
       }
@@ -189,6 +209,20 @@ router.post('/', auth, async (req, res) => {
         }]
       });
 
+      // Create notification for invoice creation
+      const invoiceNotification = await Notification.create({
+        userId: req.user._id,
+        type: 'invoice_created',
+        title: 'New Invoice Created',
+        message: `An invoice has been created for the ${type.replace('_', ' ')} booking`,
+        data: {
+          bookingId: booking._id,
+          invoiceId: invoice._id,
+          amount: price,
+          currency
+        }
+      });
+
       // Update booking with invoice ID
       await Booking.findByIdAndUpdate(booking._id, { invoiceId: invoice._id });
 
@@ -196,7 +230,8 @@ router.post('/', auth, async (req, res) => {
         success: true,
         message: 'Booking created successfully',
         booking: populatedBooking,
-        invoice
+        invoice,
+        notifications: [notification, invoiceNotification]
       });
     } catch (invoiceError) {
       console.error('Error creating invoice:', invoiceError);
@@ -205,6 +240,7 @@ router.post('/', auth, async (req, res) => {
         success: true,
         message: 'Booking created successfully',
         booking: populatedBooking,
+        notification,
         invoiceError: invoiceError.message
       });
     }

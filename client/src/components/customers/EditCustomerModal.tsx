@@ -49,6 +49,7 @@ const formSchema = z.object({
   notes: z.string().optional(),
   membershipType: z.string().optional(),
   birthday: z.date().optional(),
+  membershipFees: z.number().min(0, 'Membership fees must be a positive number'),
 });
 
 interface EditCustomerModalProps {
@@ -60,6 +61,8 @@ interface EditCustomerModalProps {
 export function EditCustomerModal({ isOpen, onClose, customer }: EditCustomerModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -71,12 +74,24 @@ export function EditCustomerModal({ isOpen, onClose, customer }: EditCustomerMod
       notes: customer.notes || '',
       membershipType: customer.membershipType || '',
       birthday: customer.birthday ? new Date(customer.birthday) : undefined,
+      membershipFees: customer.membershipFees || 0,
     },
   });
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      await CustomerService.updateCustomer(customer.id, values);
+      setIsSubmitting(true);
+      await CustomerService.updateCustomer(customer.id, {
+        name: values.name,
+        email: values.email,
+        phone: values.phone || '',
+        address: values.address || '',
+        source: values.source,
+        notes: values.notes || '',
+        membershipType: values.membershipType,
+        birthday: values.birthday,
+        membershipFees: values.membershipFees,
+      });
       
       toast({
         title: 'Success',
@@ -91,6 +106,8 @@ export function EditCustomerModal({ isOpen, onClose, customer }: EditCustomerMod
         description: error instanceof Error ? error.message : 'Failed to update customer',
         variant: 'destructive',
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -207,6 +224,26 @@ export function EditCustomerModal({ isOpen, onClose, customer }: EditCustomerMod
             
             <FormField
               control={form.control}
+              name="membershipFees"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Membership Fees (₹)</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      placeholder="Enter membership fees" 
+                      {...field}
+                      onChange={(e) => field.onChange(Number(e.target.value))}
+                      min={0}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
               name="birthday"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
@@ -269,7 +306,9 @@ export function EditCustomerModal({ isOpen, onClose, customer }: EditCustomerMod
               <Button type="button" variant="outline" onClick={onClose}>
                 Cancel
               </Button>
-              <Button type="submit">Save Changes</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? 'Saving...' : 'Save Changes'}
+              </Button>
             </DialogFooter>
           </form>
         </Form>

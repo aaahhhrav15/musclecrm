@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Bell, ChevronDown, Menu, User, LogOut, Settings, CreditCard } from 'lucide-react';
+import { ChevronDown, Menu, User, LogOut, Settings, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -18,6 +17,7 @@ import { useIndustry } from '@/context/IndustryContext';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
 import DashboardSidebar from './DashboardSidebar';
 import { Skeleton } from '@/components/ui/skeleton';
+import NotificationBell from '@/components/notifications/NotificationBell';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -92,14 +92,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             </h1>
           </div>
 
-          <div className="flex items-center space-x-4">
-            <Link to="/dashboard/notifications">
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="w-5 h-5" />
-                <span className="absolute w-2 h-2 bg-red-500 rounded-full -top-0.5 -right-0.5"></span>
-              </Button>
-            </Link>
-
+          <div className="flex items-center gap-4">
+            <NotificationBell />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 rounded-full" asChild>

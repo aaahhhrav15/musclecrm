@@ -1,6 +1,7 @@
 const express = require('express');
 const Customer = require('../models/Customer');
 const auth = require('../middleware/auth');
+const Notification = require('../models/Notification');
 
 const router = express.Router();
 
@@ -109,24 +110,40 @@ router.get('/:id', auth, async (req, res) => {
 // Create new customer
 router.post('/', auth, async (req, res) => {
   try {
-    const { name, email, phone, address, source, notes, membershipType, birthday } = req.body;
+    const { membershipFees, ...customerData } = req.body;
     
-    const newCustomer = await Customer.create({
+    // Create customer with initial total spent from membership fees
+    const customer = await Customer.create({
       userId: req.user._id,
-      name,
-      email,
-      phone,
-      address,
-      source,
-      notes,
-      membershipType,
-      birthday
+      ...customerData,
+      totalSpent: membershipFees || 0
     });
-    
-    res.status(201).json({ success: true, customer: newCustomer });
+
+    // Create notification for customer creation
+    const notification = await Notification.create({
+      userId: req.user._id,
+      type: 'customer_created',
+      title: 'New Customer Added',
+      message: `A new customer ${customer.name} has been added to the system`,
+      data: {
+        customerId: customer._id,
+        customerName: customer.name
+      }
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Customer created successfully',
+      customer,
+      notification
+    });
   } catch (error) {
     console.error('Create customer error:', error);
-    res.status(500).json({ success: false, message: 'Error creating customer' });
+    res.status(500).json({
+      success: false,
+      message: 'Error creating customer',
+      error: error.message
+    });
   }
 });
 

@@ -1,7 +1,6 @@
-
 const mongoose = require('mongoose');
 
-const CustomerSchema = new mongoose.Schema({
+const customerSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -15,23 +14,46 @@ const CustomerSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  phone: String,
-  address: String,
-  source: String,
-  notes: String,
-  membershipType: String,
-  joinDate: {
-    type: Date,
-    default: Date.now
+  phone: {
+    type: String
   },
-  birthday: Date,
+  address: {
+    type: String
+  },
+  source: {
+    type: String,
+    enum: ['website', 'referral', 'walk-in', 'social_media', 'other'],
+    default: 'other'
+  },
+  membershipType: {
+    type: String,
+    enum: ['basic', 'premium', 'vip', 'none'],
+    default: 'none'
+  },
+  membershipFees: {
+    type: Number,
+    default: 0
+  },
   totalSpent: {
     type: Number,
     default: 0
   },
-  lastVisit: Date
-}, {
-  timestamps: true
+  notes: {
+    type: String
+  },
+  birthday: {
+    type: Date
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
 });
 
-module.exports = mongoose.model('Customer', CustomerSchema);
+// Add indexes for common queries
+customerSchema.index({ userId: 1, email: 1 });
+customerSchema.index({ userId: 1, name: 1 });
+
+const Customer = mongoose.model('Customer', customerSchema);
+
+module.exports = Customer;
