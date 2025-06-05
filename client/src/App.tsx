@@ -65,6 +65,7 @@ const ProtectedRoute = ({ element }: { element: React.ReactNode }) => {
 };
 
 import ViewWorkoutPlanPage from '@/pages/workout-plans/ViewWorkoutPlanPage';
+import ViewBookingPage from "./pages/bookings/ViewBookingPage";
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -119,6 +120,9 @@ const App = () => (
               {/* Profile Routes */}
               <Route path="/profile" element={<ProtectedRoute element={<ProfilePage />} />} />
               <Route path="/profile/billing" element={<ProtectedRoute element={<BillingPage />} />} />
+              
+              {/* Booking Routes */}
+              <Route path="/dashboard/bookings/:id" element={<ProtectedRoute element={<ViewBookingPage />} />} />
               
               {/* Catch-all route */}
               <Route path="*" element={<NotFound />} />

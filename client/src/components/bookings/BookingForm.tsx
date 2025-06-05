@@ -154,20 +154,24 @@ const BookingForm: React.FC<BookingFormProps> = ({
   const [openCustomerPopover, setOpenCustomerPopover] = useState(false);
 
   useEffect(() => {
-    const fetchCustomers = async () => {
+    const fetchData = async () => {
       try {
-        const response = await axios.get(`${API_URL}/customers`, { withCredentials: true });
-        setCustomers(response.data.customers);
+        const [customersResponse, trainersResponse] = await Promise.all([
+          axios.get(`${API_URL}/customers`, { withCredentials: true }),
+          axios.get(`${API_URL}/trainers`, { withCredentials: true })
+        ]);
+        setCustomers(customersResponse.data.customers);
+        setTrainers(trainersResponse.data.trainers);
       } catch (error) {
-        console.error('Error fetching customers:', error);
-        toast.error('Failed to load customers');
+        console.error('Error fetching data:', error);
+        toast.error('Failed to load form data');
       } finally {
         setLoading(false);
       }
     };
 
     if (open) {
-      fetchCustomers();
+      fetchData();
     }
   }, [open]);
 
@@ -486,10 +490,11 @@ const BookingForm: React.FC<BookingFormProps> = ({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="trainer1">Trainer 1</SelectItem>
-                        <SelectItem value="trainer2">Trainer 2</SelectItem>
-                        <SelectItem value="trainer3">Trainer 3</SelectItem>
-                        <SelectItem value="trainer4">Trainer 4</SelectItem>
+                        {trainers.map((trainer) => (
+                          <SelectItem key={trainer._id} value={trainer._id}>
+                            {trainer.name}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
