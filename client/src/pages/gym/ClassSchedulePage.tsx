@@ -255,6 +255,38 @@ const ClassSchedulePage: React.FC = () => {
     }
   }, [selectedClass]);
 
+  const formatCalendarEvents = (schedules: ClassSchedule[]) => {
+    if (!schedules) return [];
+    
+    return schedules.map(schedule => {
+      // Ensure all required fields exist and have valid values
+      const event = {
+        id: schedule._id || '',
+        title: schedule.name || 'Unnamed Class',
+        start: new Date(schedule.startTime),
+        end: new Date(schedule.endTime),
+        instructor: schedule.instructor?.name || 'No Instructor',
+        capacity: schedule.capacity || 0,
+        enrolled: schedule.enrolledCount || 0,
+        price: schedule.price ? formatPrice(schedule.price, schedule.currency) : 'Free',
+        status: schedule.status || 'scheduled'
+      };
+
+      // Only include fields that have valid values
+      return Object.fromEntries(
+        Object.entries(event).filter(([_, value]) => value !== undefined && value !== null)
+      );
+    });
+  };
+
+  const handleEventClick = (event: any) => {
+    const schedule = schedules?.find(s => s._id === event.id);
+    if (schedule) {
+      setSelectedClass(schedule);
+      setShowViewModal(true);
+    }
+  };
+
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -399,8 +431,8 @@ const ClassSchedulePage: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <BookingCalendar
-                  bookings={calendarData?.schedules || []}
-                  onEventClick={(event) => {/* TODO: Implement event click handler */}}
+                  bookings={calendarData?.schedules ? formatCalendarEvents(calendarData.schedules) : []}
+                  onEventClick={handleEventClick}
                 />
               </CardContent>
             </Card>

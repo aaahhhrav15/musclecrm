@@ -3,7 +3,6 @@ import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
 import enUS from 'date-fns/locale/en-US';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
-import { Booking } from '@/services/BookingService';
 
 const locales = {
   'en-US': enUS,
@@ -17,36 +16,37 @@ const localizer = dateFnsLocalizer({
   locales,
 });
 
+interface CalendarEvent {
+  id: string;
+  title: string;
+  start: Date;
+  end: Date;
+  description?: string;
+  instructor?: string;
+  capacity?: number;
+  enrolled?: number;
+  price?: string;
+  status?: string;
+}
+
 interface BookingCalendarProps {
-  bookings: Booking[];
-  onEventClick: (booking: Booking) => void;
+  bookings: CalendarEvent[];
+  onEventClick: (event: CalendarEvent) => void;
 }
 
 const BookingCalendar: React.FC<BookingCalendarProps> = ({
   bookings,
   onEventClick,
 }) => {
-  const events = bookings.map((booking) => ({
-    id: booking._id,
-    title: `${booking.customerId?.name || 'N/A'} - ${booking.type}`,
-    start: new Date(booking.startTime),
-    end: new Date(booking.endTime),
-    resource: booking,
-  }));
-
-  const eventStyleGetter = (event: any) => {
-    const booking = event.resource as Booking;
+  const eventStyleGetter = (event: CalendarEvent) => {
     let backgroundColor = '#3b82f6'; // Default blue
 
-    switch (booking.status) {
+    switch (event.status) {
       case 'completed':
         backgroundColor = '#22c55e'; // Green
         break;
       case 'cancelled':
         backgroundColor = '#ef4444'; // Red
-        break;
-      case 'no_show':
-        backgroundColor = '#eab308'; // Yellow
         break;
     }
 
@@ -58,24 +58,46 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
         color: 'white',
         border: '0px',
         display: 'block',
+        padding: '4px',
+        height: '100%',
       },
     };
+  };
+
+  const CustomEvent = ({ event }: { event: CalendarEvent }) => {
+    if (!event) return null;
+
+    return (
+      <div className="flex flex-col gap-1 h-full">
+        <div className="font-semibold text-sm">{event.title || 'Unnamed Class'}</div>
+        {event.instructor && event.instructor !== 'No Instructor' && (
+          <div className="text-xs opacity-90">👤 {event.instructor}</div>
+        )}
+      </div>
+    );
   };
 
   return (
     <div className="h-[600px]">
       <Calendar
         localizer={localizer}
-        events={events}
+        events={bookings}
         startAccessor="start"
         endAccessor="end"
         style={{ height: '100%' }}
         eventPropGetter={eventStyleGetter}
-        onSelectEvent={(event) => onEventClick(event.resource)}
+        onSelectEvent={onEventClick}
         views={['month', 'week', 'day']}
         defaultView="week"
         popup
         selectable
+        components={{
+          event: CustomEvent,
+        }}
+        formats={{
+          eventTimeRangeFormat: ({ start, end }, culture, localizer) =>
+            `${localizer.format(start, 'h:mm a', culture)} - ${localizer.format(end, 'h:mm a', culture)}`,
+        }}
       />
     </div>
   );
