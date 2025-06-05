@@ -39,6 +39,10 @@ import GymLeadsPage from "./pages/gym/LeadsPage";
 import GymStaffPage from "./pages/gym/StaffPage";
 import GymFinancePage from "./pages/gym/FinancePage";
 import GymAttendancePage from "./pages/gym/AttendancePage";
+import TrainersPage from "./pages/gym/TrainersPage";
+import CreateTrainerPage from "./pages/gym/CreateTrainerPage";
+import ViewTrainerPage from "./pages/gym/ViewTrainerPage";
+import EditTrainerPage from "./pages/gym/EditTrainerPage";
 
 // Profile Pages
 import ProfilePage from "./pages/profile/ProfilePage";
@@ -99,6 +103,10 @@ const App = () => (
               <Route path="/dashboard/gym/staff" element={<ProtectedRoute element={<GymStaffPage />} />} />
               <Route path="/dashboard/gym/finance" element={<ProtectedRoute element={<GymFinancePage />} />} />
               <Route path="/dashboard/gym/attendance" element={<ProtectedRoute element={<GymAttendancePage />} />} />
+              <Route path="/dashboard/gym/trainers" element={<ProtectedRoute element={<TrainersPage />} />} />
+              <Route path="/dashboard/gym/trainers/new" element={<ProtectedRoute element={<CreateTrainerPage />} />} />
+              <Route path="/dashboard/gym/trainers/:id" element={<ProtectedRoute element={<ViewTrainerPage />} />} />
+              <Route path="/dashboard/gym/trainers/:id/edit" element={<ProtectedRoute element={<EditTrainerPage />} />} />
               
               {/* Workout Plans Routes */}
               <Route path="/dashboard/gym/workout-plans" element={<ProtectedRoute element={<WorkoutPlansPage />} />} />

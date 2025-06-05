@@ -15,6 +15,7 @@ const customersRoutes = require('./routes/customers');
 const notificationsRoutes = require('./routes/notifications');
 const dashboardRoutes = require('./routes/dashboard');
 const workoutPlansRoutes = require('./routes/workoutPlans');
+const trainersRouter = require('./routes/trainers');
 
 const app = express();
 
@@ -44,6 +45,7 @@ app.use('/api/bookings', bookingsRoutes);
 app.use('/api/customers', customersRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/workout-plans', workoutPlansRoutes);
+app.use('/api/trainers', trainersRouter);
 
 // Root route
 app.get('/', (req, res) => {
