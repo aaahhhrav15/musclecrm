@@ -60,6 +60,8 @@ const ProtectedRoute = ({ element }: { element: React.ReactNode }) => {
   return <>{element}</>;
 };
 
+import ViewWorkoutPlanPage from '@/pages/workout-plans/ViewWorkoutPlanPage';
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -101,6 +103,7 @@ const App = () => (
               {/* Workout Plans Routes */}
               <Route path="/dashboard/gym/workout-plans" element={<ProtectedRoute element={<WorkoutPlansPage />} />} />
               <Route path="/dashboard/gym/workout-plans/new" element={<ProtectedRoute element={<CreateWorkoutPlanPage />} />} />
+              <Route path="/dashboard/gym/workout-plans/:id" element={<ProtectedRoute element={<ViewWorkoutPlanPage />} />} />
               <Route path="/dashboard/gym/workout-plans/edit/:id" element={<ProtectedRoute element={<EditWorkoutPlanPage />} />} />
               <Route path="/dashboard/gym/workout-plans/assign" element={<ProtectedRoute element={<AssignWorkoutPlanPage />} />} />
               <Route path="/dashboard/gym/workout-plans/assigned" element={<ProtectedRoute element={<AssignedWorkoutPlansPage />} />} />

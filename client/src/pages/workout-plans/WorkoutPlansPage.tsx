@@ -130,7 +130,7 @@ const WorkoutPlansPage: React.FC = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => navigate(`/dashboard/gym/workout-plans/${plan._id}/edit`)}
+                          onClick={() => navigate(`/dashboard/gym/workout-plans/edit/${plan._id}`)}
                         >
                           Edit
                         </Button>
