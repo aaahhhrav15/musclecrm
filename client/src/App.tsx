@@ -24,7 +24,11 @@ import NotificationsPage from "./pages/notifications/NotificationsPage";
 import SettingsPage from "./pages/settings/SettingsPage";
 
 // Industry-specific Pages
-import WorkoutPlansPage from "./pages/gym/WorkoutPlansPage";
+import WorkoutPlansPage from "./pages/workout-plans/WorkoutPlansPage";
+import CreateWorkoutPlanPage from "./pages/workout-plans/CreateWorkoutPlanPage";
+import EditWorkoutPlanPage from "./pages/workout-plans/EditWorkoutPlanPage";
+import AssignWorkoutPlanPage from "./pages/workout-plans/AssignWorkoutPlanPage";
+import AssignedWorkoutPlansPage from "./pages/workout-plans/AssignedWorkoutPlansPage";
 import ServicesPage from "./pages/spa/ServicesPage";
 import RoomManagementPage from "./pages/hotel/RoomManagementPage";
 import MembershipsPage from "./pages/club/MembershipsPage";
@@ -60,7 +64,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <IndustryProvider>
-        <AuthProvider>
+      <AuthProvider>
           <Toaster />
           <Sonner />
           <BrowserRouter>
@@ -94,6 +98,13 @@ const App = () => (
               <Route path="/dashboard/gym/finance" element={<ProtectedRoute element={<GymFinancePage />} />} />
               <Route path="/dashboard/gym/attendance" element={<ProtectedRoute element={<GymAttendancePage />} />} />
               
+              {/* Workout Plans Routes */}
+              <Route path="/dashboard/gym/workout-plans" element={<ProtectedRoute element={<WorkoutPlansPage />} />} />
+              <Route path="/dashboard/gym/workout-plans/new" element={<ProtectedRoute element={<CreateWorkoutPlanPage />} />} />
+              <Route path="/dashboard/gym/workout-plans/edit/:id" element={<ProtectedRoute element={<EditWorkoutPlanPage />} />} />
+              <Route path="/dashboard/gym/workout-plans/assign" element={<ProtectedRoute element={<AssignWorkoutPlanPage />} />} />
+              <Route path="/dashboard/gym/workout-plans/assigned" element={<ProtectedRoute element={<AssignedWorkoutPlansPage />} />} />
+              
               {/* Profile Routes */}
               <Route path="/profile" element={<ProtectedRoute element={<ProfilePage />} />} />
               <Route path="/profile/billing" element={<ProtectedRoute element={<BillingPage />} />} />
@@ -103,7 +114,7 @@ const App = () => (
             </Routes>
           </BrowserRouter>
         </AuthProvider>
-      </IndustryProvider>
+        </IndustryProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

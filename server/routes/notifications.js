@@ -10,7 +10,7 @@ router.get('/', auth, async (req, res) => {
     const notifications = await Notification.find({ userId: req.user._id })
       .sort({ createdAt: -1 })
       .limit(50);
-
+    
     res.json({
       success: true,
       notifications
@@ -32,14 +32,14 @@ router.put('/:id/read', auth, async (req, res) => {
       { read: true },
       { new: true }
     );
-
+    
     if (!notification) {
       return res.status(404).json({
         success: false,
         message: 'Notification not found'
       });
     }
-
+    
     res.json({
       success: true,
       notification
@@ -60,7 +60,7 @@ router.put('/read-all', auth, async (req, res) => {
       { userId: req.user._id, read: false },
       { read: true }
     );
-
+    
     res.json({
       success: true,
       message: 'All notifications marked as read'
@@ -81,14 +81,14 @@ router.delete('/:id', auth, async (req, res) => {
       _id: req.params.id,
       userId: req.user._id
     });
-
+    
     if (!notification) {
       return res.status(404).json({
         success: false,
         message: 'Notification not found'
       });
     }
-
+    
     res.json({
       success: true,
       message: 'Notification deleted successfully'

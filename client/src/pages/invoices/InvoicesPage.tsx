@@ -170,7 +170,7 @@ const InvoicesPage: React.FC = () => {
             <Button>
               <Plus className="w-4 h-4 mr-2" />
               New Invoice
-            </Button>
+          </Button>
           </div>
         </div>
 
@@ -179,19 +179,19 @@ const InvoicesPage: React.FC = () => {
             <CardTitle>All Invoices</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Customer</TableHead>
+        <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Customer</TableHead>
                     <TableHead>Invoice Number</TableHead>
                     <TableHead>Due Date</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                   {invoices?.map((invoice) => (
                     <TableRow key={invoice._id}>
                       <TableCell>
@@ -216,14 +216,14 @@ const InvoicesPage: React.FC = () => {
                               <Badge
                                 variant={
                                   invoice.status === 'paid'
-                                    ? 'default'
+                            ? 'default' 
                                     : invoice.status === 'cancelled'
                                     ? 'destructive'
                                     : 'secondary'
                                 }
                               >
                                 {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
-                              </Badge>
+                        </Badge>
                             </SelectValue>
                           </SelectTrigger>
                           <SelectContent>
@@ -238,7 +238,7 @@ const InvoicesPage: React.FC = () => {
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" className="h-8 w-8 p-0">
                               <MoreHorizontal className="h-4 w-4" />
-                            </Button>
+                          </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => handleDownloadInvoice(invoice)}>
@@ -257,14 +257,14 @@ const InvoicesPage: React.FC = () => {
                     </TableRow>
                   ))}
                   {(!invoices || invoices.length === 0) && (
-                    <TableRow>
+                  <TableRow>
                       <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                        No invoices found
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                      No invoices found
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
             </div>
           </CardContent>
         </Card>
@@ -283,7 +283,7 @@ const InvoicesPage: React.FC = () => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-      </div>
+        </div>
     </DashboardLayout>
   );
 };

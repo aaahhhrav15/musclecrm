@@ -7,24 +7,24 @@ const bookingSchema = new mongoose.Schema({
     required: true
   },
   customerId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Customer',
-    required: true
-  },
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Customer',
+      required: true
+    },
   type: {
-    type: String,
+      type: String,
     enum: ['class', 'personal_training', 'equipment'],
-    required: true
+      required: true
   },
   status: {
-    type: String,
+      type: String,
     enum: ['scheduled', 'completed', 'cancelled', 'no_show'],
     default: 'scheduled'
   },
   startTime: {
     type: Date,
-    required: true
-  },
+      required: true
+    },
   endTime: {
     type: Date,
     required: true

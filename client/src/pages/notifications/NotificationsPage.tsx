@@ -88,7 +88,7 @@ const NotificationsPage: React.FC = () => {
           )}
         </div>
 
-        <Card>
+            <Card>
           <CardHeader>
             <CardTitle>Recent Notifications</CardTitle>
           </CardHeader>
@@ -103,17 +103,17 @@ const NotificationsPage: React.FC = () => {
                         <Skeleton className="h-4 w-3/4" />
                         <Skeleton className="h-4 w-1/2" />
                       </div>
+                  </div>
+                ))}
                     </div>
-                  ))}
-                </div>
               ) : data?.notifications.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   No notifications
-                </div>
+                      </div>
               ) : (
                 <div className="space-y-4">
                   {data?.notifications.map((notification: Notification) => (
-                    <div
+                    <div 
                       key={notification._id}
                       className={`flex items-start space-x-4 p-4 rounded-lg cursor-pointer transition-colors ${
                         !notification.read ? 'bg-muted/50' : ''
@@ -147,8 +147,8 @@ const NotificationsPage: React.FC = () => {
                 </div>
               )}
             </ScrollArea>
-          </CardContent>
-        </Card>
+                </CardContent>
+              </Card>
       </div>
     </DashboardLayout>
   );
