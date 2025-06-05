@@ -43,6 +43,7 @@ import TrainersPage from "./pages/gym/TrainersPage";
 import CreateTrainerPage from "./pages/gym/CreateTrainerPage";
 import ViewTrainerPage from "./pages/gym/ViewTrainerPage";
 import EditTrainerPage from "./pages/gym/EditTrainerPage";
+import ClassSchedulePage from './pages/gym/ClassSchedulePage';
 
 // Profile Pages
 import ProfilePage from "./pages/profile/ProfilePage";
@@ -108,6 +109,7 @@ const App = () => (
               <Route path="/dashboard/gym/trainers/new" element={<ProtectedRoute element={<CreateTrainerPage />} />} />
               <Route path="/dashboard/gym/trainers/:id" element={<ProtectedRoute element={<ViewTrainerPage />} />} />
               <Route path="/dashboard/gym/trainers/:id/edit" element={<ProtectedRoute element={<EditTrainerPage />} />} />
+              <Route path="/dashboard/gym/class-schedule" element={<ProtectedRoute element={<ClassSchedulePage />} />} />
               
               {/* Workout Plans Routes */}
               <Route path="/dashboard/gym/workout-plans" element={<ProtectedRoute element={<WorkoutPlansPage />} />} />
