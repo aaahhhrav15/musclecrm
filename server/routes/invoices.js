@@ -226,7 +226,7 @@ router.delete('/:id', auth, async (req, res) => {
   }
 });
 
-// Generate PDF invoice
+// Generate PDF invoice with enhanced beautiful design
 router.get('/:id/pdf', auth, async (req, res) => {
   try {
     console.log('Attempting to generate PDF for invoice:', req.params.id);
@@ -247,14 +247,16 @@ router.get('/:id/pdf', auth, async (req, res) => {
 
     console.log('Creating PDF document...');
     
-    // Create PDF document
+    // Create PDF document with enhanced settings
     const doc = new PDFDocument({
       size: 'A4',
-      margin: 50,
+      margin: 0,
       info: {
         Title: `Invoice ${invoice.invoiceNumber}`,
         Author: 'FlexCRM',
-        Subject: 'Invoice',
+        Subject: 'Professional Invoice',
+        Creator: 'FlexCRM Invoice System',
+        Producer: 'FlexCRM PDF Generator'
       }
     });
 
@@ -265,99 +267,406 @@ router.get('/:id/pdf', auth, async (req, res) => {
     // Pipe the PDF to the response
     doc.pipe(res);
 
-    console.log('Adding content to PDF...');
-
-    // Add content to the PDF
-    doc.fontSize(20).text('INVOICE', { align: 'center' });
-    doc.moveDown();
-    
-    // Invoice details
-    doc.fontSize(12);
-    doc.text(`Invoice Number: ${invoice.invoiceNumber}`);
-    
-    // Safely format dates
+    // Enhanced Helper Functions
     const formatDate = (date) => {
       try {
         if (!date) return 'N/A';
         const dateObj = new Date(date);
         if (isNaN(dateObj.getTime())) return 'Invalid Date';
-        return format(dateObj, 'dd/MM/yyyy');
+        return format(dateObj, 'MMM dd, yyyy');
       } catch (error) {
         console.error('Date formatting error:', error);
         return 'Invalid Date';
       }
     };
 
-    // Use createdAt as the invoice date
-    doc.text(`Date: ${formatDate(invoice.createdAt)}`);
-    doc.text(`Due Date: ${formatDate(invoice.dueDate)}`);
-    doc.moveDown();
+    const formatCurrency = (amount, currency = 'USD') => {
+      return `${currency} ${parseFloat(amount || 0).toFixed(2)}`;
+    };
 
-    // Customer details
-    doc.text('Bill To:');
-    if (invoice.customerId) {
-      console.log('Customer details:', invoice.customerId);
-      doc.text(invoice.customerId.name || 'N/A');
-      doc.text(invoice.customerId.email || 'N/A');
-      if (invoice.customerId.phone) {
-        doc.text(invoice.customerId.phone);
+    // Modern Color Palette
+    const colors = {
+      primary: '#1e40af',      // Deep Blue
+      secondary: '#3b82f6',    // Blue
+      accent: '#06b6d4',       // Cyan
+      success: '#10b981',      // Emerald
+      warning: '#f59e0b',      // Amber
+      danger: '#ef4444',       // Red
+      dark: '#1f2937',         // Dark Gray
+      medium: '#6b7280',       // Medium Gray
+      light: '#f3f4f6',        // Light Gray
+      white: '#ffffff',
+      black: '#000000'
+    };
+
+    // Enhanced Helper Functions
+    const drawGradient = (x, y, width, height, startColor, endColor) => {
+      const gradient = doc.linearGradient(x, y, x + width, y + height);
+      gradient.stop(0, startColor).stop(1, endColor);
+      doc.rect(x, y, width, height).fill(gradient);
+    };
+
+    const drawShadowBox = (x, y, width, height, radius = 0, shadowOffset = 3) => {
+      // Shadow
+      doc.fillColor('#00000015')
+         .rect(x + shadowOffset, y + shadowOffset, width, height, radius)
+         .fill();
+      
+      // Main box
+      doc.fillColor(colors.white)
+         .rect(x, y, width, height, radius)
+         .fill()
+         .strokeColor(colors.light)
+         .lineWidth(1)
+         .rect(x, y, width, height, radius)
+         .stroke();
+    };
+
+    const drawModernCard = (x, y, width, height, title, content, icon = null) => {
+      drawShadowBox(x, y, width, height, 8);
+      
+      if (title) {
+        doc.fillColor(colors.primary)
+           .fontSize(12)
+           .font('Helvetica-Bold')
+           .text(title, x + 20, y + 15);
       }
-    } else {
-      console.log('No customer details available');
-      doc.text('Customer information not available');
+      
+      if (content) {
+        doc.fillColor(colors.dark)
+           .fontSize(10)
+           .font('Helvetica')
+           .text(content, x + 20, y + 35, {
+             width: width - 40,
+             align: 'left'
+           });
+      }
+    };
+
+    // Start drawing the invoice
+    let currentY = 0;
+
+    // Header Section with Modern Gradient
+    drawGradient(0, 0, 595, 140, colors.primary, colors.secondary);
+    
+    // Decorative elements
+    doc.fillColor('#ffffff20')
+       .circle(520, 40, 60)
+       .fill()
+       .circle(480, 100, 30)
+       .fill()
+       .circle(550, 120, 20)
+       .fill();
+
+    // Company Logo Area (Placeholder for actual logo)
+    doc.fillColor(colors.white)
+       .rect(40, 25, 60, 60, 30)
+       .fill()
+       .fillColor(colors.primary)
+       .fontSize(24)
+       .font('Helvetica-Bold')
+       .text('FC', 60, 48);
+
+    // Company Information
+    doc.fillColor(colors.white)
+       .fontSize(28)
+       .font('Helvetica-Bold')
+       .text('FLEXCRM', 120, 35);
+
+    doc.fillColor('#ffffff90')
+       .fontSize(11)
+       .font('Helvetica')
+       .text('Premium Fitness Management', 120, 65)
+       .text('123 Fitness Street, Mumbai, India', 120, 80)
+       .text('Phone: +91 1234567890 | Email: info@flexcrm.com', 120, 95);
+
+    // Invoice Details Card
+    drawShadowBox(360, 25, 200, 90, 12);
+    
+    doc.fillColor(colors.primary)
+       .fontSize(22)
+       .font('Helvetica-Bold')
+       .text('INVOICE', 380, 45);
+
+    doc.fillColor(colors.dark)
+       .fontSize(10)
+       .font('Helvetica-Bold')
+       .text('Invoice Number:', 380, 70)
+       .fillColor(colors.medium)
+       .font('Helvetica')
+       .text(invoice.invoiceNumber || 'N/A', 460, 70);
+
+    doc.fillColor(colors.dark)
+       .font('Helvetica-Bold')
+       .text('Date:', 380, 85)
+       .fillColor(colors.medium)
+       .font('Helvetica')
+       .text(formatDate(invoice.createdAt), 460, 85);
+
+    doc.fillColor(colors.dark)
+       .font('Helvetica-Bold')
+       .text('Due Date:', 380, 100)
+       .fillColor(colors.medium)
+       .font('Helvetica')
+       .text(formatDate(invoice.dueDate), 460, 100);
+
+    currentY = 160;
+
+    // Status Badge
+    const statusColors = {
+      'paid': colors.success,
+      'pending': colors.warning,
+      'cancelled': colors.danger,
+      'draft': colors.medium
+    };
+    
+    const statusColor = statusColors[invoice.status] || colors.medium;
+    doc.fillColor(statusColor)
+       .rect(40, currentY, 100, 25, 12)
+       .fill()
+       .fillColor(colors.white)
+       .fontSize(10)
+       .font('Helvetica-Bold')
+       .text(invoice.status.toUpperCase(), 40, currentY + 8, {
+         width: 100,
+         align: 'center'
+       });
+
+    currentY += 50;
+
+    // Customer and Booking Information Cards
+    const cardHeight = 120;
+    
+    // Customer Information Card
+    drawModernCard(40, currentY, 250, cardHeight, 'BILL TO');
+    
+    doc.fillColor(colors.dark)
+       .fontSize(14)
+       .font('Helvetica-Bold')
+       .text(invoice.customerId?.name || 'N/A', 60, currentY + 40);
+
+    doc.fillColor(colors.medium)
+       .fontSize(10)
+       .font('Helvetica')
+       .text(`Email: ${invoice.customerId?.email || 'N/A'}`, 60, currentY + 60)
+       .text(`Phone: ${invoice.customerId?.phone || 'N/A'}`, 60, currentY + 75);
+
+    // Booking Information Card (if exists)
+    if (invoice.bookingId) {
+      drawModernCard(305, currentY, 250, cardHeight, 'BOOKING DETAILS');
+      
+      doc.fillColor(colors.dark)
+         .fontSize(12)
+         .font('Helvetica-Bold')
+         .text(`Service: ${invoice.bookingId.type || 'N/A'}`, 325, currentY + 40);
+
+      doc.fillColor(colors.medium)
+         .fontSize(10)
+         .font('Helvetica')
+         .text(`Start: ${formatDate(invoice.bookingId.startTime)}`, 325, currentY + 60)
+         .text(`End: ${formatDate(invoice.bookingId.endTime)}`, 325, currentY + 75);
     }
-    doc.moveDown();
 
-    // Items table
-    doc.text('Items:', { underline: true });
-    doc.moveDown(0.5);
+    currentY += cardHeight + 30;
 
-    // Table header
-    const tableTop = doc.y;
-    doc.text('Description', 50, tableTop);
-    doc.text('Quantity', 300, tableTop);
-    doc.text('Unit Price', 400, tableTop);
-    doc.text('Amount', 500, tableTop);
-    doc.moveDown();
+    // Items Table with Modern Design
+    const tableStartY = currentY;
+    const tableWidth = 515;
+    const rowHeight = 35;
+    
+    // Table Header
+    drawGradient(40, tableStartY, tableWidth, 40, colors.primary, colors.secondary);
+    
+    doc.fillColor(colors.white)
+       .fontSize(11)
+       .font('Helvetica-Bold')
+       .text('DESCRIPTION', 55, tableStartY + 15)
+       .text('QTY', 300, tableStartY + 15)
+       .text('UNIT PRICE', 360, tableStartY + 15)
+       .text('AMOUNT', 480, tableStartY + 15);
 
-    // Table rows
-    let y = doc.y;
+    currentY = tableStartY + 40;
+
+    // Table Rows
     if (invoice.items && Array.isArray(invoice.items)) {
-      console.log('Adding items to PDF:', invoice.items.length);
-      invoice.items.forEach(item => {
-        doc.text(item.description, 50, y);
-        doc.text(item.quantity.toString(), 300, y);
-        doc.text(`${invoice.currency} ${item.unitPrice.toFixed(2)}`, 400, y);
-        doc.text(`${invoice.currency} ${item.amount.toFixed(2)}`, 500, y);
-        y += 20;
+      invoice.items.forEach((item, index) => {
+        const isEven = index % 2 === 0;
+        const rowColor = isEven ? colors.white : colors.light;
+        
+        doc.fillColor(rowColor)
+           .rect(40, currentY, tableWidth, rowHeight)
+           .fill();
+
+        // Add subtle border
+        doc.strokeColor('#e5e7eb')
+           .lineWidth(0.5)
+           .rect(40, currentY, tableWidth, rowHeight)
+           .stroke();
+
+        // Item details
+        doc.fillColor(colors.dark)
+           .fontSize(10)
+           .font('Helvetica')
+           .text(item.description || 'No description', 55, currentY + 12, {
+             width: 200,
+             ellipsis: true
+           });
+
+        doc.text(item.quantity?.toString() || '0', 300, currentY + 12, {
+           width: 50,
+           align: 'center'
+         });
+
+        doc.text(formatCurrency(item.unitPrice, invoice.currency), 360, currentY + 12, {
+           width: 80,
+           align: 'right'
+         });
+
+        doc.fillColor(colors.primary)
+           .font('Helvetica-Bold')
+           .text(formatCurrency(item.amount, invoice.currency), 480, currentY + 12, {
+             width: 60,
+             align: 'right'
+           });
+
+        currentY += rowHeight;
       });
     } else {
-      console.log('No items found in invoice');
-      doc.text('No items found', 50, y);
+      doc.fillColor(colors.light)
+         .rect(40, currentY, tableWidth, rowHeight)
+         .fill()
+         .fillColor(colors.medium)
+         .fontSize(10)
+         .font('Helvetica')
+         .text('No items found', 55, currentY + 12);
+      currentY += rowHeight;
     }
 
-    // Totals
-    doc.moveDown(2);
-    // Calculate subtotal from items
-    const subtotal = invoice.items.reduce((sum, item) => sum + item.amount, 0);
-    doc.text(`Subtotal: ${invoice.currency} ${subtotal.toFixed(2)}`, { align: 'right' });
+    // Totals Section with Modern Card Design
+    currentY += 20;
+    const totalsCardWidth = 250;
+    const totalsCardHeight = 120;
     
-    // Use the total amount from the invoice
-    doc.text(`Total: ${invoice.currency} ${invoice.amount.toFixed(2)}`, { align: 'right' });
+    drawShadowBox(305, currentY, totalsCardWidth, totalsCardHeight, 12);
+    
+    // Gradient background for totals
+    drawGradient(305, currentY, totalsCardWidth, 40, colors.light, colors.white);
+    
+    const subtotal = invoice.items?.reduce((sum, item) => sum + (item.amount || 0), 0) || 0;
+    const tax = invoice.tax || 0;
+    const total = invoice.amount || subtotal + tax;
 
-    // Notes
+    // Subtotal
+    doc.fillColor(colors.dark)
+       .fontSize(11)
+       .font('Helvetica')
+       .text('Subtotal:', 325, currentY + 20)
+       .text(formatCurrency(subtotal, invoice.currency), 325, currentY + 20, {
+         width: 210,
+         align: 'right'
+       });
+
+    // Tax (if applicable)
+    if (tax > 0) {
+      doc.text('Tax:', 325, currentY + 40)
+         .text(formatCurrency(tax, invoice.currency), 325, currentY + 40, {
+           width: 210,
+           align: 'right'
+         });
+    }
+
+    // Total with emphasis
+    doc.fillColor(colors.primary)
+       .fontSize(14)
+       .font('Helvetica-Bold')
+       .text('TOTAL:', 325, currentY + 80)
+       .text(formatCurrency(total, invoice.currency), 325, currentY + 80, {
+         width: 210,
+         align: 'right'
+       });
+
+    currentY += totalsCardHeight + 30;
+
+    // Notes Section (if exists)
     if (invoice.notes) {
-      doc.moveDown(2);
-      doc.text('Notes:', { underline: true });
-      doc.text(invoice.notes);
+      drawModernCard(40, currentY, 515, 80, 'NOTES', invoice.notes);
+      currentY += 100;
     }
 
-    console.log('Finalizing PDF...');
+    // Payment Instructions Section
+    drawModernCard(40, currentY, 515, 140, 'PAYMENT INSTRUCTIONS');
     
-    // Finalize the PDF
+    const paymentInstructions = [
+      '• Payment is due within 30 days of invoice date',
+      '• Late payments may incur additional charges',
+      '• All payments should reference the invoice number',
+      '• For payment queries, contact our billing department',
+      '',
+      'Bank Details:',
+      'Bank Name: Premium Bank Ltd.',
+      'Account Number: 1234567890',
+      'Routing Number: 987654321'
+    ];
+
+    doc.fillColor(colors.medium)
+       .fontSize(9)
+       .font('Helvetica');
+    
+    paymentInstructions.forEach((instruction, index) => {
+      doc.text(instruction, 60, currentY + 35 + (index * 12));
+    });
+
+    currentY += 160;
+
+    // Footer with modern design
+    const footerY = 750;
+    
+    // Footer background
+    doc.fillColor(colors.light)
+       .rect(0, footerY, 595, 60)
+       .fill();
+
+    // Decorative line
+    doc.strokeColor(colors.primary)
+       .lineWidth(3)
+       .moveTo(40, footerY + 5)
+       .lineTo(555, footerY + 5)
+       .stroke();
+
+    // Footer text
+    doc.fillColor(colors.primary)
+       .fontSize(12)
+       .font('Helvetica-Bold')
+       .text('Thank you for your business!', 40, footerY + 20, {
+         width: 515,
+         align: 'center'
+       });
+
+    doc.fillColor(colors.medium)
+       .fontSize(8)
+       .font('Helvetica')
+       .text('This is a computer-generated invoice. For questions, contact us at info@flexcrm.com', 40, footerY + 40, {
+         width: 515,
+         align: 'center'
+       });
+
+    // Add watermark for unpaid invoices
+    if (invoice.status !== 'paid') {
+      doc.fillColor('#ff000010')
+         .fontSize(60)
+         .font('Helvetica-Bold')
+         .rotate(-45, { origin: [300, 400] })
+         .text(invoice.status.toUpperCase(), 200, 400, {
+           width: 200,
+           align: 'center'
+         })
+         .rotate(45, { origin: [300, 400] });
+    }
+
+    // Finalize PDF
     doc.end();
     
-    console.log('PDF generation completed successfully');
+    console.log('Enhanced PDF generation completed successfully');
   } catch (error) {
     console.error('Generate PDF error:', error);
     console.error('Error stack:', error.stack);
