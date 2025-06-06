@@ -51,15 +51,12 @@ interface InvoiceFormData {
 
 interface InvoiceSubmitData {
   customerId: string;
-  date: Date;
-  dueDate: Date;
   items: InvoiceItem[];
-  tax: number;
-  notes?: string;
-  paymentMethod: string;
   amount: number;
-  currency: string;
+  dueDate: Date;
+  notes?: string;
   status: string;
+  currency: string;
 }
 
 const formSchema = z.object({
@@ -70,7 +67,7 @@ const formSchema = z.object({
   amount: z.coerce.number().min(0, 'Amount must be a positive number'),
   description: z.string().optional(),
   dueDate: z.string().optional(),
-  tax: z.number().default(0)
+  tax: z.coerce.number().min(0, 'Tax must be a positive number').default(0)
 });
 
 interface InvoiceFormProps {
@@ -173,19 +170,16 @@ export default function InvoiceForm({ open, onClose, onSubmit }: InvoiceFormProp
       }];
 
       const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
-      const total = subtotal + data.tax;
+      const total = subtotal + (data.tax || 0);
 
       const invoiceData: InvoiceSubmitData = {
         customerId: data.customerId,
-        date: new Date(),
-        dueDate: data.dueDate ? new Date(data.dueDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        items,
-        tax: data.tax,
-        notes: data.description,
-        paymentMethod: 'cash',
+        items: items,
         amount: total,
-        currency: 'INR',
-        status: 'pending'
+        dueDate: data.dueDate ? new Date(data.dueDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        notes: data.description,
+        status: 'pending',
+        currency: 'INR'
       };
 
       console.log('Submitting invoice data:', invoiceData);
@@ -258,11 +252,7 @@ export default function InvoiceForm({ open, onClose, onSubmit }: InvoiceFormProp
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={(e) => {
-          console.log('Form submit event triggered');
-          e.preventDefault();
-          form.handleSubmit(handleSubmit)(e);
-        }} className="space-y-4">
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="customerId">Customer</Label>
@@ -289,6 +279,9 @@ export default function InvoiceForm({ open, onClose, onSubmit }: InvoiceFormProp
                   )}
                 </SelectContent>
               </Select>
+              {form.formState.errors.customerId && (
+                <p className="text-sm text-red-500">{form.formState.errors.customerId.message}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -310,6 +303,9 @@ export default function InvoiceForm({ open, onClose, onSubmit }: InvoiceFormProp
                   <SelectItem value="other">Other</SelectItem>
                 </SelectContent>
               </Select>
+              {form.formState.errors.chargeType && (
+                <p className="text-sm text-red-500">{form.formState.errors.chargeType.message}</p>
+              )}
             </div>
           </div>
 
@@ -323,6 +319,9 @@ export default function InvoiceForm({ open, onClose, onSubmit }: InvoiceFormProp
                 {...form.register('quantity')}
                 placeholder="Enter quantity"
               />
+              {form.formState.errors.quantity && (
+                <p className="text-sm text-red-500">{form.formState.errors.quantity.message}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -335,6 +334,9 @@ export default function InvoiceForm({ open, onClose, onSubmit }: InvoiceFormProp
                 {...form.register('unitPrice')}
                 placeholder="Enter unit price"
               />
+              {form.formState.errors.unitPrice && (
+                <p className="text-sm text-red-500">{form.formState.errors.unitPrice.message}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -365,6 +367,9 @@ export default function InvoiceForm({ open, onClose, onSubmit }: InvoiceFormProp
                 id="dueDate"
                 {...form.register('dueDate')}
               />
+              {form.formState.errors.dueDate && (
+                <p className="text-sm text-red-500">{form.formState.errors.dueDate.message}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -373,9 +378,15 @@ export default function InvoiceForm({ open, onClose, onSubmit }: InvoiceFormProp
                 type="number"
                 id="tax"
                 step="0.01"
-                {...form.register('tax')}
+                min="0"
+                {...form.register('tax', {
+                  setValueAs: (value) => value === '' ? 0 : Number(value)
+                })}
                 placeholder="Enter tax percentage"
               />
+              {form.formState.errors.tax && (
+                <p className="text-sm text-red-500">{form.formState.errors.tax.message}</p>
+              )}
             </div>
           </div>
 

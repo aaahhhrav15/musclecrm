@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
@@ -39,6 +38,11 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import axios from 'axios';
+import QRCodeDisplay from '@/components/attendance/QRCodeDisplay';
+import { format } from 'date-fns';
+import { Calendar as CalendarIcon } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 
 // Define attendance type
 interface AttendanceRecord {
@@ -84,25 +88,29 @@ const AttendancePage: React.FC = () => {
   });
   const [searchQuery, setSearchQuery] = useState('');
   const { toast } = useToast();
+  const [showQRCode, setShowQRCode] = useState(false);
+  const [view, setView] = useState<'today' | 'history'>('today');
+  const [date, setDate] = useState<Date | undefined>(new Date());
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyData, setHistoryData] = useState<AttendanceRecord[]>([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const gymId = "your-gym-id"; // This should come from your auth context or API
+  const gymName = "Your Gym Name"; // This should come from your auth context or API
 
   // Load attendance records from backend
   useEffect(() => {
     const fetchAttendance = async () => {
       setIsLoading(true);
       try {
-        const response = await axios.get(`${API_URL}/attendance?date=${selectedDate}`);
+        const response = await axios.get(`${API_URL}/gym/attendance`, {
+          params: { date: selectedDate }
+        });
         
         if (response.data.success) {
-          setAttendanceRecords(response.data.attendance);
-          
-          // Calculate stats
-          const records = response.data.attendance;
-          setStats({
-            totalToday: records.length,
-            currentlyIn: records.filter((a: AttendanceRecord) => a.status === 'Checked In').length,
-            membersToday: records.filter((a: AttendanceRecord) => a.type === 'Member').length,
-            staffToday: records.filter((a: AttendanceRecord) => a.type === 'Staff').length,
-          });
+          setAttendanceRecords(response.data.data);
+          setStats(response.data.stats);
         }
       } catch (error) {
         console.error('Error fetching attendance:', error);
@@ -119,16 +127,49 @@ const AttendancePage: React.FC = () => {
     fetchAttendance();
   }, [selectedDate, toast]);
 
+  // Load attendance history
+  const fetchHistory = async (page: number) => {
+    setIsLoadingHistory(true);
+    try {
+      const response = await axios.get(`${API_URL}/gym/attendance/history`, {
+        params: {
+          page,
+          limit: 10,
+          startDate: date ? format(date, 'yyyy-MM-dd') : undefined,
+          endDate: date ? format(date, 'yyyy-MM-dd') : undefined
+        }
+      });
+
+      if (response.data.success) {
+        setHistoryData(response.data.data);
+        setTotalPages(response.data.pagination.pages);
+      }
+    } catch (error) {
+      console.error('Error fetching history:', error);
+      toast({
+        title: "Failed to load history",
+        description: "There was a problem loading attendance history.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  useEffect(() => {
+    if (view === 'history') {
+      fetchHistory(historyPage);
+    }
+  }, [view, historyPage, date]);
+
   // Handle QR check-in
-  const handleQrCheckIn = async () => {
-    toast({
-      title: "QR Check-in",
-      description: "QR check-in functionality will be connected to the backend.",
-    });
-    
-    // This would typically open a QR scanner and then call your backend API
-    // Example backend call:
-    // await axios.post(`${API_URL}/attendance/qr-checkin`, { qrCode: scannedCode });
+  const handleQrCheckIn = () => {
+    setShowQRCode(true);
+  };
+
+  const handleQRScanSuccess = () => {
+    // Refresh attendance data
+    fetchAttendance();
   };
 
   // Handle biometric check-in
@@ -157,6 +198,7 @@ const AttendancePage: React.FC = () => {
         transition={{ duration: 0.3 }}
         className="space-y-6"
       >
+        {/* Header Section */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Attendance System</h1>
@@ -165,8 +207,8 @@ const AttendancePage: React.FC = () => {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button onClick={handleQrCheckIn}>
-              <QrCode className="mr-2 h-4 w-4" /> QR Check-in
+            <Button onClick={() => setShowQRCode(true)}>
+              <QrCode className="mr-2 h-4 w-4" /> QR Code
             </Button>
             <Button variant="outline" onClick={handleBiometricCheckIn}>
               <Fingerprint className="mr-2 h-4 w-4" /> Biometric
@@ -174,175 +216,251 @@ const AttendancePage: React.FC = () => {
           </div>
         </div>
 
-        {/* Attendance Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Check-ins</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalToday}</div>
-              <p className="text-xs text-muted-foreground">Today</p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Currently In</CardTitle>
-              <CheckCircle className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.currentlyIn}</div>
-              <p className="text-xs text-muted-foreground">Active now</p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Members</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.membersToday}</div>
-              <p className="text-xs text-muted-foreground">Member check-ins</p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Staff</CardTitle>
-              <User className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.staffToday}</div>
-              <p className="text-xs text-muted-foreground">Staff check-ins</p>
-            </CardContent>
-          </Card>
-        </div>
+        {/* QR Code Display Modal */}
+        <QRCodeDisplay
+          isOpen={showQRCode}
+          onClose={() => setShowQRCode(false)}
+          gymId={gymId}
+          gymName={gymName}
+        />
 
-        <div className="flex flex-col sm:flex-row gap-4 items-end">
-          <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search attendance records..."
-              className="pl-8"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+        {/* Main Content */}
+        <div className="space-y-6">
+          {/* View Toggle */}
+          <div className="border-b pb-4">
+            <Tabs value={view} onValueChange={(v) => setView(v as 'today' | 'history')}>
+              <TabsList>
+                <TabsTrigger value="today">Today's Attendance</TabsTrigger>
+                <TabsTrigger value="history">History</TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
-          <div className="flex gap-2 w-full sm:w-auto">
-            <Select value={selectedDate} onValueChange={setSelectedDate}>
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="Select a date" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="today">Today</SelectItem>
-                <SelectItem value="yesterday">Yesterday</SelectItem>
-                <SelectItem value="thisWeek">This Week</SelectItem>
-                <SelectItem value="lastWeek">Last Week</SelectItem>
-                <SelectItem value="thisMonth">This Month</SelectItem>
-                <SelectItem value="custom">Custom Range</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button variant="outline" className="w-full sm:w-auto">
-              <Filter className="mr-2 h-4 w-4" />
-              Filter
-            </Button>
-            <Button variant="outline" className="w-full sm:w-auto">
-              <Download className="mr-2 h-4 w-4" />
-              Export
-            </Button>
-          </div>
-        </div>
 
-        <Tabs defaultValue="all" className="w-full">
-          <TabsList className="grid w-[400px] grid-cols-3 mb-4">
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="members">Members</TabsTrigger>
-            <TabsTrigger value="staff">Staff</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="all" className="border rounded-md">
-            {isLoading ? (
-              <div className="flex justify-center items-center p-8">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <span className="ml-2">Loading attendance records...</span>
+          {view === 'today' ? (
+            <>
+              {/* Today's Attendance Stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Check-ins</CardTitle>
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{stats.totalToday}</div>
+                    <p className="text-xs text-muted-foreground">Today</p>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Currently In</CardTitle>
+                    <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{stats.currentlyIn}</div>
+                    <p className="text-xs text-muted-foreground">Active now</p>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Members</CardTitle>
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{stats.membersToday}</div>
+                    <p className="text-xs text-muted-foreground">Member check-ins</p>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Staff</CardTitle>
+                    <User className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{stats.staffToday}</div>
+                    <p className="text-xs text-muted-foreground">Staff check-ins</p>
+                  </CardContent>
+                </Card>
               </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Check-in Time</TableHead>
-                    <TableHead>Check-out Time</TableHead>
-                    <TableHead className="hidden md:table-cell">Duration</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredAttendance.length > 0 ? (
-                    filteredAttendance.map(record => (
-                      <TableRow key={record._id}>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Avatar className="h-8 w-8">
-                              <AvatarImage src="/placeholder.svg" alt={record.memberId?.name || record.staffId?.name || ''} />
-                              <AvatarFallback>
-                                {(record.memberId?.name?.[0] || record.staffId?.name?.[0] || '').toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="font-medium">{record.memberId?.name || record.staffId?.name}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>{record.type}</TableCell>
-                        <TableCell>{new Date(record.checkInTime).toLocaleTimeString()}</TableCell>
-                        <TableCell>
-                          {record.checkOutTime ? new Date(record.checkOutTime).toLocaleTimeString() : '-'}
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">{record.duration || '-'}</TableCell>
-                        <TableCell>
-                          <Badge variant={record.status === 'Checked In' ? 'default' : 'secondary'}>
-                            <div className="flex items-center gap-1">
-                              {record.status === 'Checked In' ? (
-                                <CheckCircle className="h-3 w-3" />
-                              ) : (
-                                <XCircle className="h-3 w-3" />
-                              )}
-                              {record.status}
-                            </div>
-                          </Badge>
-                        </TableCell>
+
+              {/* Today's Attendance Table */}
+              <div className="border rounded-md">
+                {isLoading ? (
+                  <div className="flex justify-center items-center p-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <span className="ml-2">Loading attendance records...</span>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Check-in Time</TableHead>
+                        <TableHead>Check-out Time</TableHead>
+                        <TableHead className="hidden md:table-cell">Duration</TableHead>
+                        <TableHead>Status</TableHead>
                       </TableRow>
-                    ))
+                    </TableHeader>
+                    <TableBody>
+                      {attendanceRecords.length > 0 ? (
+                        attendanceRecords.map(record => (
+                          <TableRow key={record._id}>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Avatar className="h-8 w-8">
+                                  <AvatarImage src="/placeholder.svg" alt={record.memberId?.name || ''} />
+                                  <AvatarFallback>
+                                    {(record.memberId?.name?.[0] || '').toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span className="font-medium">{record.memberId?.name}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>{record.memberId ? 'Member' : 'Staff'}</TableCell>
+                            <TableCell>{format(new Date(record.checkInTime), 'PPp')}</TableCell>
+                            <TableCell>
+                              {record.checkOutTime ? format(new Date(record.checkOutTime), 'PPp') : '-'}
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell">
+                              {record.checkOutTime
+                                ? formatDuration(new Date(record.checkOutTime).getTime() - new Date(record.checkInTime).getTime())
+                                : '-'}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={record.checkOutTime ? 'secondary' : 'default'}>
+                                {record.checkOutTime ? 'Checked Out' : 'Checked In'}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={6} className="h-24 text-center">
+                            No attendance records found
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              {/* History Section */}
+              <div className="space-y-4">
+                {/* Date Filter */}
+                <div className="flex justify-end px-4">
+                  <Input
+                    type="date"
+                    className="w-[240px]"
+                    value={date ? format(date, 'yyyy-MM-dd') : ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value) {
+                        setDate(new Date(value));
+                      }
+                    }}
+                  />
+                </div>
+
+                {/* History Table */}
+                <div className="border rounded-md">
+                  {isLoadingHistory ? (
+                    <div className="flex justify-center items-center p-8">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      <span className="ml-2">Loading history...</span>
+                    </div>
                   ) : (
-                    <TableRow>
-                      <TableCell colSpan={6} className="h-24 text-center">
-                        No attendance records found
-                      </TableCell>
-                    </TableRow>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Check-in Time</TableHead>
+                          <TableHead>Check-out Time</TableHead>
+                          <TableHead>Duration</TableHead>
+                          <TableHead>Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {historyData.length > 0 ? (
+                          historyData.map(record => (
+                            <TableRow key={record._id}>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <Avatar className="h-8 w-8">
+                                    <AvatarImage src="/placeholder.svg" alt={record.memberId?.name || ''} />
+                                    <AvatarFallback>
+                                      {(record.memberId?.name?.[0] || '').toUpperCase()}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <span className="font-medium">{record.memberId?.name}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell>{format(new Date(record.checkInTime), 'PPp')}</TableCell>
+                              <TableCell>
+                                {record.checkOutTime ? format(new Date(record.checkOutTime), 'PPp') : '-'}
+                              </TableCell>
+                              <TableCell>
+                                {record.checkOutTime
+                                  ? formatDuration(new Date(record.checkOutTime).getTime() - new Date(record.checkInTime).getTime())
+                                  : '-'}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant={record.checkOutTime ? 'secondary' : 'default'}>
+                                  {record.checkOutTime ? 'Checked Out' : 'Checked In'}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={5} className="h-24 text-center">
+                              No attendance records found
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
                   )}
-                </TableBody>
-              </Table>
-            )}
-          </TabsContent>
+                </div>
 
-          <TabsContent value="members">
-            <div className="p-8 text-center text-muted-foreground">
-              Member attendance records will be filtered here.
-            </div>
-          </TabsContent>
-
-          <TabsContent value="staff">
-            <div className="p-8 text-center text-muted-foreground">
-              Staff attendance records will be filtered here.
-            </div>
-          </TabsContent>
-        </Tabs>
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex justify-center gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setHistoryPage(p => Math.max(1, p - 1))}
+                      disabled={historyPage === 1}
+                    >
+                      Previous
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setHistoryPage(p => Math.min(totalPages, p + 1))}
+                      disabled={historyPage === totalPages}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
       </motion.div>
     </DashboardLayout>
   );
+};
+
+// Helper function to format duration
+const formatDuration = (ms: number) => {
+  const hours = Math.floor(ms / (1000 * 60 * 60));
+  const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
+  return `${hours}h ${minutes}m`;
 };
 
 export default AttendancePage;

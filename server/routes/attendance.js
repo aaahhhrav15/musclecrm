@@ -1,22 +1,143 @@
-
 const express = require('express');
 const GymAttendance = require('../models/GymAttendance');
 const GymMember = require('../models/GymMember');
 const auth = require('../middleware/auth');
+const { startOfDay, endOfDay, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } = require('date-fns');
 
 const router = express.Router();
 
-// Get all attendance records
+// Get attendance records with date filter
 router.get('/', auth, async (req, res) => {
   try {
-    const attendance = await GymAttendance.find({ userId: req.user._id })
+    const { date } = req.query;
+    let dateFilter = {};
+
+    // Handle different date filters
+    if (date) {
+      const today = new Date();
+      switch (date) {
+        case 'today':
+          dateFilter = {
+            checkInTime: {
+              $gte: startOfDay(today),
+              $lte: endOfDay(today)
+            }
+          };
+          break;
+        case 'yesterday':
+          const yesterday = subDays(today, 1);
+          dateFilter = {
+            checkInTime: {
+              $gte: startOfDay(yesterday),
+              $lte: endOfDay(yesterday)
+            }
+          };
+          break;
+        case 'thisWeek':
+          dateFilter = {
+            checkInTime: {
+              $gte: startOfWeek(today),
+              $lte: endOfWeek(today)
+            }
+          };
+          break;
+        case 'lastWeek':
+          const lastWeek = subDays(today, 7);
+          dateFilter = {
+            checkInTime: {
+              $gte: startOfWeek(lastWeek),
+              $lte: endOfWeek(lastWeek)
+            }
+          };
+          break;
+        case 'thisMonth':
+          dateFilter = {
+            checkInTime: {
+              $gte: startOfMonth(today),
+              $lte: endOfMonth(today)
+            }
+          };
+          break;
+        default:
+          // If a specific date is provided
+          const specificDate = new Date(date);
+          if (!isNaN(specificDate.getTime())) {
+            dateFilter = {
+              checkInTime: {
+                $gte: startOfDay(specificDate),
+                $lte: endOfDay(specificDate)
+              }
+            };
+          }
+      }
+    }
+
+    const attendance = await GymAttendance.find({
+      userId: req.user._id,
+      ...dateFilter
+    })
       .populate('memberId', 'name membershipType')
       .sort({ checkInTime: -1 });
+
+    // Calculate stats
+    const stats = {
+      totalToday: attendance.length,
+      currentlyIn: attendance.filter(a => !a.checkOutTime).length,
+      membersToday: attendance.filter(a => a.memberId).length,
+      staffToday: attendance.filter(a => a.staffId).length
+    };
       
-    res.json({ success: true, data: attendance });
+    res.json({ 
+      success: true, 
+      data: attendance,
+      stats 
+    });
   } catch (error) {
     console.error('Get attendance error:', error);
     res.status(500).json({ success: false, message: 'Error fetching attendance records' });
+  }
+});
+
+// Get attendance history with pagination
+router.get('/history', auth, async (req, res) => {
+  try {
+    const { page = 1, limit = 10, startDate, endDate, memberId } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    let query = { userId: req.user._id };
+
+    // Add date range filter if provided
+    if (startDate || endDate) {
+      query.checkInTime = {};
+      if (startDate) query.checkInTime.$gte = new Date(startDate);
+      if (endDate) query.checkInTime.$lte = new Date(endDate);
+    }
+
+    // Add member filter if provided
+    if (memberId) {
+      query.memberId = memberId;
+    }
+
+    const attendance = await GymAttendance.find(query)
+      .populate('memberId', 'name membershipType')
+      .sort({ checkInTime: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const total = await GymAttendance.countDocuments(query);
+
+    res.json({
+      success: true,
+      data: attendance,
+      pagination: {
+        total,
+        page: parseInt(page),
+        pages: Math.ceil(total / parseInt(limit))
+      }
+    });
+  } catch (error) {
+    console.error('Get attendance history error:', error);
+    res.status(500).json({ success: false, message: 'Error fetching attendance history' });
   }
 });
 

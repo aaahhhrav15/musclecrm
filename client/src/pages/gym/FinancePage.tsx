@@ -212,42 +212,52 @@ const FinancePage: React.FC = () => {
 
   const createInvoiceMutation = useMutation({
     mutationFn: async (data: any) => {
-      console.log('Mutation function called with data:', data); // Debug log
+      console.log('Creating invoice with data:', data);
       try {
-        const response = await axios.post(`${API_URL}/invoices`, data, { 
+        const response = await axios.post(`${API_URL}/invoices`, {
+          customerId: data.customerId,
+          items: data.items,
+          amount: data.amount,
+          dueDate: data.dueDate,
+          notes: data.notes,
+          status: 'pending',
+          currency: 'INR'
+        }, { 
           withCredentials: true,
           headers: {
             'Content-Type': 'application/json'
           }
         });
-        console.log('Server response:', response.data); // Debug log
+        
+        console.log('Server response:', response.data);
         if (!response.data.success) {
           throw new Error(response.data.message || 'Failed to create invoice');
         }
         return response.data;
       } catch (error: any) {
-        console.error('Error in mutation function:', error); // Debug log
+        console.error('Error in mutation function:', error);
         throw new Error(error.response?.data?.message || 'Failed to create invoice');
       }
     },
     onSuccess: (data) => {
-      console.log('Mutation succeeded:', data); // Debug log
+      console.log('Invoice created successfully:', data);
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
       toast.success('Invoice created successfully');
       setIsCreateInvoiceOpen(false);
     },
     onError: (error: Error) => {
-      console.error('Mutation error:', error); // Debug log
+      console.error('Invoice creation failed:', error);
       toast.error(error.message || 'Failed to create invoice');
     },
   });
 
   const handleCreateInvoice = async (data: any) => {
-    console.log('handleCreateInvoice called with data:', data); // Debug log
+    console.log('handleCreateInvoice called with data:', data);
     try {
       await createInvoiceMutation.mutateAsync(data);
     } catch (error) {
       console.error('Error in handleCreateInvoice:', error);
+      toast.error('Failed to create invoice. Please try again.');
     }
   };
 

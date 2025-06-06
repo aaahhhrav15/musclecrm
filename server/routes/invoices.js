@@ -99,64 +99,44 @@ router.get('/:id', auth, async (req, res) => {
 // Create new invoice
 router.post('/', auth, async (req, res) => {
   try {
-    const {
-      customerId,
-      bookingId,
-      date,
-      dueDate,
-      items,
-      tax,
-      notes,
-      paymentMethod,
-      amount,
-      currency,
-      status
-    } = req.body;
-    
-    // Verify customer exists and belongs to user
-    const customer = await Customer.findOne({
-      _id: customerId,
-      userId: req.user._id
-    });
+    const { customerId, bookingId, items, amount, dueDate, notes, status, currency } = req.body;
 
-    if (!customer) {
-      return res.status(404).json({ success: false, message: 'Customer not found' });
-    }
+    // Generate a 6-digit invoice number
+    const invoiceCount = await Invoice.countDocuments({ userId: req.user._id });
+    const invoiceNumber = `INV${String(invoiceCount + 1).padStart(5, '0')}`;
 
-    // Verify booking exists if provided
-    if (bookingId) {
-      const booking = await Booking.findOne({
-        _id: bookingId,
-        userId: req.user._id
-      });
-
-      if (!booking) {
-        return res.status(404).json({ success: false, message: 'Booking not found' });
-      }
-    }
-    
-    const newInvoice = await Invoice.create({
+    const invoice = new Invoice({
       userId: req.user._id,
       customerId,
       bookingId,
-      date,
-      dueDate,
+      invoiceNumber,
       items,
-      tax,
-      notes,
-      paymentMethod,
       amount,
-      currency,
-      status,
-      subtotal: items.reduce((sum, item) => sum + item.amount, 0),
-      total: amount,
-      remainingAmount: amount
+      dueDate,
+      notes,
+      status: status || 'pending',
+      currency: currency || 'USD'
     });
-    
-    res.status(201).json({ success: true, invoice: newInvoice });
+
+    await invoice.save();
+
+    // Populate customer and booking details
+    await invoice.populate('customerId', 'name email phone');
+    if (bookingId) {
+      await invoice.populate('bookingId', 'type startTime endTime');
+    }
+
+    res.status(201).json({
+      success: true,
+      data: invoice
+    });
   } catch (error) {
     console.error('Create invoice error:', error);
-    res.status(500).json({ success: false, message: 'Error creating invoice' });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error creating invoice',
+      error: error.message 
+    });
   }
 });
 
@@ -226,48 +206,39 @@ router.delete('/:id', auth, async (req, res) => {
   }
 });
 
-// Generate PDF invoice with enhanced beautiful design
+// Generate Professional PDF Invoice
 router.get('/:id/pdf', auth, async (req, res) => {
   try {
-    console.log('Attempting to generate PDF for invoice:', req.params.id);
+    console.log('Generating professional PDF for invoice:', req.params.id);
     
     const invoice = await Invoice.findOne({
       _id: req.params.id,
       userId: req.user._id
     })
-      .populate('customerId', 'name email phone')
+      .populate('customerId', 'name email phone address')
       .populate('bookingId', 'type startTime endTime');
 
-    console.log('Found invoice:', invoice ? 'Yes' : 'No');
-    
     if (!invoice) {
-      console.log('Invoice not found');
       return res.status(404).json({ success: false, message: 'Invoice not found' });
     }
 
-    console.log('Creating PDF document...');
-    
-    // Create PDF document with enhanced settings
+    // Create PDF document
     const doc = new PDFDocument({
       size: 'A4',
-      margin: 0,
+      margins: { top: 40, bottom: 40, left: 50, right: 50 },
       info: {
         Title: `Invoice ${invoice.invoiceNumber}`,
         Author: 'FlexCRM',
-        Subject: 'Professional Invoice',
-        Creator: 'FlexCRM Invoice System',
-        Producer: 'FlexCRM PDF Generator'
+        Subject: 'Professional Invoice'
       }
     });
 
     // Set response headers
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename=invoice-${invoice.invoiceNumber}.pdf`);
-
-    // Pipe the PDF to the response
     doc.pipe(res);
 
-    // Enhanced Helper Functions
+    // Helper functions
     const formatDate = (date) => {
       try {
         if (!date) return 'N/A';
@@ -275,7 +246,6 @@ router.get('/:id/pdf', auth, async (req, res) => {
         if (isNaN(dateObj.getTime())) return 'Invalid Date';
         return format(dateObj, 'MMM dd, yyyy');
       } catch (error) {
-        console.error('Date formatting error:', error);
         return 'Invalid Date';
       }
     };
@@ -284,397 +254,374 @@ router.get('/:id/pdf', auth, async (req, res) => {
       return `${currency} ${parseFloat(amount || 0).toFixed(2)}`;
     };
 
-    // Modern Color Palette
-    const colors = {
-      primary: '#1e40af',      // Deep Blue
-      secondary: '#3b82f6',    // Blue
-      accent: '#06b6d4',       // Cyan
-      success: '#10b981',      // Emerald
-      warning: '#f59e0b',      // Amber
-      danger: '#ef4444',       // Red
-      dark: '#1f2937',         // Dark Gray
-      medium: '#6b7280',       // Medium Gray
-      light: '#f3f4f6',        // Light Gray
-      white: '#ffffff',
-      black: '#000000'
-    };
-
-    // Enhanced Helper Functions
-    const drawGradient = (x, y, width, height, startColor, endColor) => {
-      const gradient = doc.linearGradient(x, y, x + width, y + height);
-      gradient.stop(0, startColor).stop(1, endColor);
-      doc.rect(x, y, width, height).fill(gradient);
-    };
-
-    const drawShadowBox = (x, y, width, height, radius = 0, shadowOffset = 3) => {
-      // Shadow
-      doc.fillColor('#00000015')
-         .rect(x + shadowOffset, y + shadowOffset, width, height, radius)
-         .fill();
-      
-      // Main box
-      doc.fillColor(colors.white)
-         .rect(x, y, width, height, radius)
-         .fill()
-         .strokeColor(colors.light)
-         .lineWidth(1)
-         .rect(x, y, width, height, radius)
+    const addLine = (startX, startY, endX, endY, color = '#CCCCCC', width = 1) => {
+      doc.strokeColor(color)
+         .lineWidth(width)
+         .moveTo(startX, startY)
+         .lineTo(endX, endY)
          .stroke();
     };
 
-    const drawModernCard = (x, y, width, height, title, content, icon = null) => {
-      drawShadowBox(x, y, width, height, 8);
-      
-      if (title) {
-        doc.fillColor(colors.primary)
-           .fontSize(12)
-           .font('Helvetica-Bold')
-           .text(title, x + 20, y + 15);
-      }
-      
-      if (content) {
-        doc.fillColor(colors.dark)
-           .fontSize(10)
-           .font('Helvetica')
-           .text(content, x + 20, y + 35, {
-             width: width - 40,
-             align: 'left'
-           });
-      }
+    // Colors
+    const colors = {
+      primary: '#2563eb',
+      secondary: '#64748b',
+      text: '#1e293b',
+      light: '#f1f5f9',
+      success: '#10b981',
+      warning: '#f59e0b',
+      danger: '#ef4444'
     };
 
-    // Start drawing the invoice
-    let currentY = 0;
+    let currentY = 40;
 
-    // Header Section with Modern Gradient
-    drawGradient(0, 0, 595, 140, colors.primary, colors.secondary);
-    
-    // Decorative elements
-    doc.fillColor('#ffffff20')
-       .circle(520, 40, 60)
-       .fill()
-       .circle(480, 100, 30)
-       .fill()
-       .circle(550, 120, 20)
+    // Header Section
+    // Company Logo (Simple professional design)
+    doc.fillColor(colors.primary)
+       .rect(50, currentY, 50, 50)
        .fill();
+    
+    doc.fillColor('white')
+       .fontSize(20)
+       .font('Helvetica-Bold')
+       .text('FC', 65, currentY + 15);
 
-    // Company Logo Area (Placeholder for actual logo)
-    doc.fillColor(colors.white)
-       .rect(40, 25, 60, 60, 30)
-       .fill()
-       .fillColor(colors.primary)
+    // Company Details
+    doc.fillColor(colors.text)
        .fontSize(24)
        .font('Helvetica-Bold')
-       .text('FC', 60, 48);
+       .text('FLEXCRM', 120, currentY + 5);
 
-    // Company Information
-    doc.fillColor(colors.white)
+    doc.fillColor(colors.secondary)
+       .fontSize(10)
+       .font('Helvetica')
+       .text('Premium Fitness Management System', 120, currentY + 30)
+       .text('123 Fitness Street, Mumbai, Maharashtra 400001', 120, currentY + 42)
+       .text('Phone: +91 9876543210 | Email: info@flexcrm.com', 120, currentY + 54);
+
+    // Invoice Title and Number (Right side)
+    doc.fillColor(colors.primary)
        .fontSize(28)
        .font('Helvetica-Bold')
-       .text('FLEXCRM', 120, 35);
+       .text('INVOICE', 400, currentY, { align: 'right' });
 
-    doc.fillColor('#ffffff90')
-       .fontSize(11)
-       .font('Helvetica')
-       .text('Premium Fitness Management', 120, 65)
-       .text('123 Fitness Street, Mumbai, India', 120, 80)
-       .text('Phone: +91 1234567890 | Email: info@flexcrm.com', 120, 95);
+    // Invoice details box - Made taller to accommodate all content
+    doc.rect(400, currentY + 35, 145, 95)
+       .fillColor(colors.light)
+       .fill()
+       .strokeColor(colors.primary)
+       .lineWidth(1)
+       .stroke();
 
-    // Invoice Details Card
-    drawShadowBox(360, 25, 200, 90, 12);
-    
-    doc.fillColor(colors.primary)
-       .fontSize(22)
-       .font('Helvetica-Bold')
-       .text('INVOICE', 380, 45);
-
-    doc.fillColor(colors.dark)
+    doc.fillColor(colors.text)
        .fontSize(10)
        .font('Helvetica-Bold')
-       .text('Invoice Number:', 380, 70)
-       .fillColor(colors.medium)
+       .text('Invoice Number:', 410, currentY + 45)
        .font('Helvetica')
-       .text(invoice.invoiceNumber || 'N/A', 460, 70);
+       .text(invoice.invoiceNumber || 'INV-001', 410, currentY + 58);
 
-    doc.fillColor(colors.dark)
-       .font('Helvetica-Bold')
-       .text('Date:', 380, 85)
-       .fillColor(colors.medium)
+    doc.font('Helvetica-Bold')
+       .text('Invoice Date:', 410, currentY + 75)
        .font('Helvetica')
-       .text(formatDate(invoice.createdAt), 460, 85);
+       .text(formatDate(invoice.createdAt), 410, currentY + 88);
 
-    doc.fillColor(colors.dark)
-       .font('Helvetica-Bold')
-       .text('Due Date:', 380, 100)
-       .fillColor(colors.medium)
+    doc.font('Helvetica-Bold')
+       .text('Due Date:', 410, currentY + 105)
        .font('Helvetica')
-       .text(formatDate(invoice.dueDate), 460, 100);
+       .text(formatDate(invoice.dueDate), 410, currentY + 118);
 
-    currentY = 160;
+    currentY += 100;
 
-    // Status Badge
+    // Status Badge - Moved up
     const statusColors = {
       'paid': colors.success,
       'pending': colors.warning,
       'cancelled': colors.danger,
-      'draft': colors.medium
+      'draft': colors.secondary
     };
     
-    const statusColor = statusColors[invoice.status] || colors.medium;
+    const statusColor = statusColors[invoice.status] || colors.secondary;
     doc.fillColor(statusColor)
-       .rect(40, currentY, 100, 25, 12)
-       .fill()
-       .fillColor(colors.white)
-       .fontSize(10)
+       .rect(50, currentY, 80, 22)
+       .fill();
+    
+    doc.fillColor('white')
+       .fontSize(9)
        .font('Helvetica-Bold')
-       .text(invoice.status.toUpperCase(), 40, currentY + 8, {
-         width: 100,
+       .text(invoice.status.toUpperCase(), 50, currentY + 7, {
+         width: 80,
          align: 'center'
        });
 
-    currentY += 50;
+    currentY += 35;
 
-    // Customer and Booking Information Cards
-    const cardHeight = 120;
-    
-    // Customer Information Card
-    drawModernCard(40, currentY, 250, cardHeight, 'BILL TO');
-    
-    doc.fillColor(colors.dark)
-       .fontSize(14)
+    // Bill To Section
+    doc.fillColor(colors.text)
+       .fontSize(12)
        .font('Helvetica-Bold')
-       .text(invoice.customerId?.name || 'N/A', 60, currentY + 40);
+       .text('BILL TO:', 50, currentY);
 
-    doc.fillColor(colors.medium)
-       .fontSize(10)
+    doc.rect(50, currentY + 15, 240, 85)
+       .fillColor('#fafafa')
+       .fill()
+       .strokeColor('#e2e8f0')
+       .lineWidth(1)
+       .stroke();
+
+    doc.fillColor(colors.text)
+       .fontSize(13)
+       .font('Helvetica-Bold')
+       .text(invoice.customerId?.name || 'N/A', 60, currentY + 25);
+
+    doc.fillColor(colors.secondary)
+       .fontSize(9)
        .font('Helvetica')
-       .text(`Email: ${invoice.customerId?.email || 'N/A'}`, 60, currentY + 60)
-       .text(`Phone: ${invoice.customerId?.phone || 'N/A'}`, 60, currentY + 75);
+       .text(`Email: ${invoice.customerId?.email || 'N/A'}`, 60, currentY + 42)
+       .text(`Phone: ${invoice.customerId?.phone || 'N/A'}`, 60, currentY + 55);
 
-    // Booking Information Card (if exists)
-    if (invoice.bookingId) {
-      drawModernCard(305, currentY, 250, cardHeight, 'BOOKING DETAILS');
-      
-      doc.fillColor(colors.dark)
-         .fontSize(12)
-         .font('Helvetica-Bold')
-         .text(`Service: ${invoice.bookingId.type || 'N/A'}`, 325, currentY + 40);
-
-      doc.fillColor(colors.medium)
-         .fontSize(10)
-         .font('Helvetica')
-         .text(`Start: ${formatDate(invoice.bookingId.startTime)}`, 325, currentY + 60)
-         .text(`End: ${formatDate(invoice.bookingId.endTime)}`, 325, currentY + 75);
+    if (invoice.customerId?.address) {
+      doc.text(`Address: ${invoice.customerId.address}`, 60, currentY + 68, {
+        width: 220,
+        height: 25
+      });
     }
 
-    currentY += cardHeight + 30;
+    // Booking Details (if exists)
+    if (invoice.bookingId) {
+      doc.fillColor(colors.text)
+         .fontSize(12)
+         .font('Helvetica-Bold')
+         .text('SERVICE DETAILS:', 310, currentY);
 
-    // Items Table with Modern Design
+      doc.rect(310, currentY + 15, 235, 85)
+         .fillColor('#fafafa')
+         .fill()
+         .strokeColor('#e2e8f0')
+         .lineWidth(1)
+         .stroke();
+
+      doc.fillColor(colors.text)
+         .fontSize(11)
+         .font('Helvetica-Bold')
+         .text(`Service: ${invoice.bookingId.type || 'N/A'}`, 320, currentY + 25);
+
+      doc.fillColor(colors.secondary)
+         .fontSize(9)
+         .font('Helvetica')
+         .text(`Start Date: ${formatDate(invoice.bookingId.startTime)}`, 320, currentY + 42)
+         .text(`End Date: ${formatDate(invoice.bookingId.endTime)}`, 320, currentY + 55);
+    }
+
+    currentY += 115;
+
+    // Items Table
     const tableStartY = currentY;
-    const tableWidth = 515;
-    const rowHeight = 35;
-    
-    // Table Header
-    drawGradient(40, tableStartY, tableWidth, 40, colors.primary, colors.secondary);
-    
-    doc.fillColor(colors.white)
-       .fontSize(11)
-       .font('Helvetica-Bold')
-       .text('DESCRIPTION', 55, tableStartY + 15)
-       .text('QTY', 300, tableStartY + 15)
-       .text('UNIT PRICE', 360, tableStartY + 15)
-       .text('AMOUNT', 480, tableStartY + 15);
+    const tableHeaders = ['Description', 'Qty', 'Unit Price', 'Amount'];
+    const columnWidths = [250, 60, 100, 85];
+    const columnPositions = [50, 300, 360, 460];
 
-    currentY = tableStartY + 40;
+    // Table Header
+    doc.rect(50, tableStartY, 495, 25)
+       .fillColor(colors.primary)
+       .fill();
+
+    doc.fillColor('white')
+       .fontSize(10)
+       .font('Helvetica-Bold');
+
+    tableHeaders.forEach((header, index) => {
+      const align = index === 0 ? 'left' : 'center';
+      doc.text(header, columnPositions[index] + 8, tableStartY + 8, {
+        width: columnWidths[index] - 16,
+        align: align
+      });
+    });
+
+    currentY = tableStartY + 25;
 
     // Table Rows
-    if (invoice.items && Array.isArray(invoice.items)) {
+    if (invoice.items && Array.isArray(invoice.items) && invoice.items.length > 0) {
       invoice.items.forEach((item, index) => {
+        const rowHeight = 30;
         const isEven = index % 2 === 0;
-        const rowColor = isEven ? colors.white : colors.light;
         
-        doc.fillColor(rowColor)
-           .rect(40, currentY, tableWidth, rowHeight)
-           .fill();
+        // Alternate row colors
+        if (isEven) {
+          doc.rect(50, currentY, 495, rowHeight)
+             .fillColor('#f8fafc')
+             .fill();
+        }
 
-        // Add subtle border
-        doc.strokeColor('#e5e7eb')
+        // Row border
+        doc.rect(50, currentY, 495, rowHeight)
+           .strokeColor('#e2e8f0')
            .lineWidth(0.5)
-           .rect(40, currentY, tableWidth, rowHeight)
            .stroke();
 
-        // Item details
-        doc.fillColor(colors.dark)
-           .fontSize(10)
+        // Item data
+        doc.fillColor(colors.text)
+           .fontSize(9)
            .font('Helvetica')
-           .text(item.description || 'No description', 55, currentY + 12, {
-             width: 200,
+           .text(item.description || 'No description', columnPositions[0] + 8, currentY + 10, {
+             width: columnWidths[0] - 16,
              ellipsis: true
            });
 
-        doc.text(item.quantity?.toString() || '0', 300, currentY + 12, {
-           width: 50,
+        doc.text((item.quantity || 0).toString(), columnPositions[1] + 8, currentY + 10, {
+           width: columnWidths[1] - 16,
            align: 'center'
          });
 
-        doc.text(formatCurrency(item.unitPrice, invoice.currency), 360, currentY + 12, {
-           width: 80,
-           align: 'right'
+        doc.text(formatCurrency(item.unitPrice || 0, invoice.currency), columnPositions[2] + 8, currentY + 10, {
+           width: columnWidths[2] - 16,
+           align: 'center'
          });
 
-        doc.fillColor(colors.primary)
+        doc.fillColor(colors.text)
            .font('Helvetica-Bold')
-           .text(formatCurrency(item.amount, invoice.currency), 480, currentY + 12, {
-             width: 60,
-             align: 'right'
+           .text(formatCurrency(item.amount || 0, invoice.currency), columnPositions[3] + 8, currentY + 10, {
+             width: columnWidths[3] - 16,
+             align: 'center'
            });
 
         currentY += rowHeight;
       });
     } else {
-      doc.fillColor(colors.light)
-         .rect(40, currentY, tableWidth, rowHeight)
+      // No items row
+      doc.rect(50, currentY, 495, 30)
+         .fillColor('#f8fafc')
          .fill()
-         .fillColor(colors.medium)
-         .fontSize(10)
+         .strokeColor('#e2e8f0')
+         .lineWidth(0.5)
+         .stroke();
+
+      doc.fillColor(colors.secondary)
+         .fontSize(9)
          .font('Helvetica')
-         .text('No items found', 55, currentY + 12);
-      currentY += rowHeight;
+         .text('No items found', 60, currentY + 10);
+      
+      currentY += 30;
     }
 
-    // Totals Section with Modern Card Design
-    currentY += 20;
-    const totalsCardWidth = 250;
-    const totalsCardHeight = 120;
-    
-    drawShadowBox(305, currentY, totalsCardWidth, totalsCardHeight, 12);
-    
-    // Gradient background for totals
-    drawGradient(305, currentY, totalsCardWidth, 40, colors.light, colors.white);
-    
+    // Totals Section
+    currentY += 15;
+    const totalsStartX = 350;
+    const totalsWidth = 195;
+
     const subtotal = invoice.items?.reduce((sum, item) => sum + (item.amount || 0), 0) || 0;
     const tax = invoice.tax || 0;
     const total = invoice.amount || subtotal + tax;
 
-    // Subtotal
-    doc.fillColor(colors.dark)
-       .fontSize(11)
-       .font('Helvetica')
-       .text('Subtotal:', 325, currentY + 20)
-       .text(formatCurrency(subtotal, invoice.currency), 325, currentY + 20, {
-         width: 210,
-         align: 'right'
-       });
-
-    // Tax (if applicable)
-    if (tax > 0) {
-      doc.text('Tax:', 325, currentY + 40)
-         .text(formatCurrency(tax, invoice.currency), 325, currentY + 40, {
-           width: 210,
-           align: 'right'
-         });
-    }
-
-    // Total with emphasis
-    doc.fillColor(colors.primary)
-       .fontSize(14)
-       .font('Helvetica-Bold')
-       .text('TOTAL:', 325, currentY + 80)
-       .text(formatCurrency(total, invoice.currency), 325, currentY + 80, {
-         width: 210,
-         align: 'right'
-       });
-
-    currentY += totalsCardHeight + 30;
-
-    // Notes Section (if exists)
-    if (invoice.notes) {
-      drawModernCard(40, currentY, 515, 80, 'NOTES', invoice.notes);
-      currentY += 100;
-    }
-
-    // Payment Instructions Section
-    drawModernCard(40, currentY, 515, 140, 'PAYMENT INSTRUCTIONS');
-    
-    const paymentInstructions = [
-      '• Payment is due within 30 days of invoice date',
-      '• Late payments may incur additional charges',
-      '• All payments should reference the invoice number',
-      '• For payment queries, contact our billing department',
-      '',
-      'Bank Details:',
-      'Bank Name: Premium Bank Ltd.',
-      'Account Number: 1234567890',
-      'Routing Number: 987654321'
-    ];
-
-    doc.fillColor(colors.medium)
-       .fontSize(9)
-       .font('Helvetica');
-    
-    paymentInstructions.forEach((instruction, index) => {
-      doc.text(instruction, 60, currentY + 35 + (index * 12));
-    });
-
-    currentY += 160;
-
-    // Footer with modern design
-    const footerY = 750;
-    
-    // Footer background
-    doc.fillColor(colors.light)
-       .rect(0, footerY, 595, 60)
-       .fill();
-
-    // Decorative line
-    doc.strokeColor(colors.primary)
-       .lineWidth(3)
-       .moveTo(40, footerY + 5)
-       .lineTo(555, footerY + 5)
+    // Totals background
+    doc.rect(totalsStartX, currentY, totalsWidth, 75)
+       .fillColor('#f8fafc')
+       .fill()
+       .strokeColor('#e2e8f0')
+       .lineWidth(1)
        .stroke();
 
-    // Footer text
+    // Subtotal
+    doc.fillColor(colors.text)
+       .fontSize(10)
+       .font('Helvetica')
+       .text('Subtotal:', totalsStartX + 12, currentY + 12);
+    
+    doc.text(formatCurrency(subtotal, invoice.currency), totalsStartX + 12, currentY + 12, {
+       width: totalsWidth - 24,
+       align: 'right'
+     });
+
+    // Tax
+    doc.text('Tax:', totalsStartX + 12, currentY + 28);
+    doc.text(formatCurrency(tax, invoice.currency), totalsStartX + 12, currentY + 28, {
+       width: totalsWidth - 24,
+       align: 'right'
+     });
+
+    // Total line
+    addLine(totalsStartX + 12, currentY + 45, totalsStartX + totalsWidth - 12, currentY + 45, colors.primary, 1);
+
+    // Total
     doc.fillColor(colors.primary)
        .fontSize(12)
        .font('Helvetica-Bold')
-       .text('Thank you for your business!', 40, footerY + 20, {
-         width: 515,
-         align: 'center'
-       });
+       .text('TOTAL:', totalsStartX + 12, currentY + 55);
+    
+    doc.text(formatCurrency(total, invoice.currency), totalsStartX + 12, currentY + 55, {
+       width: totalsWidth - 24,
+       align: 'right'
+     });
 
-    doc.fillColor(colors.medium)
+    currentY += 90;
+
+    // Notes Section
+    if (invoice.notes && invoice.notes.trim()) {
+      doc.fillColor(colors.text)
+         .fontSize(11)
+         .font('Helvetica-Bold')
+         .text('NOTES:', 50, currentY);
+
+      doc.rect(50, currentY + 15, 495, 45)
+         .fillColor('#f8fafc')
+         .fill()
+         .strokeColor('#e2e8f0')
+         .lineWidth(1)
+         .stroke();
+
+      doc.fillColor(colors.secondary)
+         .fontSize(9)
+         .font('Helvetica')
+         .text(invoice.notes, 60, currentY + 25, {
+           width: 475,
+           height: 25
+         });
+
+      currentY += 70;
+    }
+
+    // Payment Terms
+    currentY += 15;
+    doc.fillColor(colors.text)
+       .fontSize(11)
+       .font('Helvetica-Bold')
+       .text('PAYMENT TERMS:', 50, currentY);
+
+    const paymentTerms = [
+      '• Payment is due within 30 days of invoice date',
+      '• Late payments may incur additional charges',
+      '• Please reference invoice number when making payment'
+    ];
+
+    doc.fillColor(colors.secondary)
+       .fontSize(8)
+       .font('Helvetica');
+
+    paymentTerms.forEach((term, index) => {
+      doc.text(term, 50, currentY + 18 + (index * 10));
+    });
+
+    // Footer
+    const footerY = 750;
+    addLine(50, footerY, 545, footerY, colors.primary, 1);
+
+    doc.fillColor(colors.secondary)
        .fontSize(8)
        .font('Helvetica')
-       .text('This is a computer-generated invoice. For questions, contact us at info@flexcrm.com', 40, footerY + 40, {
-         width: 515,
+       .text('This invoice was generated electronically and is valid without signature.', 50, footerY + 10, {
+         width: 495,
          align: 'center'
        });
-
-    // Add watermark for unpaid invoices
-    if (invoice.status !== 'paid') {
-      doc.fillColor('#ff000010')
-         .fontSize(60)
-         .font('Helvetica-Bold')
-         .rotate(-45, { origin: [300, 400] })
-         .text(invoice.status.toUpperCase(), 200, 400, {
-           width: 200,
-           align: 'center'
-         })
-         .rotate(45, { origin: [300, 400] });
-    }
 
     // Finalize PDF
     doc.end();
     
-    console.log('Enhanced PDF generation completed successfully');
+    console.log('Professional PDF generated successfully');
   } catch (error) {
     console.error('Generate PDF error:', error);
-    console.error('Error stack:', error.stack);
     res.status(500).json({ 
       success: false, 
       message: 'Error generating PDF',
-      error: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      error: error.message
     });
   }
 });

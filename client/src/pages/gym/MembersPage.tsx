@@ -20,6 +20,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
+import MemberQRCode from '@/components/attendance/MemberQRCode';
 
 // Mock data for members
 const members = [
@@ -33,6 +34,8 @@ const members = [
 
 const MembersPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('all');
+  const [showQRCode, setShowQRCode] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<{ id: string; name: string } | null>(null);
   
   // Filter members based on the active tab
   const filteredMembers = members.filter(member => {
@@ -50,6 +53,14 @@ const MembersPage: React.FC = () => {
     }
   });
   
+  const handleShowQRCode = (member: any) => {
+    setSelectedMember({
+      id: member._id,
+      name: member.name
+    });
+    setShowQRCode(true);
+  };
+
   return (
     <DashboardLayout>
       <motion.div
@@ -145,6 +156,9 @@ const MembersPage: React.FC = () => {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleShowQRCode(member)}>
+                            Generate QR Code
+                          </DropdownMenuItem>
                           <DropdownMenuItem>View Details</DropdownMenuItem>
                           <DropdownMenuItem>Edit Member</DropdownMenuItem>
                           <DropdownMenuItem>Process Renewal</DropdownMenuItem>
@@ -198,6 +212,16 @@ const MembersPage: React.FC = () => {
           </div>
         </div>
       </motion.div>
+
+      {/* Add QR Code Modal */}
+      {selectedMember && (
+        <MemberQRCode
+          isOpen={showQRCode}
+          onClose={() => setShowQRCode(false)}
+          memberId={selectedMember.id}
+          memberName={selectedMember.name}
+        />
+      )}
     </DashboardLayout>
   );
 };
