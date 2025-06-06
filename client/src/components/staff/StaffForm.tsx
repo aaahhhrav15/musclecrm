@@ -1,17 +1,7 @@
-import React, { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -19,181 +9,143 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { toast } from 'sonner';
 import axios from 'axios';
 import { API_URL } from '@/lib/constants';
-
-const staffFormSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters'),
-  email: z.string().email('Invalid email address'),
-  phone: z.string().min(10, 'Phone number must be at least 10 digits'),
-  position: z.string().min(1, 'Position is required'),
-  hireDate: z.string().min(1, 'Hire date is required'),
-  status: z.enum(['Active', 'Inactive', 'On Leave']),
-});
-
-type StaffFormValues = z.infer<typeof staffFormSchema>;
+import { toast } from 'sonner';
 
 interface StaffFormProps {
   onSuccess?: () => void;
-  initialData?: StaffFormValues;
-  staffId?: string;
+  initialData?: {
+    name: string;
+    email: string;
+    phone: string;
+    position: string;
+    hireDate: string;
+    status: 'Active' | 'Inactive' | 'On Leave';
+  };
 }
 
-export function StaffForm({ onSuccess, initialData, staffId }: StaffFormProps) {
-  const form = useForm<StaffFormValues>({
-    resolver: zodResolver(staffFormSchema),
-    defaultValues: initialData || {
-      name: '',
-      email: '',
-      phone: '',
-      position: '',
-      hireDate: new Date().toISOString().split('T')[0],
-      status: 'Active',
-    },
+export const StaffForm: React.FC<StaffFormProps> = ({ onSuccess, initialData }) => {
+  const [formData, setFormData] = useState({
+    name: initialData?.name || '',
+    email: initialData?.email || '',
+    phone: initialData?.phone || '',
+    position: initialData?.position || '',
+    hireDate: initialData?.hireDate || '',
+    status: initialData?.status || 'Active'
   });
 
-  const onSubmit = async (data: StaffFormValues) => {
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
     try {
-      if (staffId) {
+      if (initialData) {
         // Update existing staff
-        await axios.put(`${API_URL}/gym/staff/${staffId}`, data, { withCredentials: true });
+        await axios.put(`${API_URL}/gym/staff/${initialData._id}`, formData, { withCredentials: true });
         toast.success('Staff member updated successfully');
       } else {
         // Create new staff
-        await axios.post(`${API_URL}/gym/staff`, data, { withCredentials: true });
+        await axios.post(`${API_URL}/gym/staff`, formData, { withCredentials: true });
         toast.success('Staff member added successfully');
       }
-      form.reset();
-      onSuccess?.();
+      
+      if (onSuccess) {
+        onSuccess();
+      }
     } catch (error) {
       console.error('Error saving staff:', error);
       toast.error('Failed to save staff member');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (initialData) {
-      form.reset({
-        ...initialData,
-        hireDate: new Date(initialData.hireDate).toISOString().split('T')[0]
-      });
-    }
-  }, [initialData, form]);
-
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Name</FormLabel>
-              <FormControl>
-                <Input placeholder="Enter staff name" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="name">Name</Label>
+        <Input
+          id="name"
+          value={formData.name}
+          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          required
         />
+      </div>
 
-        <FormField
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Email</FormLabel>
-              <FormControl>
-                <Input type="email" placeholder="Enter email address" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+      <div className="space-y-2">
+        <Label htmlFor="email">Email</Label>
+        <Input
+          id="email"
+          type="email"
+          value={formData.email}
+          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+          required
         />
+      </div>
 
-        <FormField
-          control={form.control}
-          name="phone"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Phone</FormLabel>
-              <FormControl>
-                <Input placeholder="Enter phone number" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+      <div className="space-y-2">
+        <Label htmlFor="phone">Phone</Label>
+        <Input
+          id="phone"
+          type="tel"
+          value={formData.phone}
+          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+          required
         />
+      </div>
 
-        <FormField
-          control={form.control}
-          name="position"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Position</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select position" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="Head Trainer">Head Trainer</SelectItem>
-                  <SelectItem value="Personal Trainer">Personal Trainer</SelectItem>
-                  <SelectItem value="Yoga Instructor">Yoga Instructor</SelectItem>
-                  <SelectItem value="Fitness Instructor">Fitness Instructor</SelectItem>
-                  <SelectItem value="Receptionist">Receptionist</SelectItem>
-                  <SelectItem value="Manager">Manager</SelectItem>
-                  <SelectItem value="Cleaner">Cleaner</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
+      <div className="space-y-2">
+        <Label htmlFor="position">Position</Label>
+        <Select
+          value={formData.position}
+          onValueChange={(value) => setFormData({ ...formData, position: value })}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select position" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Personal Trainer">Personal Trainer</SelectItem>
+            <SelectItem value="Receptionist">Receptionist</SelectItem>
+            <SelectItem value="Manager">Manager</SelectItem>
+            <SelectItem value="Cleaner">Cleaner</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="hireDate">Hire Date</Label>
+        <Input
+          id="hireDate"
+          type="date"
+          value={formData.hireDate}
+          onChange={(e) => setFormData({ ...formData, hireDate: e.target.value })}
+          required
         />
+      </div>
 
-        <FormField
-          control={form.control}
-          name="hireDate"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Joining Date</FormLabel>
-              <FormControl>
-                <Input type="date" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+      <div className="space-y-2">
+        <Label htmlFor="status">Status</Label>
+        <Select
+          value={formData.status}
+          onValueChange={(value) => setFormData({ ...formData, status: value as 'Active' | 'Inactive' | 'On Leave' })}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Active">Active</SelectItem>
+            <SelectItem value="Inactive">Inactive</SelectItem>
+            <SelectItem value="On Leave">On Leave</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
-        <FormField
-          control={form.control}
-          name="status"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Status</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="Active">Active</SelectItem>
-                  <SelectItem value="Inactive">Inactive</SelectItem>
-                  <SelectItem value="On Leave">On Leave</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <Button type="submit" className="w-full">
-          {staffId ? 'Update Staff' : 'Add Staff'}
-        </Button>
-      </form>
-    </Form>
+      <Button type="submit" className="w-full" disabled={isLoading}>
+        {isLoading ? 'Saving...' : initialData ? 'Update Staff' : 'Add Staff'}
+      </Button>
+    </form>
   );
-} 
+}; 

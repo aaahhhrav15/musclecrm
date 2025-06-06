@@ -5,6 +5,8 @@ const auth = require('../middleware/auth');
 const Booking = require('../models/Booking');
 const PDFDocument = require('pdfkit');
 const { format } = require('date-fns');
+const jwt = require('jsonwebtoken');
+const User = require('../models/User');
 
 const router = express.Router();
 
@@ -99,12 +101,16 @@ router.post('/', auth, async (req, res) => {
   try {
     const {
       customerId,
+      bookingId,
       date,
       dueDate,
       items,
       tax,
       notes,
-      paymentMethod
+      paymentMethod,
+      amount,
+      currency,
+      status
     } = req.body;
     
     // Verify customer exists and belongs to user
@@ -116,19 +122,35 @@ router.post('/', auth, async (req, res) => {
     if (!customer) {
       return res.status(404).json({ success: false, message: 'Customer not found' });
     }
+
+    // Verify booking exists if provided
+    if (bookingId) {
+      const booking = await Booking.findOne({
+        _id: bookingId,
+        userId: req.user._id
+      });
+
+      if (!booking) {
+        return res.status(404).json({ success: false, message: 'Booking not found' });
+      }
+    }
     
     const newInvoice = await Invoice.create({
       userId: req.user._id,
       customerId,
+      bookingId,
       date,
       dueDate,
       items,
       tax,
       notes,
       paymentMethod,
+      amount,
+      currency,
+      status,
       subtotal: items.reduce((sum, item) => sum + item.amount, 0),
-      total: items.reduce((sum, item) => sum + item.amount, 0) + tax,
-      remainingAmount: items.reduce((sum, item) => sum + item.amount, 0) + tax
+      total: amount,
+      remainingAmount: amount
     });
     
     res.status(201).json({ success: true, invoice: newInvoice });
@@ -204,140 +226,147 @@ router.delete('/:id', auth, async (req, res) => {
   }
 });
 
-// Generate invoice PDF
-router.get('/:id/pdf', async (req, res) => {
+// Generate PDF invoice
+router.get('/:id/pdf', auth, async (req, res) => {
   try {
-    const invoice = await Invoice.findById(req.params.id)
-      .populate('customerId', 'name email')
+    console.log('Attempting to generate PDF for invoice:', req.params.id);
+    
+    const invoice = await Invoice.findOne({
+      _id: req.params.id,
+      userId: req.user._id
+    })
+      .populate('customerId', 'name email phone')
       .populate('bookingId', 'type startTime endTime');
+
+    console.log('Found invoice:', invoice ? 'Yes' : 'No');
     
     if (!invoice) {
-      return res.status(404).json({ message: 'Invoice not found' });
+      console.log('Invoice not found');
+      return res.status(404).json({ success: false, message: 'Invoice not found' });
     }
 
+    console.log('Creating PDF document...');
+    
+    // Create PDF document
     const doc = new PDFDocument({
       size: 'A4',
-      margin: 50
+      margin: 50,
+      info: {
+        Title: `Invoice ${invoice.invoiceNumber}`,
+        Author: 'FlexCRM',
+        Subject: 'Invoice',
+      }
     });
 
+    // Set response headers
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=invoice-${invoice._id}.pdf`);
+    res.setHeader('Content-Disposition', `attachment; filename=invoice-${invoice.invoiceNumber}.pdf`);
+
+    // Pipe the PDF to the response
     doc.pipe(res);
 
-    // Add logo or company name
-    doc.fontSize(24)
-       .fillColor('#2563eb') // Blue color
-       .text('FlexCRM', { align: 'right' });
-    
-    doc.fontSize(12)
-       .fillColor('#6b7280') // Gray color
-       .text('123 Fitness Street', { align: 'right' })
-       .text('Mumbai, India', { align: 'right' })
-       .text('Phone: +91 1234567890', { align: 'right' })
-       .text('Email: info@flexcrm.com', { align: 'right' })
-       .moveDown(2);
+    console.log('Adding content to PDF...');
 
-    // Invoice title and number
-    doc.fontSize(20)
-       .fillColor('#111827') // Dark gray
-       .text('INVOICE', { align: 'left' });
+    // Add content to the PDF
+    doc.fontSize(20).text('INVOICE', { align: 'center' });
+    doc.moveDown();
     
-    doc.fontSize(12)
-       .fillColor('#6b7280')
-       .text(`Invoice #: ${invoice._id}`, { align: 'left' })
-       .text(`Date: ${format(new Date(invoice.createdAt), 'PPP')}`, { align: 'left' })
-       .text(`Due Date: ${format(new Date(invoice.dueDate), 'PPP')}`, { align: 'left' })
-       .moveDown(2);
+    // Invoice details
+    doc.fontSize(12);
+    doc.text(`Invoice Number: ${invoice.invoiceNumber}`);
+    
+    // Safely format dates
+    const formatDate = (date) => {
+      try {
+        if (!date) return 'N/A';
+        const dateObj = new Date(date);
+        if (isNaN(dateObj.getTime())) return 'Invalid Date';
+        return format(dateObj, 'dd/MM/yyyy');
+      } catch (error) {
+        console.error('Date formatting error:', error);
+        return 'Invalid Date';
+      }
+    };
+
+    // Use createdAt as the invoice date
+    doc.text(`Date: ${formatDate(invoice.createdAt)}`);
+    doc.text(`Due Date: ${formatDate(invoice.dueDate)}`);
+    doc.moveDown();
 
     // Customer details
-    doc.fontSize(14)
-       .fillColor('#111827')
-       .text('Bill To:', { align: 'left' });
-    
-    doc.fontSize(12)
-       .fillColor('#374151') // Medium gray
-       .text(invoice.customerId.name, { align: 'left' })
-       .text(invoice.customerId.email, { align: 'left' })
-       .moveDown(2);
+    doc.text('Bill To:');
+    if (invoice.customerId) {
+      console.log('Customer details:', invoice.customerId);
+      doc.text(invoice.customerId.name || 'N/A');
+      doc.text(invoice.customerId.email || 'N/A');
+      if (invoice.customerId.phone) {
+        doc.text(invoice.customerId.phone);
+      }
+    } else {
+      console.log('No customer details available');
+      doc.text('Customer information not available');
+    }
+    doc.moveDown();
 
-    // Booking details
-    doc.fontSize(14)
-       .fillColor('#111827')
-       .text('Booking Details:', { align: 'left' });
-    
-    doc.fontSize(12)
-       .fillColor('#374151')
-       .text(`Type: ${invoice.bookingId.type.replace('_', ' ').toUpperCase()}`, { align: 'left' })
-       .text(`Date: ${format(new Date(invoice.bookingId.startTime), 'PPP')}`, { align: 'left' })
-       .text(`Time: ${format(new Date(invoice.bookingId.startTime), 'p')} - ${format(new Date(invoice.bookingId.endTime), 'p')}`, { align: 'left' })
-       .moveDown(2);
+    // Items table
+    doc.text('Items:', { underline: true });
+    doc.moveDown(0.5);
 
-    // Items table header
+    // Table header
     const tableTop = doc.y;
-    doc.fontSize(12)
-       .fillColor('#111827')
-       .text('Description', 50, tableTop)
-       .text('Quantity', 250, tableTop)
-       .text('Unit Price', 350, tableTop)
-       .text('Amount', 450, tableTop);
-
-    // Draw table header line
-    doc.moveTo(50, tableTop + 15)
-       .lineTo(550, tableTop + 15)
-       .strokeColor('#e5e7eb') // Light gray
-       .stroke();
+    doc.text('Description', 50, tableTop);
+    doc.text('Quantity', 300, tableTop);
+    doc.text('Unit Price', 400, tableTop);
+    doc.text('Amount', 500, tableTop);
+    doc.moveDown();
 
     // Table rows
-    let y = tableTop + 30;
-    invoice.items.forEach(item => {
-      doc.fontSize(12)
-         .fillColor('#374151')
-         .text(item.description, 50, y)
-         .text(item.quantity.toString(), 250, y)
-         .text(`${invoice.currency} ${item.unitPrice.toFixed(2)}`, 350, y)
-         .text(`${invoice.currency} ${item.amount.toFixed(2)}`, 450, y);
-      y += 25;
-    });
+    let y = doc.y;
+    if (invoice.items && Array.isArray(invoice.items)) {
+      console.log('Adding items to PDF:', invoice.items.length);
+      invoice.items.forEach(item => {
+        doc.text(item.description, 50, y);
+        doc.text(item.quantity.toString(), 300, y);
+        doc.text(`${invoice.currency} ${item.unitPrice.toFixed(2)}`, 400, y);
+        doc.text(`${invoice.currency} ${item.amount.toFixed(2)}`, 500, y);
+        y += 20;
+      });
+    } else {
+      console.log('No items found in invoice');
+      doc.text('No items found', 50, y);
+    }
 
-    // Draw table bottom line
-    doc.moveTo(50, y)
-       .lineTo(550, y)
-       .strokeColor('#e5e7eb')
-       .stroke();
+    // Totals
+    doc.moveDown(2);
+    // Calculate subtotal from items
+    const subtotal = invoice.items.reduce((sum, item) => sum + item.amount, 0);
+    doc.text(`Subtotal: ${invoice.currency} ${subtotal.toFixed(2)}`, { align: 'right' });
+    
+    // Use the total amount from the invoice
+    doc.text(`Total: ${invoice.currency} ${invoice.amount.toFixed(2)}`, { align: 'right' });
 
-    // Total section
-    doc.moveDown(2)
-       .fontSize(14)
-       .fillColor('#111827')
-       .text(`Total Amount: ${invoice.currency} ${invoice.amount.toFixed(2)}`, { align: 'right' })
-       .moveDown(1)
-       .fontSize(12)
-       .fillColor('#6b7280')
-       .text(`Status: ${invoice.status.toUpperCase()}`, { align: 'right' });
+    // Notes
+    if (invoice.notes) {
+      doc.moveDown(2);
+      doc.text('Notes:', { underline: true });
+      doc.text(invoice.notes);
+    }
 
-    // Payment instructions
-    doc.moveDown(3)
-       .fontSize(12)
-       .fillColor('#111827')
-       .text('Payment Instructions:', { align: 'left' })
-       .moveDown(0.5)
-       .fontSize(11)
-       .fillColor('#6b7280')
-       .text('Please make the payment within 7 days of the invoice date.', { align: 'left' })
-       .text('Bank: Example Bank', { align: 'left' })
-       .text('Account: 1234567890', { align: 'left' })
-       .text('IFSC: EXBK0001234', { align: 'left' });
-
-    // Footer
-    doc.fontSize(10)
-       .fillColor('#6b7280')
-       .text('Thank you for your business!', 50, 750, { align: 'center', width: 500 })
-       .text('This is a computer-generated invoice, no signature required.', 50, 765, { align: 'center', width: 500 });
-
+    console.log('Finalizing PDF...');
+    
+    // Finalize the PDF
     doc.end();
+    
+    console.log('PDF generation completed successfully');
   } catch (error) {
-    console.error('Error generating PDF:', error);
-    res.status(500).json({ message: 'Error generating PDF' });
+    console.error('Generate PDF error:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error generating PDF',
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
