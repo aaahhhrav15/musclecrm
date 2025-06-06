@@ -131,6 +131,8 @@ interface Class {
   _id: string;
   name: string;
   description: string;
+  startTime: string;
+  endTime: string;
 }
 
 interface Equipment {
@@ -156,12 +158,14 @@ const BookingForm: React.FC<BookingFormProps> = ({
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [customersResponse, trainersResponse] = await Promise.all([
+        const [customersResponse, trainersResponse, classesResponse] = await Promise.all([
           axios.get(`${API_URL}/customers`, { withCredentials: true }),
-          axios.get(`${API_URL}/trainers`, { withCredentials: true })
+          axios.get(`${API_URL}/trainers`, { withCredentials: true }),
+          axios.get(`${API_URL}/gym/class-schedules`, { withCredentials: true })
         ]);
         setCustomers(customersResponse.data.customers);
         setTrainers(trainersResponse.data.trainers);
+        setClasses(classesResponse.data);
       } catch (error) {
         console.error('Error fetching data:', error);
         toast.error('Failed to load form data');
@@ -211,6 +215,8 @@ const BookingForm: React.FC<BookingFormProps> = ({
   const bookingType = form.watch('type');
   const selectedCustomerId = form.watch('customerId');
   const selectedCustomer = customers.find(c => c._id === selectedCustomerId);
+  const selectedClassId = form.watch('classId');
+  const selectedClass = classes.find((cls) => cls._id === selectedClassId);
 
   const handleSubmit = async (values: FormData) => {
     try {
@@ -310,6 +316,15 @@ const BookingForm: React.FC<BookingFormProps> = ({
     form.setValue('price', getDefaultPrice(type));
   }, [bookingType]);
 
+  // Auto-set start/end time when class is selected
+  useEffect(() => {
+    if (bookingType === 'class' && selectedClass) {
+      form.setValue('startTime', new Date(selectedClass.startTime));
+      form.setValue('endTime', new Date(selectedClass.endTime));
+    }
+    // eslint-disable-next-line
+  }, [selectedClassId, bookingType]);
+
   if (loading) {
     return (
       <Dialog open={open} onOpenChange={onClose}>
@@ -387,9 +402,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
                           </SelectItem>
                         ))
                       ) : (
-                        <SelectItem value="" disabled>
-                          No customers available
-                        </SelectItem>
+                        <div className="px-3 py-2 text-muted-foreground">No customers available</div>
                       )}
                     </SelectContent>
                   </Select>
@@ -397,6 +410,40 @@ const BookingForm: React.FC<BookingFormProps> = ({
                 </FormItem>
               )}
             />
+
+            {bookingType === 'class' && (
+              <FormField
+                control={form.control}
+                name="classId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Class</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a class" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {classes.length > 0 ? (
+                          classes.map((cls) => (
+                            <SelectItem key={cls._id} value={cls._id}>
+                              {cls.name} ({cls.description})
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <div className="px-3 py-2 text-muted-foreground">No classes available</div>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <FormField
@@ -414,6 +461,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
                         className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                         minDate={new Date()}
                         placeholderText="Select start date and time"
+                        disabled={bookingType === 'class'}
                       />
                     </FormControl>
                     <FormMessage />
@@ -436,6 +484,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
                         className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                         minDate={form.getValues('startTime')}
                         placeholderText="Select end date and time"
+                        disabled={bookingType === 'class'}
                       />
                     </FormControl>
                     <FormMessage />
@@ -443,35 +492,6 @@ const BookingForm: React.FC<BookingFormProps> = ({
                 )}
               />
             </div>
-
-            {bookingType === 'class' && (
-              <FormField
-                control={form.control}
-                name="classId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Class</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a class" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="class1">Class 1</SelectItem>
-                        <SelectItem value="class2">Class 2</SelectItem>
-                        <SelectItem value="class3">Class 3</SelectItem>
-                        <SelectItem value="class4">Class 4</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
 
             {bookingType === 'personal_training' && (
               <FormField
