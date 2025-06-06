@@ -160,15 +160,21 @@ const BookingForm: React.FC<BookingFormProps> = ({
       try {
         const [customersResponse, trainersResponse, classesResponse] = await Promise.all([
           axios.get(`${API_URL}/customers`, { withCredentials: true }),
-          axios.get(`${API_URL}/trainers`, { withCredentials: true }),
+          axios.get(`${API_URL}/gym/staff`, { 
+            params: { position: 'Personal Trainer' },
+            withCredentials: true 
+          }),
           axios.get(`${API_URL}/gym/class-schedules`, { withCredentials: true })
         ]);
-        setCustomers(customersResponse.data.customers);
-        setTrainers(trainersResponse.data.trainers);
-        setClasses(classesResponse.data);
+        setCustomers(customersResponse.data.customers || []);
+        setTrainers(trainersResponse.data.data || trainersResponse.data || []);
+        setClasses(classesResponse.data || []);
       } catch (error) {
         console.error('Error fetching data:', error);
         toast.error('Failed to load form data');
+        setCustomers([]);
+        setTrainers([]);
+        setClasses([]);
       } finally {
         setLoading(false);
       }
@@ -501,6 +507,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
                   <FormItem>
                     <FormLabel>Trainer</FormLabel>
                     <Select
+                      disabled={bookingType !== 'personal_training' || loading}
                       onValueChange={field.onChange}
                       defaultValue={field.value}
                     >
@@ -510,7 +517,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {trainers.map((trainer) => (
+                        {Array.isArray(trainers) && trainers.map((trainer) => (
                           <SelectItem key={trainer._id} value={trainer._id}>
                             {trainer.name}
                           </SelectItem>

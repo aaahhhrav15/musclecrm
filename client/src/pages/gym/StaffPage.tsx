@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   User, 
@@ -10,7 +9,12 @@ import {
   Clock, 
   Calendar, 
   DollarSign, 
-  MoreHorizontal
+  MoreHorizontal,
+  Edit,
+  Trash2,
+  Dumbbell,
+  Briefcase,
+  Sparkles
 } from 'lucide-react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -39,72 +43,127 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { StaffForm } from '@/components/staff/StaffForm';
+import axios from 'axios';
+import { API_URL } from '@/lib/constants';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
 
-// Mock data for staff
-const staff = [
-  { 
-    id: 1, 
-    name: 'Mark Johnson', 
-    role: 'Head Trainer', 
-    email: 'mark@example.com', 
-    phone: '555-123-4567', 
-    status: 'Active',
-    salary: '$4,500',
-    attendanceRate: '98%',
-    hireDate: '2023-03-15',
-    image: '/placeholder.svg' 
-  },
-  { 
-    id: 2, 
-    name: 'Sarah Williams', 
-    role: 'Yoga Instructor', 
-    email: 'sarah@example.com', 
-    phone: '555-234-5678', 
-    status: 'Active',
-    salary: '$3,200',
-    attendanceRate: '95%',
-    hireDate: '2023-06-22',
-    image: '/placeholder.svg' 
-  },
-  { 
-    id: 3, 
-    name: 'James Martinez', 
-    role: 'Personal Trainer', 
-    email: 'james@example.com', 
-    phone: '555-345-6789', 
-    status: 'Active',
-    salary: '$3,800',
-    attendanceRate: '92%',
-    hireDate: '2024-01-10',
-    image: '/placeholder.svg' 
-  },
-  { 
-    id: 4, 
-    name: 'Lisa Thompson', 
-    role: 'Fitness Instructor', 
-    email: 'lisa@example.com', 
-    phone: '555-456-7890', 
-    status: 'On Leave',
-    salary: '$3,500',
-    attendanceRate: '89%',
-    hireDate: '2024-02-05',
-    image: '/placeholder.svg' 
-  },
-  { 
-    id: 5, 
-    name: 'David Wilson', 
-    role: 'Receptionist', 
-    email: 'david@example.com', 
-    phone: '555-567-8901', 
-    status: 'Active',
-    salary: '$2,800',
-    attendanceRate: '97%',
-    hireDate: '2024-03-20',
-    image: '/placeholder.svg' 
-  }
-];
+interface Staff {
+  _id: string;
+  name: string;
+  email: string;
+  phone: string;
+  position: string;
+  hireDate: string;
+  status: 'Active' | 'Inactive' | 'On Leave';
+}
 
 const StaffPage: React.FC = () => {
+  const [staff, setStaff] = useState<Staff[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    position: '',
+    hireDate: '',
+    status: 'Active'
+  });
+
+  const fetchStaff = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/gym/staff`, { withCredentials: true });
+      setStaff(response.data.data);
+    } catch (error) {
+      console.error('Error fetching staff:', error);
+      toast.error('Failed to fetch staff members');
+    }
+  };
+
+  useEffect(() => {
+    fetchStaff();
+  }, []);
+
+  const handleDelete = async (staffId: string) => {
+    if (!confirm('Are you sure you want to delete this staff member?')) return;
+
+    try {
+      await axios.delete(`${API_URL}/gym/staff/${staffId}`, { withCredentials: true });
+      toast.success('Staff member deleted successfully');
+      fetchStaff();
+    } catch (error) {
+      console.error('Error deleting staff:', error);
+      toast.error('Failed to delete staff member');
+    }
+  };
+
+  const filteredStaff = staff.filter(member => 
+    member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    member.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    member.position.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Active':
+        return 'bg-green-500/10 text-green-500';
+      case 'Inactive':
+        return 'bg-red-500/10 text-red-500';
+      case 'On Leave':
+        return 'bg-yellow-500/10 text-yellow-500';
+      default:
+        return 'bg-gray-500/10 text-gray-500';
+    }
+  };
+
+  const getPositionColor = (position: string) => {
+    switch (position) {
+      case 'Personal Trainer':
+        return 'bg-blue-100 text-blue-800';
+      case 'Receptionist':
+        return 'bg-green-100 text-green-800';
+      case 'Manager':
+        return 'bg-purple-100 text-purple-800';
+      case 'Cleaner':
+        return 'bg-gray-100 text-gray-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getPositionIcon = (position: string) => {
+    switch (position) {
+      case 'Personal Trainer':
+        return <Dumbbell className="h-4 w-4" />;
+      case 'Receptionist':
+        return <User className="h-4 w-4" />;
+      case 'Manager':
+        return <Briefcase className="h-4 w-4" />;
+      case 'Cleaner':
+        return <Sparkles className="h-4 w-4" />;
+      default:
+        return <User className="h-4 w-4" />;
+    }
+  };
+
+  const handleEdit = (staff: Staff) => {
+    setSelectedStaff(staff);
+    setIsEditDialogOpen(true);
+  };
+
   return (
     <DashboardLayout>
       <motion.div
@@ -121,12 +180,22 @@ const StaffPage: React.FC = () => {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button>
-              <Plus className="mr-2 h-4 w-4" /> Add Staff
-            </Button>
-            <Button variant="outline">
-              <Calendar className="mr-2 h-4 w-4" /> Schedule
-            </Button>
+            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" /> Add Staff
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add New Staff Member</DialogTitle>
+                </DialogHeader>
+                <StaffForm onSuccess={() => {
+                  setIsAddDialogOpen(false);
+                  fetchStaff();
+                }} />
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
 
@@ -136,12 +205,10 @@ const StaffPage: React.FC = () => {
             <Input
               placeholder="Search staff..."
               className="pl-8"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <Button variant="outline" className="w-full sm:w-auto">
-            <Filter className="mr-2 h-4 w-4" />
-            Filters
-          </Button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -160,7 +227,7 @@ const StaffPage: React.FC = () => {
             </CardHeader>
             <CardContent className="py-1">
               <div className="text-2xl font-bold">
-                {staff.filter(s => s.role.includes('Trainer')).length}
+                {staff.filter(s => s.position.includes('Trainer')).length}
               </div>
               <p className="text-xs text-muted-foreground">Personal trainers</p>
             </CardContent>
@@ -171,7 +238,7 @@ const StaffPage: React.FC = () => {
             </CardHeader>
             <CardContent className="py-1">
               <div className="text-2xl font-bold">
-                {staff.filter(s => s.role.includes('Instructor')).length}
+                {staff.filter(s => s.position.includes('Instructor')).length}
               </div>
               <p className="text-xs text-muted-foreground">Class instructors</p>
             </CardContent>
@@ -182,131 +249,106 @@ const StaffPage: React.FC = () => {
             </CardHeader>
             <CardContent className="py-1">
               <div className="text-2xl font-bold">
-                {staff.filter(s => !s.role.includes('Trainer') && !s.role.includes('Instructor')).length}
+                {staff.filter(s => !s.position.includes('Trainer') && !s.position.includes('Instructor')).length}
               </div>
               <p className="text-xs text-muted-foreground">Administration & support</p>
             </CardContent>
           </Card>
         </div>
 
-        <Tabs defaultValue="list" className="w-full">
-          <TabsList className="grid w-[400px] grid-cols-2 mb-4">
-            <TabsTrigger value="list">List View</TabsTrigger>
-            <TabsTrigger value="grid">Grid View</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="list" className="border rounded-md">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead className="hidden md:table-cell">Email</TableHead>
-                  <TableHead className="hidden md:table-cell">Status</TableHead>
-                  <TableHead className="hidden md:table-cell">Salary</TableHead>
-                  <TableHead className="hidden md:table-cell">Attendance</TableHead>
-                  <TableHead className="w-[80px]">Actions</TableHead>
+        <div className="border rounded-md">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Position</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Phone</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Hire Date</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredStaff.map((member) => (
+                <TableRow key={member._id}>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-8 w-8">
+                        <AvatarFallback>{member.name.slice(0, 2)}</AvatarFallback>
+                      </Avatar>
+                      {member.name}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      {getPositionIcon(member.position)}
+                      <span className={cn("px-2 py-1 rounded-full text-xs font-medium", getPositionColor(member.position))}>
+                        {member.position}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell>{member.email}</TableCell>
+                  <TableCell>{member.phone}</TableCell>
+                  <TableCell>
+                    <Badge className={getStatusColor(member.status)}>
+                      {member.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{new Date(member.hireDate).toLocaleDateString()}</TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => handleEdit(member)}
+                        >
+                          <Edit className="mr-2 h-4 w-4" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-red-600"
+                          onClick={() => handleDelete(member._id)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {staff.map(member => (
-                  <TableRow key={member.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={member.image} alt={member.name} />
-                          <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <span className="font-medium">{member.name}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>{member.role}</TableCell>
-                    <TableCell className="hidden md:table-cell">{member.email}</TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      <Badge variant={member.status === 'Active' ? 'default' : 'secondary'}>
-                        {member.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">{member.salary}</TableCell>
-                    <TableCell className="hidden md:table-cell">{member.attendanceRate}</TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem>View Profile</DropdownMenuItem>
-                          <DropdownMenuItem>Edit Details</DropdownMenuItem>
-                          <DropdownMenuItem>Attendance Log</DropdownMenuItem>
-                          <DropdownMenuItem>Salary History</DropdownMenuItem>
-                          <DropdownMenuItem>Schedule Classes</DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TabsContent>
-
-          <TabsContent value="grid" className="border rounded-md p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {staff.map(member => (
-                <Card key={member.id}>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <Avatar>
-                          <AvatarImage src={member.image} alt={member.name} />
-                          <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <CardTitle>{member.name}</CardTitle>
-                          <p className="text-sm text-muted-foreground">{member.role}</p>
-                        </div>
-                      </div>
-                      <Badge variant={member.status === 'Active' ? 'default' : 'secondary'}>
-                        {member.status}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-sm flex items-center gap-2">
-                          <DollarSign className="h-4 w-4 text-muted-foreground" /> 
-                          Salary
-                        </span>
-                        <span className="font-medium">{member.salary}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm flex items-center gap-2">
-                          <Clock className="h-4 w-4 text-muted-foreground" /> 
-                          Attendance
-                        </span>
-                        <span className="font-medium">{member.attendanceRate}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-muted-foreground" /> 
-                          Hire Date
-                        </span>
-                        <span className="font-medium">{member.hireDate}</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                  <CardFooter className="flex justify-between">
-                    <Button variant="outline" size="sm">View Profile</Button>
-                    <Button size="sm">Schedule</Button>
-                  </CardFooter>
-                </Card>
               ))}
-            </div>
-          </TabsContent>
-        </Tabs>
+            </TableBody>
+          </Table>
+        </div>
       </motion.div>
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Staff Member</DialogTitle>
+          </DialogHeader>
+          <StaffForm 
+            onSuccess={() => {
+              setIsEditDialogOpen(false);
+              fetchStaff();
+            }}
+            initialData={selectedStaff ? {
+              name: selectedStaff.name,
+              email: selectedStaff.email,
+              phone: selectedStaff.phone,
+              position: selectedStaff.position,
+              hireDate: new Date(selectedStaff.hireDate).toISOString().split('T')[0],
+              status: selectedStaff.status
+            } : undefined}
+            staffId={selectedStaff?._id}
+          />
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };

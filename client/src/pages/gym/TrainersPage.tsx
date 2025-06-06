@@ -13,7 +13,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import axios from 'axios';
-import { API_URL } from '@/config';
+import { API_URL } from '@/lib/constants';
 import { Plus, Loader2 } from 'lucide-react';
 
 interface Trainer {
@@ -24,6 +24,8 @@ interface Trainer {
   specialization: string;
   experience: number;
   status: 'active' | 'inactive';
+  bio?: string;
+  clients?: number;
 }
 
 const TrainersPage: React.FC = () => {
@@ -40,7 +42,11 @@ const TrainersPage: React.FC = () => {
       const response = await axios.get(`${API_URL}/trainers`, {
         withCredentials: true,
       });
-      setTrainers(response.data.trainers);
+      if (response.data.success) {
+        setTrainers(response.data.data);
+      } else {
+        toast.error('Failed to fetch trainers');
+      }
     } catch (error) {
       console.error('Error fetching trainers:', error);
       toast.error('Failed to fetch trainers');
@@ -55,11 +61,15 @@ const TrainersPage: React.FC = () => {
     }
 
     try {
-      await axios.delete(`${API_URL}/trainers/${id}`, {
+      const response = await axios.delete(`${API_URL}/trainers/${id}`, {
         withCredentials: true,
       });
-      toast.success('Trainer deleted successfully');
-      fetchTrainers();
+      if (response.data.success) {
+        toast.success('Trainer deleted successfully');
+        fetchTrainers();
+      } else {
+        toast.error(response.data.message || 'Failed to delete trainer');
+      }
     } catch (error) {
       console.error('Error deleting trainer:', error);
       toast.error('Failed to delete trainer');
@@ -95,66 +105,72 @@ const TrainersPage: React.FC = () => {
             <CardTitle>All Trainers</CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Specialization</TableHead>
-                  <TableHead>Experience (years)</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {trainers.map((trainer) => (
-                  <TableRow key={trainer._id}>
-                    <TableCell>{trainer.name}</TableCell>
-                    <TableCell>{trainer.email}</TableCell>
-                    <TableCell>{trainer.phone}</TableCell>
-                    <TableCell>{trainer.specialization}</TableCell>
-                    <TableCell>{trainer.experience}</TableCell>
-                    <TableCell>
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          trainer.status === 'active'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}
-                      >
-                        {trainer.status}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => navigate(`/dashboard/gym/trainers/${trainer._id}`)}
-                        >
-                          View
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => navigate(`/dashboard/gym/trainers/${trainer._id}/edit`)}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleDelete(trainer._id)}
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    </TableCell>
+            {trainers.length === 0 ? (
+              <div className="text-center py-4 text-muted-foreground">
+                No trainers found. Add your first trainer to get started.
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead>Specialization</TableHead>
+                    <TableHead>Experience (years)</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {trainers.map((trainer) => (
+                    <TableRow key={trainer._id}>
+                      <TableCell>{trainer.name}</TableCell>
+                      <TableCell>{trainer.email}</TableCell>
+                      <TableCell>{trainer.phone}</TableCell>
+                      <TableCell>{trainer.specialization}</TableCell>
+                      <TableCell>{trainer.experience}</TableCell>
+                      <TableCell>
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            trainer.status === 'active'
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-red-100 text-red-800'
+                          }`}
+                        >
+                          {trainer.status}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(`/dashboard/gym/trainers/${trainer._id}`)}
+                          >
+                            View
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(`/dashboard/gym/trainers/${trainer._id}/edit`)}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDelete(trainer._id)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
       </div>

@@ -136,8 +136,14 @@ const ClassSchedulePage: React.FC = () => {
   // Fetch trainers for instructor dropdown
   React.useEffect(() => {
     if (showAddModal || showEditModal) {
-      axios.get(`${API_URL}/trainers`, { withCredentials: true })
-        .then(res => setTrainers(res.data.trainers || res.data))
+      axios.get(`${API_URL}/gym/staff`, { 
+        params: { position: 'Personal Trainer' },
+        withCredentials: true 
+      })
+        .then(res => {
+          const trainersData = res.data.data || res.data;
+          setTrainers(Array.isArray(trainersData) ? trainersData : []);
+        })
         .catch(() => setTrainers([]));
     }
   }, [showAddModal, showEditModal]);
@@ -245,12 +251,12 @@ const ClassSchedulePage: React.FC = () => {
       setForm({
         name: selectedClass.name,
         description: selectedClass.description,
-        instructor: selectedClass.instructor._id,
+        instructor: selectedClass.instructor?._id || '',
         startTime: format(new Date(selectedClass.startTime), "yyyy-MM-dd'T'HH:mm"),
         endTime: format(new Date(selectedClass.endTime), "yyyy-MM-dd'T'HH:mm"),
         capacity: selectedClass.capacity,
         price: selectedClass.price,
-        currency: selectedClass.currency,
+        currency: selectedClass.currency
       });
     }
   }, [selectedClass]);
@@ -346,7 +352,7 @@ const ClassSchedulePage: React.FC = () => {
                     {schedules?.map((schedule: ClassSchedule) => (
                       <TableRow key={schedule._id}>
                         <TableCell>{schedule.name}</TableCell>
-                        <TableCell>{schedule.instructor.name}</TableCell>
+                        <TableCell>{schedule.instructor?.name || 'No Instructor'}</TableCell>
                         <TableCell>
                           {format(new Date(schedule.startTime), 'MMM d, yyyy h:mm a')}
                         </TableCell>
@@ -466,7 +472,7 @@ const ClassSchedulePage: React.FC = () => {
                     <SelectValue placeholder="Select instructor" />
                   </SelectTrigger>
                   <SelectContent>
-                    {trainers.map(t => (
+                    {Array.isArray(trainers) && trainers.map(t => (
                       <SelectItem key={t._id} value={t._id}>{t.name}</SelectItem>
                     ))}
                   </SelectContent>
@@ -485,11 +491,23 @@ const ClassSchedulePage: React.FC = () => {
               <div className="flex gap-2">
                 <div className="space-y-2 flex-1">
                   <Label>Capacity</Label>
-                  <Input type="number" min={1} value={form.capacity} onChange={e => setForm(f => ({ ...f, capacity: e.target.value }))} required />
+                  <Input
+                    type="number"
+                    min={1}
+                    value={form.capacity}
+                    onChange={e => setForm(f => ({ ...f, capacity: Number(e.target.value) }))}
+                    required
+                  />
                 </div>
                 <div className="space-y-2 flex-1">
                   <Label>Price</Label>
-                  <Input type="number" min={0} value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} required />
+                  <Input
+                    type="number"
+                    min={0}
+                    value={form.price}
+                    onChange={e => setForm(f => ({ ...f, price: Number(e.target.value) }))}
+                    required
+                  />
                 </div>
                 <div className="space-y-2 flex-1">
                   <Label>Currency</Label>
@@ -570,7 +588,7 @@ const ClassSchedulePage: React.FC = () => {
                   </div>
                   <div>
                     <Label>Instructor</Label>
-                    <p className="text-sm mt-1">{selectedClass.instructor.name}</p>
+                    <p className="text-sm mt-1">{selectedClass.instructor?.name || 'No Instructor'}</p>
                   </div>
                   <div>
                     <Label>Start Time</Label>
@@ -682,7 +700,7 @@ const ClassSchedulePage: React.FC = () => {
                     <SelectValue placeholder="Select instructor" />
                   </SelectTrigger>
                   <SelectContent>
-                    {trainers.map(t => (
+                    {Array.isArray(trainers) && trainers.map(t => (
                       <SelectItem key={t._id} value={t._id}>{t.name}</SelectItem>
                     ))}
                   </SelectContent>
@@ -715,7 +733,7 @@ const ClassSchedulePage: React.FC = () => {
                     type="number"
                     min={1}
                     value={form.capacity}
-                    onChange={e => setForm(f => ({ ...f, capacity: e.target.value }))}
+                    onChange={e => setForm(f => ({ ...f, capacity: Number(e.target.value) }))}
                     required
                   />
                 </div>
@@ -725,7 +743,7 @@ const ClassSchedulePage: React.FC = () => {
                     type="number"
                     min={0}
                     value={form.price}
-                    onChange={e => setForm(f => ({ ...f, price: e.target.value }))}
+                    onChange={e => setForm(f => ({ ...f, price: Number(e.target.value) }))}
                     required
                   />
                 </div>

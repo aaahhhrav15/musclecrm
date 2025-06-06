@@ -1,4 +1,3 @@
-
 const mongoose = require('mongoose');
 
 const gymStaffSchema = new mongoose.Schema({
@@ -34,6 +33,10 @@ const gymStaffSchema = new mongoose.Schema({
     type: String,
     enum: ['Active', 'Inactive', 'On Leave'],
     default: 'Active'
+  },
+  trainerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Trainer'
   }
 }, {
   timestamps: true

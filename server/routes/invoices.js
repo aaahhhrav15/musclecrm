@@ -24,7 +24,7 @@ router.get('/', auth, async (req, res) => {
     } = req.query;
 
     const query = { userId: req.user._id };
-
+    
     // Add search query if provided
     if (search) {
       query.$or = [
@@ -53,17 +53,17 @@ router.get('/', auth, async (req, res) => {
     // Build sort object
     const sortOptions = {};
     sortOptions[sortBy] = sortOrder === 'asc' ? 1 : -1;
-
+    
     const options = {
       limit: parseInt(limit),
       skip: (parseInt(page) - 1) * parseInt(limit),
       sort: sortOptions,
       populate: 'customerId'
     };
-
+    
     const invoices = await Invoice.find(query, null, options);
     const total = await Invoice.countDocuments(query);
-
+    
     res.json({
       success: true,
       invoices,
@@ -78,15 +78,15 @@ router.get('/', auth, async (req, res) => {
 // Get single invoice
 router.get('/:id', auth, async (req, res) => {
   try {
-    const invoice = await Invoice.findOne({
+    const invoice = await Invoice.findOne({ 
       _id: req.params.id,
-      userId: req.user._id
+      userId: req.user._id 
     }).populate('customerId');
-
+    
     if (!invoice) {
       return res.status(404).json({ success: false, message: 'Invoice not found' });
     }
-
+    
     res.json({ success: true, invoice });
   } catch (error) {
     console.error('Get invoice error:', error);
@@ -106,7 +106,7 @@ router.post('/', auth, async (req, res) => {
       notes,
       paymentMethod
     } = req.body;
-
+    
     // Verify customer exists and belongs to user
     const customer = await Customer.findOne({
       _id: customerId,
@@ -116,7 +116,7 @@ router.post('/', auth, async (req, res) => {
     if (!customer) {
       return res.status(404).json({ success: false, message: 'Customer not found' });
     }
-
+    
     const newInvoice = await Invoice.create({
       userId: req.user._id,
       customerId,
@@ -130,7 +130,7 @@ router.post('/', auth, async (req, res) => {
       total: items.reduce((sum, item) => sum + item.amount, 0) + tax,
       remainingAmount: items.reduce((sum, item) => sum + item.amount, 0) + tax
     });
-
+    
     res.status(201).json({ success: true, invoice: newInvoice });
   } catch (error) {
     console.error('Create invoice error:', error);
@@ -162,14 +162,14 @@ router.put('/:id', async (req, res) => {
       { $set: updateData },
       { new: true }
     ).populate('customerId', 'name email');
-
+    
     if (!invoice) {
       return res.status(404).json({
         success: false,
         message: 'Invoice not found'
       });
     }
-
+    
     res.json({
       success: true,
       message: 'Invoice updated successfully',
@@ -188,15 +188,15 @@ router.put('/:id', async (req, res) => {
 // Delete invoice
 router.delete('/:id', auth, async (req, res) => {
   try {
-    const invoice = await Invoice.findOneAndDelete({
+    const invoice = await Invoice.findOneAndDelete({ 
       _id: req.params.id,
-      userId: req.user._id
+      userId: req.user._id 
     });
-
+    
     if (!invoice) {
       return res.status(404).json({ success: false, message: 'Invoice not found' });
     }
-
+    
     res.json({ success: true, message: 'Invoice deleted successfully' });
   } catch (error) {
     console.error('Delete invoice error:', error);

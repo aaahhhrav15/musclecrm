@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 import axios from 'axios';
-import { API_URL } from '@/config';
+import { API_URL } from '@/lib/constants';
 import { ArrowLeft } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -26,7 +26,7 @@ const trainerSchema = z.object({
   email: z.string().email('Invalid email address'),
   phone: z.string().min(10, 'Phone number must be at least 10 digits'),
   specialization: z.string().min(2, 'Specialization is required'),
-  experience: z.string().transform((val) => parseInt(val, 10)),
+  experience: z.coerce.number().min(0, 'Experience must be a positive number'),
   bio: z.string().optional(),
 });
 
@@ -40,18 +40,29 @@ const CreateTrainerPage: React.FC = () => {
     formState: { errors, isSubmitting },
   } = useForm<TrainerFormData>({
     resolver: zodResolver(trainerSchema),
+    defaultValues: {
+      experience: 0,
+      specialization: 'Personal Training'
+    }
   });
 
   const onSubmit = async (data: TrainerFormData) => {
     try {
-      await axios.post(`${API_URL}/trainers`, { ...data, status: 'active' }, {
-        withCredentials: true,
-      });
-      toast.success('Trainer added successfully');
-      navigate('/dashboard/gym/trainers');
-    } catch (error) {
+      const response = await axios.post(
+        `${API_URL}/trainers`,
+        { ...data, status: 'active' },
+        { withCredentials: true }
+      );
+      
+      if (response.data.success) {
+        toast.success('Trainer added successfully');
+        navigate('/dashboard/gym/trainers');
+      } else {
+        toast.error(response.data.message || 'Failed to add trainer');
+      }
+    } catch (error: any) {
       console.error('Error adding trainer:', error);
-      toast.error('Failed to add trainer');
+      toast.error(error.response?.data?.message || 'Failed to add trainer');
     }
   };
 
@@ -132,6 +143,7 @@ const CreateTrainerPage: React.FC = () => {
                   <Input
                     id="experience"
                     type="number"
+                    min="0"
                     {...register('experience')}
                     placeholder="Enter years of experience"
                   />
