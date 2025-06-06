@@ -111,8 +111,6 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen, setIsOpen }
     switch (selectedIndustry) {
       case 'gym':
         return [
-          { icon: <Users className="w-5 h-5" />, label: 'Member Management', href: '/dashboard/gym/members' },
-          { icon: <TrendingUp className="w-5 h-5" />, label: 'Lead Management', href: '/dashboard/gym/leads' },
           { icon: <User className="w-5 h-5" />, label: 'Staff Management', href: '/dashboard/gym/staff' },
           { icon: <DollarSign className="w-5 h-5" />, label: 'Finance & Billing', href: '/dashboard/gym/finance' },
           { icon: <QrCode className="w-5 h-5" />, label: 'Attendance System', href: '/dashboard/gym/attendance' },
