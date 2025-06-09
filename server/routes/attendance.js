@@ -78,7 +78,7 @@ router.get('/', auth, async (req, res) => {
     })
       .populate('memberId', 'name membershipType')
       .sort({ checkInTime: -1 });
-
+      
     // Calculate stats
     const stats = {
       totalToday: attendance.length,

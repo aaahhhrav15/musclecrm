@@ -17,6 +17,9 @@ const dashboardRoutes = require('./routes/dashboard');
 const workoutPlansRoutes = require('./routes/workoutPlans');
 const trainersRouter = require('./routes/trainers');
 const classSchedulesRouter = require('./routes/classSchedules');
+const membershipPlansRoutes = require('./routes/membershipPlans');
+const nutritionPlansRoutes = require('./routes/nutritionPlans');
+const eventWorkshopsRoutes = require('./routes/eventWorkshops');
 
 const app = express();
 
@@ -48,6 +51,9 @@ app.use('/api/notifications', notificationsRoutes);
 app.use('/api/workout-plans', workoutPlansRoutes);
 app.use('/api/trainers', trainersRouter);
 app.use('/api/gym/class-schedules', classSchedulesRouter);
+app.use('/api/gym/membership-plans', membershipPlansRoutes);
+app.use('/api/nutrition-plans', nutritionPlansRoutes);
+app.use('/api/events-workshops', eventWorkshopsRoutes);
 
 // Root route
 app.get('/', (req, res) => {

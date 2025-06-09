@@ -60,7 +60,7 @@ const MembersPage: React.FC = () => {
     });
     setShowQRCode(true);
   };
-
+  
   return (
     <DashboardLayout>
       <motion.div

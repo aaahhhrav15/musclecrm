@@ -44,6 +44,9 @@ import CreateTrainerPage from "./pages/gym/CreateTrainerPage";
 import ViewTrainerPage from "./pages/gym/ViewTrainerPage";
 import EditTrainerPage from "./pages/gym/EditTrainerPage";
 import ClassSchedulePage from './pages/gym/ClassSchedulePage';
+import MembershipPlansPage from './pages/gym/MembershipPlansPage';
+import NutritionPlansPage from './pages/gym/NutritionPlansPage';
+import EventsWorkshopsPage from './pages/gym/EventsWorkshopsPage';
 
 // Profile Pages
 import ProfilePage from "./pages/profile/ProfilePage";
@@ -110,6 +113,9 @@ const App = () => (
               <Route path="/dashboard/gym/trainers/:id" element={<ProtectedRoute element={<ViewTrainerPage />} />} />
               <Route path="/dashboard/gym/trainers/:id/edit" element={<ProtectedRoute element={<EditTrainerPage />} />} />
               <Route path="/dashboard/gym/class-schedule" element={<ProtectedRoute element={<ClassSchedulePage />} />} />
+              <Route path="/dashboard/gym/membership-plans" element={<ProtectedRoute element={<MembershipPlansPage />} />} />
+              <Route path="/dashboard/gym/nutrition-plans" element={<ProtectedRoute element={<NutritionPlansPage />} />} />
+              <Route path="/dashboard/gym/events-workshops" element={<ProtectedRoute element={<EventsWorkshopsPage />} />} />
               
               {/* Workout Plans Routes */}
               <Route path="/dashboard/gym/workout-plans" element={<ProtectedRoute element={<WorkoutPlansPage />} />} />

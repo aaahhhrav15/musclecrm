@@ -1,4 +1,3 @@
-
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
@@ -21,13 +20,26 @@ const auth = async (req, res, next) => {
       return res.status(401).json({ success: false, message: 'User not found' });
     }
 
-    // Attach user to request
+    // Attach user and gym to request
     req.user = user;
+    req.gym = { _id: user.gymId || user.gym };
     next();
   } catch (error) {
     console.error('Auth middleware error:', error);
     res.status(401).json({ success: false, message: 'Authentication failed' });
   }
+};
+
+const authorize = (...roles) => {
+  return (req, res, next) => {
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to access this route'
+      });
+    }
+    next();
+  };
 };
 
 module.exports = auth;

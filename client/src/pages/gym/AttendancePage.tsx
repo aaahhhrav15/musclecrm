@@ -239,113 +239,113 @@ const AttendancePage: React.FC = () => {
           {view === 'today' ? (
             <>
               {/* Today's Attendance Stats */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Check-ins</CardTitle>
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{stats.totalToday}</div>
-                    <p className="text-xs text-muted-foreground">Today</p>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Currently In</CardTitle>
-                    <CheckCircle className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{stats.currentlyIn}</div>
-                    <p className="text-xs text-muted-foreground">Active now</p>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Members</CardTitle>
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{stats.membersToday}</div>
-                    <p className="text-xs text-muted-foreground">Member check-ins</p>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Staff</CardTitle>
-                    <User className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{stats.staffToday}</div>
-                    <p className="text-xs text-muted-foreground">Staff check-ins</p>
-                  </CardContent>
-                </Card>
-              </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Check-ins</CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.totalToday}</div>
+              <p className="text-xs text-muted-foreground">Today</p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Currently In</CardTitle>
+              <CheckCircle className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.currentlyIn}</div>
+              <p className="text-xs text-muted-foreground">Active now</p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Members</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.membersToday}</div>
+              <p className="text-xs text-muted-foreground">Member check-ins</p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Staff</CardTitle>
+              <User className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.staffToday}</div>
+              <p className="text-xs text-muted-foreground">Staff check-ins</p>
+            </CardContent>
+          </Card>
+        </div>
 
               {/* Today's Attendance Table */}
               <div className="border rounded-md">
-                {isLoading ? (
-                  <div className="flex justify-center items-center p-8">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    <span className="ml-2">Loading attendance records...</span>
-                  </div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Check-in Time</TableHead>
-                        <TableHead>Check-out Time</TableHead>
-                        <TableHead className="hidden md:table-cell">Duration</TableHead>
-                        <TableHead>Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
+            {isLoading ? (
+              <div className="flex justify-center items-center p-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <span className="ml-2">Loading attendance records...</span>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Check-in Time</TableHead>
+                    <TableHead>Check-out Time</TableHead>
+                    <TableHead className="hidden md:table-cell">Duration</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                       {attendanceRecords.length > 0 ? (
                         attendanceRecords.map(record => (
-                          <TableRow key={record._id}>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <Avatar className="h-8 w-8">
+                      <TableRow key={record._id}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-8 w-8">
                                   <AvatarImage src="/placeholder.svg" alt={record.memberId?.name || ''} />
-                                  <AvatarFallback>
+                              <AvatarFallback>
                                     {(record.memberId?.name?.[0] || '').toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
+                              </AvatarFallback>
+                            </Avatar>
                                 <span className="font-medium">{record.memberId?.name}</span>
-                              </div>
-                            </TableCell>
+                          </div>
+                        </TableCell>
                             <TableCell>{record.memberId ? 'Member' : 'Staff'}</TableCell>
                             <TableCell>{format(new Date(record.checkInTime), 'PPp')}</TableCell>
-                            <TableCell>
+                        <TableCell>
                               {record.checkOutTime ? format(new Date(record.checkOutTime), 'PPp') : '-'}
                             </TableCell>
                             <TableCell className="hidden md:table-cell">
                               {record.checkOutTime
                                 ? formatDuration(new Date(record.checkOutTime).getTime() - new Date(record.checkInTime).getTime())
                                 : '-'}
-                            </TableCell>
-                            <TableCell>
+                        </TableCell>
+                        <TableCell>
                               <Badge variant={record.checkOutTime ? 'secondary' : 'default'}>
                                 {record.checkOutTime ? 'Checked Out' : 'Checked In'}
-                              </Badge>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={6} className="h-24 text-center">
-                            No attendance records found
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                )}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={6} className="h-24 text-center">
+                        No attendance records found
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            )}
               </div>
             </>
           ) : (
@@ -426,7 +426,7 @@ const AttendancePage: React.FC = () => {
                       </TableBody>
                     </Table>
                   )}
-                </div>
+            </div>
 
                 {/* Pagination */}
                 {totalPages > 1 && (
@@ -450,7 +450,7 @@ const AttendancePage: React.FC = () => {
               </div>
             </>
           )}
-        </div>
+            </div>
       </motion.div>
     </DashboardLayout>
   );
