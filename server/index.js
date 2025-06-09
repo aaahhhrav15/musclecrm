@@ -3,6 +3,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
+const path = require('path');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -20,6 +21,8 @@ const classSchedulesRouter = require('./routes/classSchedules');
 const membershipPlansRoutes = require('./routes/membershipPlans');
 const nutritionPlansRoutes = require('./routes/nutritionPlans');
 const eventWorkshopsRoutes = require('./routes/eventWorkshops');
+const waiverFormsRoutes = require('./routes/waiverForms');
+const communicationsRoutes = require('./routes/communications');
 
 const app = express();
 
@@ -30,13 +33,24 @@ mongoose.connect(process.env.MONGODB_URI)
 
 // Middleware
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? process.env.FRONTEND_URL 
-    : 'http://localhost:5173',
-  credentials: true
+  origin: 'http://localhost:5173',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
 }));
 app.use(express.json());
 app.use(cookieParser());
+
+// Serve static files from the public directory
+app.use('/waiver-forms', express.static(path.join(__dirname, 'public/waiver-forms'), {
+  setHeaders: (res, path) => {
+    if (path.endsWith('.pdf')) {
+      res.set('Content-Type', 'application/pdf');
+      res.set('Content-Disposition', 'attachment; filename=gym-waiver-form.pdf');
+    }
+  }
+}));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -54,6 +68,8 @@ app.use('/api/gym/class-schedules', classSchedulesRouter);
 app.use('/api/gym/membership-plans', membershipPlansRoutes);
 app.use('/api/nutrition-plans', nutritionPlansRoutes);
 app.use('/api/events-workshops', eventWorkshopsRoutes);
+app.use('/api/waiver-forms', waiverFormsRoutes);
+app.use('/api/communications', communicationsRoutes);
 
 // Root route
 app.get('/', (req, res) => {

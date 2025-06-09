@@ -10,15 +10,25 @@ import { toast } from 'sonner';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import axios from 'axios';
 
-interface Event {
+interface EventWorkshop {
   _id: string;
   title: string;
   description: string;
   date: string;
   time: string;
-  location: string;
   capacity: number;
   price: number;
+  type: 'event' | 'workshop';
+  isActive: boolean;
+}
+
+interface FormData {
+  title: string;
+  description: string;
+  date: string;
+  time: string;
+  capacity: string;
+  price: string;
   type: 'event' | 'workshop';
   isActive: boolean;
 }
@@ -26,18 +36,19 @@ interface Event {
 const API_BASE_URL = 'http://localhost:5001/api';
 
 const EventsWorkshopsPage: React.FC = () => {
-  const [events, setEvents] = useState<Event[]>([]);
+  const [events, setEvents] = useState<EventWorkshop[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingEvent, setEditingEvent] = useState<Event | null>(null);
-  const [formData, setFormData] = useState({
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [eventToDelete, setEventToDelete] = useState<string | null>(null);
+  const [editingEvent, setEditingEvent] = useState<EventWorkshop | null>(null);
+  const [formData, setFormData] = useState<FormData>({
     title: '',
     description: '',
     date: '',
     time: '',
-    location: '',
     capacity: '',
     price: '',
-    type: 'event' as const,
+    type: 'event',
     isActive: true
   });
 
@@ -80,24 +91,32 @@ const EventsWorkshopsPage: React.FC = () => {
     }
   };
 
-  const handleDeleteEvent = async (id: string) => {
+  const handleDeleteClick = (id: string) => {
+    setEventToDelete(id);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!eventToDelete) return;
     try {
-      await axios.delete(`${API_BASE_URL}/events-workshops/${id}`);
-      setEvents(events.filter(event => event._id !== id));
+      await axios.delete(`${API_BASE_URL}/events-workshops/${eventToDelete}`);
+      setEvents(events.filter(event => event._id !== eventToDelete));
       toast.success('Event deleted successfully');
     } catch (error) {
       toast.error('Failed to delete event');
+    } finally {
+      setIsDeleteDialogOpen(false);
+      setEventToDelete(null);
     }
   };
 
-  const handleEdit = (event: Event) => {
+  const handleEdit = (event: EventWorkshop) => {
     setEditingEvent(event);
     setFormData({
       title: event.title,
       description: event.description,
-      date: event.date,
+      date: event.date.split('T')[0],
       time: event.time,
-      location: event.location,
       capacity: event.capacity.toString(),
       price: event.price.toString(),
       type: event.type,
@@ -112,7 +131,6 @@ const EventsWorkshopsPage: React.FC = () => {
       description: '',
       date: '',
       time: '',
-      location: '',
       capacity: '',
       price: '',
       type: 'event',
@@ -138,21 +156,24 @@ const EventsWorkshopsPage: React.FC = () => {
                 Manage your gym's events and workshops
               </p>
             </div>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <Dialog open={isDialogOpen} onOpenChange={(open) => {
+              setIsDialogOpen(open);
+              if (!open) resetForm();
+            }}>
               <DialogTrigger asChild>
                 <Button className="bg-primary hover:bg-primary/90">
-                  <Plus className="mr-2 h-4 w-4" /> Create Event/Workshop
+                  <Plus className="mr-2 h-4 w-4" /> Create Event
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
                   <DialogTitle>
-                    {editingEvent ? 'Edit Event/Workshop' : 'Create Event/Workshop'}
+                    {editingEvent ? 'Edit Event' : 'Create Event'}
                   </DialogTitle>
                   <DialogDescription>
                     {editingEvent 
-                      ? 'Update the details of your event or workshop.'
-                      : 'Create a new event or workshop for your gym.'}
+                      ? 'Update the details of your event.'
+                      : 'Create a new event for your gym.'}
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
@@ -162,7 +183,7 @@ const EventsWorkshopsPage: React.FC = () => {
                       id="title"
                       value={formData.title}
                       onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                      placeholder="Enter title"
+                      placeholder="Enter event title"
                     />
                   </div>
                   <div className="grid gap-2">
@@ -171,7 +192,7 @@ const EventsWorkshopsPage: React.FC = () => {
                       id="description"
                       value={formData.description}
                       onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                      placeholder="Enter description"
+                      placeholder="Enter event description"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
@@ -193,15 +214,6 @@ const EventsWorkshopsPage: React.FC = () => {
                         onChange={(e) => setFormData(prev => ({ ...prev, time: e.target.value }))}
                       />
                     </div>
-                  </div>
-                  <div className="grid gap-2">
-                    <label htmlFor="location" className="text-sm font-medium">Location</label>
-                    <Input
-                      id="location"
-                      value={formData.location}
-                      onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
-                      placeholder="Enter location"
-                    />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
@@ -231,29 +243,20 @@ const EventsWorkshopsPage: React.FC = () => {
                       id="type"
                       value={formData.type}
                       onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value as 'event' | 'workshop' }))}
-                      className="h-10 rounded-md border border-input bg-background px-3 py-2"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <option value="event">Event</option>
                       <option value="workshop">Workshop</option>
                     </select>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="isActive"
-                      checked={formData.isActive}
-                      onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
-                      className="h-4 w-4 rounded border-gray-300"
-                    />
-                    <label htmlFor="isActive" className="text-sm font-medium">Active</label>
-                  </div>
                 </div>
                 <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button onClick={editingEvent ? handleUpdateEvent : handleCreateEvent}>
-                    {editingEvent ? 'Update' : 'Create'}
+                  <Button
+                    type="submit"
+                    onClick={editingEvent ? handleUpdateEvent : handleCreateEvent}
+                    className="bg-primary hover:bg-primary/90"
+                  >
+                    {editingEvent ? 'Update Event' : 'Create Event'}
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -261,78 +264,81 @@ const EventsWorkshopsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Events Grid */}
-        <div className="flex justify-center">
-          <div className="w-full max-w-6xl">
-            {events.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="inline-block p-8 rounded-lg border bg-white shadow-sm">
-                  <h3 className="text-lg font-medium mb-2">No Events Yet</h3>
-                  <p className="text-gray-500 mb-4">Create your first event or workshop to get started</p>
-                  <Button onClick={() => setIsDialogOpen(true)}>
-                    <Plus className="mr-2 h-4 w-4" /> Create First Event
-                  </Button>
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Delete Event</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete this event? This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="flex gap-2 sm:gap-0">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsDeleteDialogOpen(false);
+                  setEventToDelete(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDeleteConfirm}
+              >
+                Delete
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Events List */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {events.map((event) => (
+            <Card key={event._id} className="overflow-hidden">
+              <CardHeader>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <CardTitle className="text-xl">{event.title}</CardTitle>
+                    <CardDescription className="mt-1">
+                      {new Date(event.date).toLocaleDateString()} at {event.time}
+                    </CardDescription>
+                  </div>
+                  <Badge variant={event.type === 'event' ? 'default' : 'secondary'}>
+                    {event.type}
+                  </Badge>
                 </div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {events.map((event) => (
-                  <Card key={event._id} className="flex flex-col bg-white hover:shadow-lg transition-all duration-300 border-gray-100">
-                    <CardHeader className="pb-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <CardTitle className="text-xl font-semibold text-gray-900">{event.title}</CardTitle>
-                          <CardDescription className="mt-2 text-gray-500">{event.description}</CardDescription>
-                        </div>
-                        <Badge 
-                          variant={event.isActive ? "default" : "secondary"}
-                          className="ml-2"
-                        >
-                          {event.type === 'event' ? 'Event' : 'Workshop'}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="flex-grow">
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2 text-gray-600">
-                          <Calendar className="h-4 w-4" />
-                          <span className="text-sm">{new Date(event.date).toLocaleDateString()} at {event.time}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-gray-600">
-                          <MapPin className="h-4 w-4" />
-                          <span className="text-sm">{event.location}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-gray-600">
-                          <Users className="h-4 w-4" />
-                          <span className="text-sm">Capacity: {event.capacity} people</span>
-                        </div>
-                        <div className="pt-2">
-                          <span className="text-2xl font-bold text-primary">Rs. {event.price}</span>
-                        </div>
-                      </div>
-                    </CardContent>
-                    <CardFooter className="flex justify-end gap-2 pt-6 border-t border-gray-100">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEdit(event)}
-                        className="hover:bg-gray-50"
-                      >
-                        <Edit className="h-4 w-4 mr-2" /> Edit
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleDeleteEvent(event._id)}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" /> Delete
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-600 mb-4">{event.description}</p>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium">Capacity:</span> {event.capacity}
+                  </div>
+                  <div>
+                    <span className="font-medium">Price:</span> Rs. {event.price}
+                  </div>
+                </div>
+              </CardContent>
+              <CardFooter className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleEdit(event)}
+                >
+                  <Edit className="h-4 w-4 mr-2" /> Edit
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => handleDeleteClick(event._id)}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" /> Delete
+                </Button>
+              </CardFooter>
+            </Card>
+          ))}
         </div>
       </motion.div>
     </DashboardLayout>

@@ -19,11 +19,6 @@ const eventWorkshopSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  location: {
-    type: String,
-    required: true,
-    trim: true
-  },
   capacity: {
     type: Number,
     required: true,
