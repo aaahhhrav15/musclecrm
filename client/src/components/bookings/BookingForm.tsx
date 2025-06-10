@@ -158,6 +158,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
   useEffect(() => {
     const fetchData = async () => {
       try {
+        setLoading(true);
         const [customersResponse, trainersResponse, classesResponse] = await Promise.all([
           axios.get(`${API_URL}/customers`, { withCredentials: true }),
           axios.get(`${API_URL}/gym/staff`, { 
@@ -166,9 +167,12 @@ const BookingForm: React.FC<BookingFormProps> = ({
           }),
           axios.get(`${API_URL}/gym/class-schedules`, { withCredentials: true })
         ]);
-        setCustomers(customersResponse.data.customers || []);
-        setTrainers(trainersResponse.data.data || trainersResponse.data || []);
-        setClasses(classesResponse.data || []);
+
+        // Ensure we have arrays even if the response is empty
+        setCustomers(Array.isArray(customersResponse.data.customers) ? customersResponse.data.customers : []);
+        setTrainers(Array.isArray(trainersResponse.data.data) ? trainersResponse.data.data : 
+                   Array.isArray(trainersResponse.data) ? trainersResponse.data : []);
+        setClasses(Array.isArray(classesResponse.data) ? classesResponse.data : []);
       } catch (error) {
         console.error('Error fetching data:', error);
         toast.error('Failed to load form data');
@@ -222,7 +226,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
   const selectedCustomerId = form.watch('customerId');
   const selectedCustomer = customers.find(c => c._id === selectedCustomerId);
   const selectedClassId = form.watch('classId');
-  const selectedClass = classes.find((cls) => cls._id === selectedClassId);
+  const selectedClass = Array.isArray(classes) ? classes.find((cls) => cls._id === selectedClassId) : undefined;
 
   const handleSubmit = async (values: FormData) => {
     try {
@@ -236,127 +240,46 @@ const BookingForm: React.FC<BookingFormProps> = ({
       };
 
       // Add service names based on type
-      if (apiData.type === 'class') {
+      if (apiData.type === 'class' && selectedClass) {
         apiData.classId = values.classId;
-        apiData.className = values.classId;
+        apiData.className = selectedClass.name;
       } else if (apiData.type === 'personal_training') {
+        const selectedTrainer = trainers.find(t => t._id === values.trainerId);
         apiData.trainerId = values.trainerId;
-        apiData.trainerName = values.trainerId;
+        apiData.trainerName = selectedTrainer?.name || '';
       } else if (apiData.type === 'equipment') {
+        const selectedEquipment = equipment.find(e => e._id === values.equipmentId);
         apiData.equipmentId = values.equipmentId;
-        apiData.equipmentName = values.equipmentId;
+        apiData.equipmentName = selectedEquipment?.name || '';
       }
 
-      // Clear type-specific fields that aren't needed
-      if (apiData.type !== 'class') {
-        apiData.classId = undefined;
-        apiData.className = undefined;
-      }
-      if (apiData.type !== 'personal_training') {
-        apiData.trainerId = undefined;
-        apiData.trainerName = undefined;
-      }
-      if (apiData.type !== 'equipment') {
-        apiData.equipmentId = undefined;
-        apiData.equipmentName = undefined;
-      }
-
-      // Validate required fields based on booking type
-      if (apiData.type === 'class' && !apiData.classId) {
-        toast.error('Please select a class');
-        return;
-      }
-      if (apiData.type === 'personal_training' && !apiData.trainerId) {
-        toast.error('Please select a trainer');
-        return;
-      }
-      if (apiData.type === 'equipment' && !apiData.equipmentId) {
-        toast.error('Please select equipment');
-        return;
-      }
-
-      console.log('Submitting booking with data:', apiData);
-      const response = await onSubmit(apiData);
-      
-      if (response?.success) {
-        // Show success message
-        toast.success(response.message || (booking ? 'Booking updated successfully' : 'Booking created successfully'));
-        
-        // If there was an invoice error, show a warning
-        if (response.message?.includes('invoice creation failed')) {
-          toast.warning('Note: Invoice creation failed, but booking was successful');
-        }
-        
-        // Close the form
+      const result = await onSubmit(apiData);
+      if (result.success) {
+        toast.success('Booking saved successfully');
+        queryClient.invalidateQueries(['bookings']);
         onClose();
-        // Invalidate and refetch bookings query
-        queryClient.invalidateQueries({ queryKey: ['bookings'] });
-        // Invalidate and refetch invoices query
-        queryClient.invalidateQueries({ queryKey: ['invoices'] });
       } else {
-        toast.error(response?.message || (booking ? 'Failed to update booking' : 'Failed to create booking'));
+        toast.error(result.message || 'Failed to save booking');
       }
     } catch (error) {
       console.error('Error submitting booking:', error);
-      const errorMessage = error instanceof Error ? error.message : (booking ? 'Failed to update booking' : 'Failed to create booking');
-      toast.error(errorMessage);
+      toast.error('Failed to save booking');
     }
   };
-
-  const getDefaultPrice = (type: string) => {
-    switch (type) {
-      case 'class':
-        return 500; // ₹500 per class
-      case 'personal_training':
-        return 1000; // ₹1000 per session
-      case 'equipment':
-        return 200; // ₹200 per hour
-      default:
-        return 0;
-    }
-  };
-
-  // Update price when type changes
-  useEffect(() => {
-    const type = form.getValues('type');
-    form.setValue('price', getDefaultPrice(type));
-  }, [bookingType]);
-
-  // Auto-set start/end time when class is selected
-  useEffect(() => {
-    if (bookingType === 'class' && selectedClass) {
-      form.setValue('startTime', new Date(selectedClass.startTime));
-      form.setValue('endTime', new Date(selectedClass.endTime));
-    }
-    // eslint-disable-next-line
-  }, [selectedClassId, bookingType]);
-
-  if (loading) {
-    return (
-      <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Loading...</DialogTitle>
-            <DialogDescription>Please wait while we load the form data.</DialogDescription>
-          </DialogHeader>
-        </DialogContent>
-      </Dialog>
-    );
-  }
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>
-            {booking ? 'Edit Booking' : 'Create New Booking'}
-          </DialogTitle>
+          <DialogTitle>{booking ? 'Edit Booking' : 'New Booking'}</DialogTitle>
           <DialogDescription>
-            Fill in the details below to {booking ? 'update' : 'create'} a booking.
+            {booking ? 'Update the booking details below.' : 'Fill in the booking details below.'}
           </DialogDescription>
         </DialogHeader>
+
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+            {/* Booking Type */}
             <FormField
               control={form.control}
               name="type"
@@ -374,9 +297,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
                     </FormControl>
                     <SelectContent>
                       <SelectItem value="class">Class</SelectItem>
-                      <SelectItem value="personal_training">
-                        Personal Training
-                      </SelectItem>
+                      <SelectItem value="personal_training">Personal Training</SelectItem>
                       <SelectItem value="equipment">Equipment</SelectItem>
                     </SelectContent>
                   </Select>
@@ -385,38 +306,62 @@ const BookingForm: React.FC<BookingFormProps> = ({
               )}
             />
 
+            {/* Customer Selection */}
             <FormField
               control={form.control}
               name="customerId"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="flex flex-col">
                   <FormLabel>Customer</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a customer" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {customers && customers.length > 0 ? (
-                        customers.map((customer) => (
-                          <SelectItem key={customer._id} value={customer._id}>
-                            {customer.name}
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <div className="px-3 py-2 text-muted-foreground">No customers available</div>
-                      )}
-                    </SelectContent>
-                  </Select>
+                  <Popover open={openCustomerPopover} onOpenChange={setOpenCustomerPopover}>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={openCustomerPopover}
+                          className="justify-between"
+                        >
+                          {field.value
+                            ? customers.find((customer) => customer._id === field.value)?.name
+                            : "Select customer..."}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="p-0">
+                      <Command>
+                        <CommandInput placeholder="Search customer..." />
+                        <CommandEmpty>No customer found.</CommandEmpty>
+                        <CommandGroup>
+                          {customers.map((customer) => (
+                            <CommandItem
+                              key={customer._id}
+                              value={customer._id}
+                              onSelect={() => {
+                                form.setValue('customerId', customer._id);
+                                setOpenCustomerPopover(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  field.value === customer._id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {customer.name}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
+            {/* Class Selection (only shown for class bookings) */}
             {bookingType === 'class' && (
               <FormField
                 control={form.control}
@@ -434,15 +379,11 @@ const BookingForm: React.FC<BookingFormProps> = ({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {classes.length > 0 ? (
-                          classes.map((cls) => (
-                            <SelectItem key={cls._id} value={cls._id}>
-                              {cls.name} ({cls.description})
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <div className="px-3 py-2 text-muted-foreground">No classes available</div>
-                        )}
+                        {classes.map((cls) => (
+                          <SelectItem key={cls._id} value={cls._id}>
+                            {cls.name}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -451,6 +392,69 @@ const BookingForm: React.FC<BookingFormProps> = ({
               />
             )}
 
+            {/* Trainer Selection (only shown for personal training bookings) */}
+            {bookingType === 'personal_training' && (
+              <FormField
+                control={form.control}
+                name="trainerId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Trainer</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a trainer" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {trainers.map((trainer) => (
+                          <SelectItem key={trainer._id} value={trainer._id}>
+                            {trainer.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {/* Equipment Selection (only shown for equipment bookings) */}
+            {bookingType === 'equipment' && (
+              <FormField
+                control={form.control}
+                name="equipmentId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Equipment</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select equipment" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {equipment.map((item) => (
+                          <SelectItem key={item._id} value={item._id}>
+                            {item.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {/* Date and Time Selection */}
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -464,10 +468,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
                         onChange={field.onChange}
                         showTimeSelect
                         dateFormat="MMMM d, yyyy h:mm aa"
-                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        minDate={new Date()}
-                        placeholderText="Select start date and time"
-                        disabled={bookingType === 'class'}
+                        className="w-full rounded-md border border-input bg-background px-3 py-2"
                       />
                     </FormControl>
                     <FormMessage />
@@ -487,10 +488,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
                         onChange={field.onChange}
                         showTimeSelect
                         dateFormat="MMMM d, yyyy h:mm aa"
-                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        minDate={form.getValues('startTime')}
-                        placeholderText="Select end date and time"
-                        disabled={bookingType === 'class'}
+                        className="w-full rounded-md border border-input bg-background px-3 py-2"
                       />
                     </FormControl>
                     <FormMessage />
@@ -499,67 +497,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
               />
             </div>
 
-            {bookingType === 'personal_training' && (
-              <FormField
-                control={form.control}
-                name="trainerId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Trainer</FormLabel>
-                    <Select
-                      disabled={bookingType !== 'personal_training' || loading}
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a trainer" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {Array.isArray(trainers) && trainers.map((trainer) => (
-                          <SelectItem key={trainer._id} value={trainer._id}>
-                            {trainer.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
-
-            {bookingType === 'equipment' && (
-              <FormField
-                control={form.control}
-                name="equipmentId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Equipment</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select equipment" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="treadmill">Treadmill</SelectItem>
-                        <SelectItem value="elliptical">Elliptical Machine</SelectItem>
-                        <SelectItem value="weights">Weight Set</SelectItem>
-                        <SelectItem value="yoga_mat">Yoga Mat</SelectItem>
-                        <SelectItem value="exercise_ball">Exercise Ball</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
-
+            {/* Status Selection */}
             <FormField
               control={form.control}
               name="status"
@@ -587,6 +525,28 @@ const BookingForm: React.FC<BookingFormProps> = ({
               )}
             />
 
+            {/* Price */}
+            <FormField
+              control={form.control}
+              name="price"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Price</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      {...field}
+                      onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Notes */}
             <FormField
               control={form.control}
               name="notes"
@@ -594,70 +554,19 @@ const BookingForm: React.FC<BookingFormProps> = ({
                 <FormItem>
                   <FormLabel>Notes</FormLabel>
                   <FormControl>
-                    <Input 
-                      {...field} 
-                      value={field.value || ''} 
-                      placeholder="Add any additional notes (optional)"
-                    />
+                    <Input {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="price"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Price (₹)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      {...field}
-                      onChange={(e) => field.onChange(Number(e.target.value))}
-                      value={field.value}
-                      min={0}
-                      step={0.01}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="currency"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Currency</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select currency" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="INR">Indian Rupee (₹)</SelectItem>
-                      <SelectItem value="USD">US Dollar ($)</SelectItem>
-                      <SelectItem value="EUR">Euro (€)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="flex justify-end gap-4">
+            <div className="flex justify-end space-x-4">
               <Button type="button" variant="outline" onClick={onClose}>
                 Cancel
               </Button>
-              <Button type="submit">
-                {booking ? 'Update' : 'Create'}
+              <Button type="submit" disabled={loading}>
+                {loading ? 'Saving...' : booking ? 'Update Booking' : 'Create Booking'}
               </Button>
             </div>
           </form>

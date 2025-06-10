@@ -1,12 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import axios from 'axios';
+import axiosInstance from '@/lib/axios';
 import { useIndustry } from './IndustryContext';
-
-// Configure axios
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
-
-axios.defaults.withCredentials = true;
 
 interface User {
   id: string;
@@ -16,14 +11,16 @@ interface User {
   role?: 'admin' | 'staff' | 'member';
   membershipType?: string;
   joinDate?: string;
+  gymId?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  isLoading: boolean;
+  loading: boolean;
+  error: string | null;
   login: (email: string, password: string) => Promise<void>;
-  signup: (name: string, email: string, password: string, industry: string) => Promise<void>;
+  signup: (name: string, email: string, password: string, industry: string, gymName?: string) => Promise<void>;
   logout: () => void;
   updateUserProfile: (userData: Partial<User>) => Promise<void>;
 }
@@ -33,7 +30,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const { setSelectedIndustry } = useIndustry();
 
@@ -41,8 +39,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        // The server will check the cookie, no need to send token explicitly
-        const response = await axios.get(`${API_URL}/auth/profile`);
+        const response = await axiosInstance.get('/auth/profile');
         
         if (response.data.success) {
           const userData = response.data.user;
@@ -53,34 +50,40 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             industry: userData.industry,
             role: userData.role,
             membershipType: userData.membershipType,
-            joinDate: userData.joinDate
+            joinDate: userData.joinDate,
+            gymId: userData.gymId
           });
           setIsAuthenticated(true);
-          // Set the industry when user data is loaded
           setSelectedIndustry(userData.industry);
         }
       } catch (error: any) {
-        // Only log error if it's not a 401 (unauthorized) error
-        if (error.response?.status !== 401) {
+        // Only show error toast if not on auth pages and not a 401 error
+        const isAuthPage = window.location.pathname.includes('/login') || 
+                          window.location.pathname.includes('/signup');
+        if (error.response?.status !== 401 && !isAuthPage) {
           console.error('Auth check error:', error);
+          toast({
+            title: "Authentication error",
+            description: "There was a problem verifying your session. Please log in again.",
+            variant: "destructive",
+          });
         }
-        // User is not authenticated, which is fine
         setUser(null);
         setIsAuthenticated(false);
         setSelectedIndustry(null);
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
     };
     
     checkAuth();
-  }, [setSelectedIndustry]);
+  }, [setSelectedIndustry, toast]);
 
   const login = async (email: string, password: string) => {
-    setIsLoading(true);
+    setLoading(true);
     
     try {
-      const response = await axios.post(`${API_URL}/auth/login`, {
+      const response = await axiosInstance.post('/auth/login', {
         email,
         password
       });
@@ -95,10 +98,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           industry: userData.industry,
           role: userData.role,
           membershipType: userData.membershipType,
-          joinDate: userData.joinDate
+          joinDate: userData.joinDate,
+          gymId: userData.gymId
         });
         setIsAuthenticated(true);
-        // Set the industry when user logs in
         setSelectedIndustry(userData.industry);
         
         toast({
@@ -117,19 +120,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       throw error;
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const signup = async (name: string, email: string, password: string, industry: string) => {
-    setIsLoading(true);
+  const signup = async (name: string, email: string, password: string, industry: string, gymName?: string) => {
+    setLoading(true);
     
     try {
-      const response = await axios.post(`${API_URL}/auth/signup`, {
+      const response = await axiosInstance.post('/auth/register', {
         name,
         email,
         password,
-        industry
+        industry,
+        gymName
       });
       
       if (response.data.success) {
@@ -141,7 +145,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           email: userData.email,
           industry: userData.industry,
           role: userData.role,
-          joinDate: userData.joinDate
+          joinDate: userData.joinDate,
+          gymId: userData.gymId
         });
         setIsAuthenticated(true);
         
@@ -161,13 +166,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       throw error;
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   const logout = async () => {
     try {
-      await axios.post(`${API_URL}/auth/logout`);
+      await axiosInstance.post('/auth/logout');
       
       setUser(null);
       setIsAuthenticated(false);
@@ -189,22 +194,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateUserProfile = async (userData: Partial<User>) => {
-    setIsLoading(true);
-    
     try {
-      const response = await axios.put(`${API_URL}/auth/profile`, userData);
+      const response = await axiosInstance.put('/auth/profile', userData);
       
       if (response.data.success) {
-        const updatedUserData = response.data.user;
-        setUser(prevUser => {
-          if (!prevUser) return null;
-          return {
-            ...prevUser,
-            name: updatedUserData.name || prevUser.name,
-            email: updatedUserData.email || prevUser.email,
-            industry: updatedUserData.industry || prevUser.industry,
-          };
-        });
+        setUser(prev => prev ? { ...prev, ...userData } : null);
         
         toast({
           title: "Profile updated",
@@ -221,18 +215,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
       
       throw error;
-    } finally {
-      setIsLoading(false);
     }
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      isAuthenticated, 
-      isLoading,
-      login, 
-      signup, 
+    <AuthContext.Provider value={{
+      user,
+      isAuthenticated,
+      loading,
+      error,
+      login,
+      signup,
       logout,
       updateUserProfile
     }}>

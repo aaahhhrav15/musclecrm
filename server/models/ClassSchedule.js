@@ -7,6 +7,11 @@ const classScheduleSchema = new mongoose.Schema(
       required: true,
       trim: true
     },
+    gymId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Gym',
+      required: true
+    },
     description: {
       type: String,
       required: true,
@@ -60,5 +65,12 @@ const classScheduleSchema = new mongoose.Schema(
 classScheduleSchema.index({ startTime: 1, endTime: 1 });
 classScheduleSchema.index({ instructor: 1 });
 classScheduleSchema.index({ status: 1 });
+classScheduleSchema.index({ gymId: 1 });
+
+module.exports = mongoose.model('ClassSchedule', classScheduleSchema); 
+classScheduleSchema.index({ startTime: 1, endTime: 1 });
+classScheduleSchema.index({ instructor: 1 });
+classScheduleSchema.index({ status: 1 });
+classScheduleSchema.index({ gymId: 1 });
 
 module.exports = mongoose.model('ClassSchedule', classScheduleSchema); 

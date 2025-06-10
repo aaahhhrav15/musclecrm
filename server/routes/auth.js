@@ -3,100 +3,121 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Gym = require('../models/Gym');
 const auth = require('../middleware/auth');
+const multer = require('multer');
+const path = require('path');
 
 const router = express.Router();
 
+// Configure multer for logo upload
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'public/uploads/logos');
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ 
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  },
+  fileFilter: function (req, file, cb) {
+    const filetypes = /jpeg|jpg|png|gif/;
+    const mimetype = filetypes.test(file.mimetype);
+    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+
+    if (mimetype && extname) {
+      return cb(null, true);
+    }
+    cb(new Error('Only image files are allowed!'));
+  }
+});
+
 // Helper to generate JWT
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
+const generateToken = (userId) => {
+  return jwt.sign({ userId }, process.env.JWT_SECRET, {
     expiresIn: '30d'
   });
 };
 
 // Register a new user
-router.post('/signup', async (req, res) => {
+router.post('/register', upload.single('logo'), async (req, res) => {
   try {
-    const { name, email, password, industry } = req.body;
+    const { name, email, password, industry, role, gymName } = req.body;
+    const logo = req.file ? `/uploads/logos/${req.file.filename}` : undefined;
 
     // Check if user already exists
-    const userExists = await User.findOne({ email });
-    if (userExists) {
+    let user = await User.findOne({ email });
+    if (user) {
       return res.status(400).json({ success: false, message: 'User already exists' });
     }
 
-    let gymId = null;
-    // Create a default gym if the user is from the gym industry
+    let gymId;
+
+    // If it's a gym user, create the gym first
     if (industry === 'gym') {
-      const defaultGym = await Gym.create({
-        name: `${name}'s Gym`,
-        address: {
-          city: 'Your City',
-          state: 'Your State'
-        },
-        operatingHours: {
-          monday: { open: '06:00', close: '22:00' },
-          tuesday: { open: '06:00', close: '22:00' },
-          wednesday: { open: '06:00', close: '22:00' },
-          thursday: { open: '06:00', close: '22:00' },
-          friday: { open: '06:00', close: '22:00' },
-          saturday: { open: '08:00', close: '20:00' },
-          sunday: { open: '08:00', close: '20:00' }
-        },
-        facilities: ['Cardio Area', 'Weight Training', 'Group Classes', 'Swimming Pool'],
-        membershipTypes: [
-          {
-            name: 'Basic',
-            price: 49.99,
-            duration: 1,
-            features: ['Access to all facilities', 'Group classes']
-          },
-          {
-            name: 'Premium',
-            price: 79.99,
-            duration: 1,
-            features: ['Access to all facilities', 'Group classes', 'Personal trainer', 'Spa access']
-          }
-        ]
+      if (!gymName) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Gym name is required for gym industry users' 
+        });
+      }
+
+      const gym = new Gym({
+        name: gymName,
+        logo: logo,
+        status: 'active',
+        createdAt: new Date()
       });
-      gymId = defaultGym._id;
+
+      await gym.save();
+      gymId = gym._id;
     }
 
-    // Create user
-    const user = await User.create({
+    // Create new user
+    user = new User({
       name,
       email,
       password,
       industry,
-      gymId
+      role: role || 'owner',
+      gymId: industry === 'gym' ? gymId : undefined
     });
 
-    // Generate token
+    await user.save();
+
+    // Generate JWT token
     const token = generateToken(user._id);
 
-    // Send response with cookie
+    // Set the token in a cookie
     res.cookie('token', token, {
       httpOnly: true,
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict'
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
     });
 
     res.status(201).json({
       success: true,
+      token,
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
         industry: user.industry,
         role: user.role,
-        gymId: user.gymId,
-        joinDate: user.joinDate
-      },
-      token
+        gymId: user.gymId
+      }
     });
   } catch (error) {
-    console.error('Signup error:', error);
-    res.status(500).json({ success: false, message: 'Server error during signup' });
+    console.error('Registration error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error in registration',
+      error: error.message 
+    });
   }
 });
 
@@ -108,42 +129,41 @@ router.post('/login', async (req, res) => {
     // Find user
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+      return res.status(400).json({ success: false, message: 'Invalid credentials' });
     }
 
     // Check password
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
-      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+      return res.status(400).json({ success: false, message: 'Invalid credentials' });
     }
 
-    // Generate token
+    // Generate JWT token
     const token = generateToken(user._id);
 
-    // Send response with cookie
+    // Set the token in a cookie
     res.cookie('token', token, {
       httpOnly: true,
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict'
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
     });
 
     res.json({
       success: true,
+      token,
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
         industry: user.industry,
         role: user.role,
-        membershipType: user.membershipType,
-        joinDate: user.joinDate
-      },
-      token
+        gymId: user.gymId
+      }
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ success: false, message: 'Server error during login' });
+    res.status(500).json({ success: false, message: 'Error in login' });
   }
 });
 
@@ -151,12 +171,26 @@ router.post('/login', async (req, res) => {
 router.post('/logout', (req, res) => {
   res.cookie('token', '', {
     httpOnly: true,
-    expires: new Date(0),
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict'
+    sameSite: 'lax',
+    maxAge: 0
   });
   
   res.json({ success: true, message: 'Logged out successfully' });
+});
+
+// Get current user
+router.get('/me', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select('-password');
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    res.json({ success: true, user });
+  } catch (error) {
+    console.error('Get user error:', error);
+    res.status(500).json({ success: false, message: 'Error fetching user' });
+  }
 });
 
 // Get user profile

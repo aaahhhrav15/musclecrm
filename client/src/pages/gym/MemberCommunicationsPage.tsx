@@ -14,6 +14,7 @@ const API_BASE_URL = 'http://localhost:5001';
 interface Customer {
   _id: string;
   userId: string;
+  gymId: string;
   name: string;
   email: string;
   phone: string;

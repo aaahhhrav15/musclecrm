@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Users, UserPlus, RefreshCw, UserMinus, Search, Filter, Bell, MoreHorizontal } from 'lucide-react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
@@ -21,45 +21,69 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import MemberQRCode from '@/components/attendance/MemberQRCode';
+import axios from 'axios';
+import { API_URL } from '@/config';
+import { toast } from 'sonner';
 
-// Mock data for members
-const members = [
-  { id: 1, name: 'John Smith', status: 'Active', memberSince: '2024-12-10', expiryDate: '2025-12-10', type: 'Gold', plan: 'Annual', paymentStatus: 'Paid' },
-  { id: 2, name: 'Alice Johnson', status: 'Active', memberSince: '2025-01-15', expiryDate: '2025-07-15', type: 'Silver', plan: 'Semi-annual', paymentStatus: 'Paid' },
-  { id: 3, name: 'Robert Brown', status: 'Expiring Soon', memberSince: '2024-08-20', expiryDate: '2025-06-01', type: 'Gold', plan: 'Annual', paymentStatus: 'Paid' },
-  { id: 4, name: 'Emma Wilson', status: 'Trial', memberSince: '2025-05-15', expiryDate: '2025-05-22', type: 'Basic', plan: 'Trial', paymentStatus: 'Free' },
-  { id: 5, name: 'Michael Davis', status: 'Expired', memberSince: '2024-11-05', expiryDate: '2025-05-05', type: 'Silver', plan: 'Semi-annual', paymentStatus: 'Overdue' },
-  { id: 6, name: 'Sarah Garcia', status: 'Active', memberSince: '2025-03-10', expiryDate: '2026-03-10', type: 'Platinum', plan: 'Annual', paymentStatus: 'Paid' },
-];
+interface Member {
+  _id: string;
+  name: string;
+  status: 'Active' | 'Expiring Soon' | 'Trial' | 'Expired';
+  memberSince: string;
+  expiryDate: string;
+  type: string;
+  plan: string;
+  paymentStatus: 'Paid' | 'Free' | 'Overdue';
+}
 
 const MembersPage: React.FC = () => {
+  const [members, setMembers] = useState<Member[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
   const [showQRCode, setShowQRCode] = useState(false);
   const [selectedMember, setSelectedMember] = useState<{ id: string; name: string } | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   
-  // Filter members based on the active tab
-  const filteredMembers = members.filter(member => {
-    switch (activeTab) {
-      case 'active':
-        return member.status === 'Active';
-      case 'expiring':
-        return member.status === 'Expiring Soon';
-      case 'trial':
-        return member.status === 'Trial';
-      case 'expired':
-        return member.status === 'Expired';
-      default:
-        return true;
+  useEffect(() => {
+    fetchMembers();
+  }, []);
+
+  const fetchMembers = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/members`, {
+        withCredentials: true
+      });
+      setMembers(response.data.members);
+    } catch (error) {
+      console.error('Error fetching members:', error);
+      toast.error('Failed to fetch members');
+    } finally {
+      setLoading(false);
     }
+  };
+  
+  // Filter members based on the active tab and search query
+  const filteredMembers = members.filter(member => {
+    const matchesSearch = member.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesTab = activeTab === 'all' || member.status.toLowerCase() === activeTab.toLowerCase();
+    return matchesSearch && matchesTab;
   });
   
-  const handleShowQRCode = (member: any) => {
+  const handleShowQRCode = (member: Member) => {
     setSelectedMember({
       id: member._id,
       name: member.name
     });
     setShowQRCode(true);
   };
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div>Loading...</div>
+      </DashboardLayout>
+    );
+  }
   
   return (
     <DashboardLayout>
@@ -92,6 +116,8 @@ const MembersPage: React.FC = () => {
             <Input
               placeholder="Search members..."
               className="pl-8"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
           <Button variant="outline" className="w-full sm:w-auto">
@@ -125,7 +151,7 @@ const MembersPage: React.FC = () => {
               </TableHeader>
               <TableBody>
                 {filteredMembers.map(member => (
-                  <TableRow key={member.id}>
+                  <TableRow key={member._id}>
                     <TableCell className="font-medium">{member.name}</TableCell>
                     <TableCell>
                       <Badge variant={
@@ -198,7 +224,7 @@ const MembersPage: React.FC = () => {
             </div>
             <div>
               <h3 className="text-xl font-bold">{members.filter(m => m.status === 'Expiring Soon').length}</h3>
-              <p className="text-sm text-muted-foreground">Due for Renewal</p>
+              <p className="text-sm text-muted-foreground">Expiring Soon</p>
             </div>
           </div>
           <div className="bg-background border rounded-lg p-4 flex items-center gap-4">
@@ -207,7 +233,7 @@ const MembersPage: React.FC = () => {
             </div>
             <div>
               <h3 className="text-xl font-bold">{members.filter(m => m.status === 'Expired').length}</h3>
-              <p className="text-sm text-muted-foreground">Expired</p>
+              <p className="text-sm text-muted-foreground">Expired Members</p>
             </div>
           </div>
         </div>

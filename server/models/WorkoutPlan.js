@@ -20,11 +20,19 @@ const weekSchema = new mongoose.Schema({
 
 const workoutPlanSchema = new mongoose.Schema({
   name: { type: String, required: true },
+  gymId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Gym',
+    required: true
+  },
   goal: { type: String, required: true },
   duration: { type: Number, required: true, min: 1 },
   level: { type: String, required: true, enum: ['beginner', 'intermediate', 'advanced'] },
   weeks: [weekSchema],
 }, { timestamps: true });
+
+// Add indexes for better query performance
+workoutPlanSchema.index({ gymId: 1 });
 
 const WorkoutPlan = mongoose.model('WorkoutPlan', workoutPlanSchema);
 

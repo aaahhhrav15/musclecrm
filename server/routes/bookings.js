@@ -1,75 +1,37 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
+const { gymAuth } = require('../middleware/gymAuth');
 const Booking = require('../models/Booking');
 const Customer = require('../models/Customer');
 const Invoice = require('../models/Invoice');
 const Notification = require('../models/Notification');
 const { addDays } = require('date-fns');
 
-// Get all bookings with filters
-router.get('/', auth, async (req, res) => {
+// Apply both auth and gymAuth middleware to all routes
+router.use(auth);
+router.use(gymAuth);
+
+// Get all bookings for the gym
+router.get('/', async (req, res) => {
   try {
-    const {
-      page = 1,
-      limit = 10,
-      type,
-      startDate,
-      endDate,
-      trainerId,
-      classId,
-      customerId,
-      status
-    } = req.query;
-
-    const query = { userId: req.user._id };
-
-    // Apply filters
-    if (type) query.type = type;
-    if (status) query.status = status;
-    if (trainerId) query.trainerId = trainerId;
-    if (classId) query.classId = classId;
-    if (customerId) query.customerId = customerId;
-
-    // Date range filter
-    if (startDate || endDate) {
-      query.startTime = {};
-      if (startDate) query.startTime.$gte = new Date(startDate);
-      if (endDate) query.startTime.$lte = new Date(endDate);
-    }
-
-    const options = {
-      page: parseInt(page),
-      limit: parseInt(limit),
-      sort: { startTime: -1 },
-      populate: [
-        { path: 'customerId', select: 'name email phone' }
-      ]
-    };
-
-    const bookings = await Booking.find(query, null, options);
-    const total = await Booking.countDocuments(query);
-
-    res.json({
-      success: true,
-      bookings,
-      total,
-      page: parseInt(page),
-      totalPages: Math.ceil(total / parseInt(limit))
-    });
+    const bookings = await Booking.find({ gymId: req.gymId })
+      .populate('customerId', 'name email phone')
+      .sort({ startTime: -1 });
+    res.json({ success: true, bookings });
   } catch (error) {
-    console.error('Get bookings error:', error);
+    console.error('Error fetching bookings:', error);
     res.status(500).json({ success: false, message: 'Error fetching bookings' });
   }
 });
 
 // Get booking calendar data
-router.get('/calendar', auth, async (req, res) => {
+router.get('/calendar', async (req, res) => {
   try {
     const { startDate, endDate, type } = req.query;
     
     const query = { 
-      userId: req.user._id,
+      gymId: req.gymId,
       startTime: {
         $gte: new Date(startDate),
         $lte: new Date(endDate)
@@ -92,217 +54,76 @@ router.get('/calendar', auth, async (req, res) => {
   }
 });
 
-// Get single booking
-router.get('/:id', auth, async (req, res) => {
+// Get a specific booking
+router.get('/:id', async (req, res) => {
   try {
     const booking = await Booking.findOne({
       _id: req.params.id,
-      userId: req.user._id
-    })
-    .populate('customerId', 'name email phone')
-    .populate('trainerId', 'name email')
-    .populate('classId', 'name description')
-    .populate('equipmentId', 'name description');
-
+      gymId: req.gymId
+    }).populate('customerId', 'name email phone');
+    
     if (!booking) {
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
-
+    
     res.json({ success: true, booking });
   } catch (error) {
-    console.error('Get booking error:', error);
+    console.error('Error fetching booking:', error);
     res.status(500).json({ success: false, message: 'Error fetching booking' });
   }
 });
 
-// Create new booking
-router.post('/', auth, async (req, res) => {
+// Create a new booking
+router.post('/', async (req, res) => {
   try {
-    const {
-      customerId,
-      type,
-      startTime,
-      endTime,
-      trainerId,
-      classId,
-      equipmentId,
-      trainerName,
-      className,
-      equipmentName,
-      notes,
-      price,
-      currency
-    } = req.body;
-
-    // Create the booking
-    const booking = await Booking.create({
+    const booking = new Booking({
+      ...req.body,
       userId: req.user._id,
-      customerId,
-      type,
-      startTime,
-      endTime,
-      trainerId,
-      classId,
-      equipmentId,
-      trainerName,
-      className,
-      equipmentName,
-      notes,
-      price,
-      currency,
-      status: 'scheduled',
-      createdBy: req.user._id
+      gymId: req.gymId
     });
-
-    // Populate the booking with customer and trainer/class/equipment details
-    const populatedBooking = await Booking.findById(booking._id)
-      .populate('customerId', 'name email')
-      .populate('trainerId', 'name')
-      .populate('classId', 'name')
-      .populate('equipmentId', 'name');
-
-    // Update customer's total spent
-    await Customer.findByIdAndUpdate(customerId, {
-      $inc: { totalSpent: price }
-    });
-
-    // Create notification for booking creation
-    const notification = await Notification.create({
-      userId: req.user._id,
-      type: 'booking_created',
-      title: 'New Booking Created',
-      message: `A new ${type.replace('_', ' ')} booking has been created for ${populatedBooking.customerId.name}`,
-      data: {
-        bookingId: booking._id,
-        type,
-        customerName: populatedBooking.customerId.name
-      }
-    });
-
-    // Create invoice
-    try {
-      // Check if invoice already exists for this booking
-      const existingInvoice = await Invoice.findOne({ bookingId: booking._id });
-      if (existingInvoice) {
-        console.log('Invoice already exists for this booking:', existingInvoice._id);
-        res.status(201).json({
-          success: true,
-          message: 'Booking created successfully',
-          booking: populatedBooking,
-          invoice: existingInvoice,
-          notification
-        });
-        return;
-      }
-
-      // Create new invoice
-      const invoice = await Invoice.create({
-        userId: req.user._id,
-        bookingId: booking._id,
-        customerId,
-        amount: price,
-        currency,
-        status: 'pending',
-        dueDate: new Date(endTime),
-        items: [{
-          description: `${type.replace('_', ' ')} booking`,
-          quantity: 1,
-          unitPrice: price,
-          amount: price
-        }]
-      });
-
-      // Create notification for invoice creation
-      const invoiceNotification = await Notification.create({
-        userId: req.user._id,
-        type: 'invoice_created',
-        title: 'New Invoice Created',
-        message: `An invoice has been created for the ${type.replace('_', ' ')} booking`,
-        data: {
-          bookingId: booking._id,
-          invoiceId: invoice._id,
-          amount: price,
-          currency
-        }
-      });
-
-      // Update booking with invoice ID
-      await Booking.findByIdAndUpdate(booking._id, { invoiceId: invoice._id });
-
-      res.status(201).json({
-        success: true,
-        message: 'Booking created successfully',
-        booking: populatedBooking,
-        invoice,
-        notifications: [notification, invoiceNotification]
-      });
-    } catch (invoiceError) {
-      console.error('Error creating invoice:', invoiceError);
-      // Still return success for booking creation
-      res.status(201).json({
-        success: true,
-        message: 'Booking created successfully',
-        booking: populatedBooking,
-        notification,
-        invoiceError: invoiceError.message
-      });
-    }
+    await booking.save();
+    res.status(201).json({ success: true, booking });
   } catch (error) {
-    console.error('Create booking error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error creating booking',
-      error: error.message
-    });
+    console.error('Error creating booking:', error);
+    res.status(500).json({ success: false, message: 'Error creating booking' });
   }
 });
 
-// Update booking
-router.put('/:id', auth, async (req, res) => {
+// Update a booking
+router.put('/:id', async (req, res) => {
   try {
-    const {
-      startTime,
-      endTime,
-      status,
-      notes
-    } = req.body;
-
     const booking = await Booking.findOneAndUpdate(
-      { _id: req.params.id, userId: req.user._id },
-      { startTime, endTime, status, notes },
-      { new: true, runValidators: true }
-    )
-    .populate('customerId', 'name email phone')
-    .populate('trainerId', 'name email')
-    .populate('classId', 'name description')
-    .populate('equipmentId', 'name description');
-
+      { _id: req.params.id, gymId: req.gymId },
+      req.body,
+      { new: true }
+    );
+    
     if (!booking) {
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
-
+    
     res.json({ success: true, booking });
   } catch (error) {
-    console.error('Update booking error:', error);
+    console.error('Error updating booking:', error);
     res.status(500).json({ success: false, message: 'Error updating booking' });
   }
 });
 
-// Delete booking
-router.delete('/:id', auth, async (req, res) => {
+// Delete a booking
+router.delete('/:id', async (req, res) => {
   try {
     const booking = await Booking.findOneAndDelete({
       _id: req.params.id,
-      userId: req.user._id
+      gymId: req.gymId
     });
-
+    
     if (!booking) {
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
-
+    
     res.json({ success: true, message: 'Booking deleted successfully' });
   } catch (error) {
-    console.error('Delete booking error:', error);
+    console.error('Error deleting booking:', error);
     res.status(500).json({ success: false, message: 'Error deleting booking' });
   }
 });

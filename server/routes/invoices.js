@@ -7,83 +7,34 @@ const PDFDocument = require('pdfkit');
 const { format } = require('date-fns');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { gymAuth } = require('../middleware/gymAuth');
 
 const router = express.Router();
 
-// Get all invoices with filtering
-router.get('/', auth, async (req, res) => {
+// Apply both auth and gymAuth middleware to all routes
+router.use(auth);
+router.use(gymAuth);
+
+// Get all invoices for the gym
+router.get('/', async (req, res) => {
   try {
-    const {
-      page = 1,
-      limit = 10,
-      search,
-      status,
-      paymentStatus,
-      startDate,
-      endDate,
-      sortBy = 'date',
-      sortOrder = 'desc'
-    } = req.query;
-
-    const query = { userId: req.user._id };
-    
-    // Add search query if provided
-    if (search) {
-      query.$or = [
-        { invoiceNumber: { $regex: search, $options: 'i' } },
-        { 'customer.name': { $regex: search, $options: 'i' } }
-      ];
-    }
-
-    // Add status filter if provided
-    if (status) {
-      query.status = status;
-    }
-
-    // Add payment status filter if provided
-    if (paymentStatus) {
-      query.paymentStatus = paymentStatus;
-    }
-
-    // Add date range filter if provided
-    if (startDate || endDate) {
-      query.date = {};
-      if (startDate) query.date.$gte = new Date(startDate);
-      if (endDate) query.date.$lte = new Date(endDate);
-    }
-
-    // Build sort object
-    const sortOptions = {};
-    sortOptions[sortBy] = sortOrder === 'asc' ? 1 : -1;
-    
-    const options = {
-      limit: parseInt(limit),
-      skip: (parseInt(page) - 1) * parseInt(limit),
-      sort: sortOptions,
-      populate: 'customerId'
-    };
-    
-    const invoices = await Invoice.find(query, null, options);
-    const total = await Invoice.countDocuments(query);
-    
-    res.json({
-      success: true,
-      invoices,
-      total
-    });
+    const invoices = await Invoice.find({ gymId: req.gymId })
+      .populate('customerId', 'name email phone')
+      .sort({ createdAt: -1 });
+    res.json({ success: true, invoices });
   } catch (error) {
-    console.error('Get invoices error:', error);
+    console.error('Error fetching invoices:', error);
     res.status(500).json({ success: false, message: 'Error fetching invoices' });
   }
 });
 
 // Get single invoice
-router.get('/:id', auth, async (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
-    const invoice = await Invoice.findOne({ 
+    const invoice = await Invoice.findOne({
       _id: req.params.id,
-      userId: req.user._id 
-    }).populate('customerId');
+      gymId: req.gymId
+    }).populate('customerId', 'name email phone');
     
     if (!invoice) {
       return res.status(404).json({ success: false, message: 'Invoice not found' });
@@ -91,108 +42,53 @@ router.get('/:id', auth, async (req, res) => {
     
     res.json({ success: true, invoice });
   } catch (error) {
-    console.error('Get invoice error:', error);
+    console.error('Error fetching invoice:', error);
     res.status(500).json({ success: false, message: 'Error fetching invoice' });
   }
 });
 
 // Create new invoice
-router.post('/', auth, async (req, res) => {
+router.post('/', async (req, res) => {
   try {
-    const { customerId, bookingId, items, amount, dueDate, notes, status, currency } = req.body;
-
-    // Generate a 6-digit invoice number
-    const invoiceCount = await Invoice.countDocuments({ userId: req.user._id });
-    const invoiceNumber = `INV${String(invoiceCount + 1).padStart(5, '0')}`;
-
     const invoice = new Invoice({
+      ...req.body,
       userId: req.user._id,
-      customerId,
-      bookingId,
-      invoiceNumber,
-      items,
-      amount,
-      dueDate,
-      notes,
-      status: status || 'pending',
-      currency: currency || 'USD'
+      gymId: req.gymId
     });
-
     await invoice.save();
-
-    // Populate customer and booking details
-    await invoice.populate('customerId', 'name email phone');
-    if (bookingId) {
-      await invoice.populate('bookingId', 'type startTime endTime');
-    }
-
-    res.status(201).json({
-      success: true,
-      data: invoice
-    });
+    res.status(201).json({ success: true, invoice });
   } catch (error) {
-    console.error('Create invoice error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Error creating invoice',
-      error: error.message 
-    });
+    console.error('Error creating invoice:', error);
+    res.status(500).json({ success: false, message: 'Error creating invoice' });
   }
 });
 
 // Update invoice
 router.put('/:id', async (req, res) => {
   try {
-    const { id } = req.params;
-    const { status, paymentStatus, paidAmount } = req.body;
-
-    // Validate status
-    if (status && !['pending', 'paid', 'cancelled'].includes(status)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid status value'
-      });
-    }
-
-    const updateData = {};
-    if (status) updateData.status = status;
-    if (paymentStatus) updateData.paymentStatus = paymentStatus;
-    if (paidAmount) updateData.paidAmount = paidAmount;
-
-    const invoice = await Invoice.findByIdAndUpdate(
-      id,
-      { $set: updateData },
+    const invoice = await Invoice.findOneAndUpdate(
+      { _id: req.params.id, gymId: req.gymId },
+      req.body,
       { new: true }
-    ).populate('customerId', 'name email');
+    );
     
     if (!invoice) {
-      return res.status(404).json({
-        success: false,
-        message: 'Invoice not found'
-      });
+      return res.status(404).json({ success: false, message: 'Invoice not found' });
     }
     
-    res.json({
-      success: true,
-      message: 'Invoice updated successfully',
-      invoice
-    });
+    res.json({ success: true, invoice });
   } catch (error) {
     console.error('Error updating invoice:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to update invoice',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Error updating invoice' });
   }
 });
 
 // Delete invoice
-router.delete('/:id', auth, async (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
-    const invoice = await Invoice.findOneAndDelete({ 
+    const invoice = await Invoice.findOneAndDelete({
       _id: req.params.id,
-      userId: req.user._id 
+      gymId: req.gymId
     });
     
     if (!invoice) {
@@ -201,7 +97,7 @@ router.delete('/:id', auth, async (req, res) => {
     
     res.json({ success: true, message: 'Invoice deleted successfully' });
   } catch (error) {
-    console.error('Delete invoice error:', error);
+    console.error('Error deleting invoice:', error);
     res.status(500).json({ success: false, message: 'Error deleting invoice' });
   }
 });
@@ -213,7 +109,7 @@ router.get('/:id/pdf', auth, async (req, res) => {
     
     const invoice = await Invoice.findOne({
       _id: req.params.id,
-      userId: req.user._id
+      gymId: req.gymId
     })
       .populate('customerId', 'name email phone address')
       .populate('bookingId', 'type startTime endTime');

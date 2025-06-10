@@ -8,7 +8,14 @@ const router = express.Router();
 // Get all staff
 router.get('/', auth, async (req, res) => {
   try {
-    const staff = await GymStaff.find({ userId: req.user._id }).populate('trainerId');
+    if (!req.user.gymId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No gym associated with this account' 
+      });
+    }
+
+    const staff = await GymStaff.find({ gymId: req.user.gymId }).populate('trainerId');
     res.json({ success: true, data: staff });
   } catch (error) {
     console.error('Get staff error:', error);
@@ -19,9 +26,16 @@ router.get('/', auth, async (req, res) => {
 // Get single staff member
 router.get('/:id', auth, async (req, res) => {
   try {
+    if (!req.user.gymId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No gym associated with this account' 
+      });
+    }
+
     const staff = await GymStaff.findOne({ 
       _id: req.params.id,
-      userId: req.user._id 
+      gymId: req.user.gymId 
     }).populate('trainerId');
     
     if (!staff) {
@@ -38,6 +52,13 @@ router.get('/:id', auth, async (req, res) => {
 // Create new staff member
 router.post('/', auth, async (req, res) => {
   try {
+    if (!req.user.gymId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No gym associated with this account' 
+      });
+    }
+
     const { name, email, phone, position, hireDate, status } = req.body;
     
     let trainerId = null;
@@ -57,7 +78,7 @@ router.post('/', auth, async (req, res) => {
     }
     
     const newStaff = await GymStaff.create({
-      userId: req.user._id,
+      gymId: req.user.gymId,
       name,
       email,
       phone,
@@ -77,9 +98,19 @@ router.post('/', auth, async (req, res) => {
 // Update staff member
 router.put('/:id', auth, async (req, res) => {
   try {
+    if (!req.user.gymId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No gym associated with this account' 
+      });
+    }
+
     const { name, email, phone, position, hireDate, status } = req.body;
     
-    const staff = await GymStaff.findOne({ _id: req.params.id, userId: req.user._id });
+    const staff = await GymStaff.findOne({ 
+      _id: req.params.id, 
+      gymId: req.user.gymId 
+    });
     
     if (!staff) {
       return res.status(404).json({ success: false, message: 'Staff member not found' });
@@ -132,9 +163,16 @@ router.put('/:id', auth, async (req, res) => {
 // Delete staff member
 router.delete('/:id', auth, async (req, res) => {
   try {
+    if (!req.user.gymId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No gym associated with this account' 
+      });
+    }
+
     const staff = await GymStaff.findOne({ 
       _id: req.params.id,
-      userId: req.user._id 
+      gymId: req.user.gymId 
     });
     
     if (!staff) {

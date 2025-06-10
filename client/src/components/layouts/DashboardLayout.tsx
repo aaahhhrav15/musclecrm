@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/context/AuthContext';
 import { useIndustry } from '@/context/IndustryContext';
+import { useGym } from '@/context/GymContext';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
 import DashboardSidebar from './DashboardSidebar';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -26,6 +27,7 @@ interface DashboardLayoutProps {
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const { user, logout } = useAuth();
   const { selectedIndustry } = useIndustry();
+  const { gym } = useGym();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   
@@ -88,7 +90,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               <span className="sr-only">Toggle sidebar</span>
             </Button>
             <h1 className="text-xl font-semibold">
-              Dashboard {selectedIndustry && `- ${selectedIndustry.charAt(0).toUpperCase() + selectedIndustry.slice(1)}`}
+              Dashboard {selectedIndustry === 'gym' && gym ? `- ${gym.name}` : selectedIndustry ? `- ${selectedIndustry.charAt(0).toUpperCase() + selectedIndustry.slice(1)}` : ''}
             </h1>
           </div>
 

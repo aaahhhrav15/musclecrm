@@ -4,7 +4,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { X, Menu, User, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
+import { useGym } from '../../context/GymContext';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,6 +20,7 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ transparent = false }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user, isAuthenticated, logout } = useAuth();
+  const { gym } = useGym();
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -39,6 +41,9 @@ const Header: React.FC<HeaderProps> = ({ transparent = false }) => {
       <div className="container flex items-center justify-between h-16 px-4 mx-auto sm:px-6 lg:px-8">
         <Link to="/" className="flex items-center">
           <span className="text-xl font-bold text-primary">FlexCRM</span>
+          {isAuthenticated && user?.industry === 'gym' && gym && (
+            <span className="ml-2 text-sm text-muted-foreground">- {gym.name}</span>
+          )}
         </Link>
 
         {/* Desktop Navigation */}

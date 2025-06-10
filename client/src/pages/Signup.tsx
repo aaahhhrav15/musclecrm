@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -14,19 +13,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/context/AuthContext';
-import { useIndustry } from '@/context/IndustryContext';
+import { useAuth } from '../context/AuthContext';
+import { useIndustry } from '../context/IndustryContext';
 import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Upload } from 'lucide-react';
+import axios from 'axios';
+import { Card, CardContent } from '@/components/ui/card';
 
 const formSchema = z.object({
-  name: z.string().min(2, { message: 'Name must be at least 2 characters' }),
+  gymName: z.string().min(2, { message: 'Gym name must be at least 2 characters' }),
   email: z.string().email({ message: 'Please enter a valid email address' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters' }),
   industry: z.string().min(1, { message: 'Please select an industry' }),
+  logo: z.any().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -37,22 +39,51 @@ const Signup: React.FC = () => {
   const { setSelectedIndustry } = useIndustry();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: '',
+      gymName: '',
       email: '',
       password: '',
       industry: '',
+      logo: null,
     },
   });
+
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      form.setValue('logo', file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLogoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const onSubmit = async (values: FormValues) => {
     setIsLoading(true);
     
     try {
-      await signup(values.name, values.email, values.password, values.industry);
+      // Create FormData for the logo upload
+      const formData = new FormData();
+      if (values.logo) {
+        formData.append('logo', values.logo);
+      }
+
+      // Call signup with individual parameters
+      await signup(
+        values.gymName,
+        values.email,
+        values.password,
+        values.industry,
+        values.gymName
+      );
+      
+      // Set the industry and navigate
       setSelectedIndustry(values.industry as any);
       
       toast({
@@ -78,7 +109,7 @@ const Signup: React.FC = () => {
     <div className="flex flex-col min-h-screen">
       <Header />
       
-      <div className="flex flex-col items-center justify-center flex-1 px-4 py-12">
+      <div className="flex flex-col items-center justify-center flex-1 px-4 py-24">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -86,117 +117,160 @@ const Signup: React.FC = () => {
           className="w-full max-w-md"
         >
           <div className="mb-8 text-center">
-            <h1 className="text-3xl font-bold">Create Your Account</h1>
+            <h1 className="text-3xl font-bold">Register Your Gym</h1>
             <p className="mt-2 text-muted-foreground">
-              Sign up for FlexCRM to get started
+              Create your FlexCRM account to manage your gym
             </p>
           </div>
           
-          <div className="p-6 border rounded-lg shadow-sm">
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="John Doe" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input placeholder="name@example.com" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Password</FormLabel>
-                      <FormControl>
-                        <Input type="password" placeholder="••••••••" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="industry"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Select Your Industry</FormLabel>
-                      <Select 
-                        onValueChange={field.onChange} 
-                        defaultValue={field.value}
-                      >
+          <Card>
+            <CardContent className="p-6">
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                  <FormField
+                    control={form.control}
+                    name="gymName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Gym Name</FormLabel>
                         <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select an industry" />
-                          </SelectTrigger>
+                          <Input placeholder="Your Gym Name" {...field} />
                         </FormControl>
-                        <SelectContent>
-                          <SelectItem value="gym">Gym & Fitness</SelectItem>
-                          <SelectItem value="spa">Spa & Wellness</SelectItem>
-                          <SelectItem value="hotel">Hotel & Hospitality</SelectItem>
-                          <SelectItem value="club">Club & Entertainment</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Creating account...
-                    </>
-                  ) : 'Create Account'}
-                </Button>
-              </form>
-            </Form>
-            
-            <div className="mt-6 text-center">
-              <p className="text-sm text-muted-foreground">
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input placeholder="gym@example.com" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Password</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="••••••••" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="industry"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Industry</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select your industry" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="gym">Gym</SelectItem>
+                            <SelectItem value="spa">Spa</SelectItem>
+                            <SelectItem value="hotel">Hotel</SelectItem>
+                            <SelectItem value="club">Club</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="logo"
+                    render={({ field: { value, onChange, ...field } }) => (
+                      <FormItem>
+                        <FormLabel>Gym Logo (Optional)</FormLabel>
+                        <FormControl>
+                          <div className="flex flex-col items-center gap-4">
+                            {logoPreview ? (
+                              <div className="relative w-32 h-32">
+                                <img
+                                  src={logoPreview}
+                                  alt="Logo preview"
+                                  className="w-full h-full object-cover rounded-full border-2 border-border"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="destructive"
+                                  size="sm"
+                                  className="absolute -top-2 -right-2 rounded-full w-6 h-6 p-0"
+                                  onClick={() => {
+                                    setLogoPreview(null);
+                                    form.setValue('logo', null);
+                                  }}
+                                >
+                                  ×
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="w-32 h-32 border-2 border-dashed rounded-full flex items-center justify-center bg-muted/10">
+                                <Upload className="w-8 h-8 text-muted-foreground" />
+                              </div>
+                            )}
+                            <Input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleLogoChange}
+                              className="hidden"
+                              id="logo-upload"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => document.getElementById('logo-upload')?.click()}
+                            >
+                              Upload Logo
+                            </Button>
+                          </div>
+                        </FormControl>
+                        <FormDescription>
+                          You can add or change your logo later from the settings
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Creating Account...
+                      </>
+                    ) : (
+                      'Create Account'
+                    )}
+                  </Button>
+                </form>
+              </Form>
+              
+              <div className="mt-6 text-center text-sm">
                 Already have an account?{' '}
-                <Link to="/login" className="font-medium text-primary hover:underline">
+                <Link to="/login" className="text-primary hover:underline">
                   Sign in
                 </Link>
-              </p>
-            </div>
-          </div>
-          
-          <div className="mt-8 text-center">
-            <p className="text-xs text-muted-foreground">
-              By signing up, you agree to our{' '}
-              <Link to="/terms" className="underline">
-                Terms of Service
-              </Link>{' '}
-              and{' '}
-              <Link to="/privacy" className="underline">
-                Privacy Policy
-              </Link>
-            </p>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
         </motion.div>
       </div>
       

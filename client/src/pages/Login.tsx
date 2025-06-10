@@ -1,17 +1,16 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/context/AuthContext';
-import Header from '@/components/common/Header';
-import Footer from '@/components/common/Footer';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../components/ui/form';
+import { useToast } from '../hooks/use-toast';
+import { useAuth } from '../context/AuthContext';
+import Header from '../components/common/Header';
+import Footer from '../components/common/Footer';
 import { Loader2 } from 'lucide-react';
 
 const formSchema = z.object({
@@ -24,7 +23,7 @@ type FormValues = z.infer<typeof formSchema>;
 const Login: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, isAuthenticated, isLoading } = useAuth();
+  const { login, isAuthenticated, loading } = useAuth();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -33,10 +32,10 @@ const Login: React.FC = () => {
 
   // Redirect if already authenticated
   useEffect(() => {
-    if (isAuthenticated && !isLoading) {
+    if (isAuthenticated && !loading) {
       navigate(from, { replace: true });
     }
-  }, [isAuthenticated, isLoading, navigate, from]);
+  }, [isAuthenticated, loading, navigate, from]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -54,13 +53,17 @@ const Login: React.FC = () => {
       navigate(from, { replace: true });
     } catch (error) {
       console.error('Login error:', error);
-      // Toast is handled in the auth context
+      toast({
+        title: 'Login failed',
+        description: 'Please check your credentials and try again.',
+        variant: 'destructive',
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="flex flex-col min-h-screen">
         <Header />

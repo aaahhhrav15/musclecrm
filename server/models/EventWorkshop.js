@@ -6,6 +6,11 @@ const eventWorkshopSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  gymId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Gym',
+    required: true
+  },
   description: {
     type: String,
     required: true,
@@ -41,5 +46,9 @@ const eventWorkshopSchema = new mongoose.Schema({
 }, {
   timestamps: true
 });
+
+// Add indexes for better query performance
+eventWorkshopSchema.index({ gymId: 1 });
+eventWorkshopSchema.index({ date: 1 });
 
 module.exports = mongoose.model('EventWorkshop', eventWorkshopSchema); 

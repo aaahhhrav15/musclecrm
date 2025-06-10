@@ -6,6 +6,11 @@ const bookingSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  gymId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Gym',
+    required: true
+  },
   customerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Customer',
@@ -95,6 +100,7 @@ const bookingSchema = new mongoose.Schema({
 
 // Add indexes for common queries
 bookingSchema.index({ userId: 1, startTime: 1 });
+bookingSchema.index({ gymId: 1 });
 bookingSchema.index({ customerId: 1, startTime: 1 });
 bookingSchema.index({ type: 1, startTime: 1 });
 

@@ -2,10 +2,15 @@ const express = require('express');
 const router = express.Router();
 const WorkoutPlan = require('../models/WorkoutPlan');
 const auth = require('../middleware/auth');
+const { gymAuth } = require('../middleware/gymAuth');
 const AssignedWorkoutPlan = require('../models/AssignedWorkoutPlan');
 
+// Apply both auth and gymAuth middleware to all routes
+router.use(auth);
+router.use(gymAuth);
+
 // Get assigned workout plans - This must come BEFORE the /:id route
-router.get('/assigned', auth, async (req, res) => {
+router.get('/assigned', async (req, res) => {
   try {
     console.log('Fetching assigned workout plans...');
     
@@ -40,77 +45,93 @@ router.get('/assigned', auth, async (req, res) => {
   }
 });
 
-// Get all workout plans
-router.get('/', auth, async (req, res) => {
+// Get all workout plans for the gym
+router.get('/', async (req, res) => {
   try {
-    const plans = await WorkoutPlan.find().lean();
-    res.json({ plans });
+    const workoutPlans = await WorkoutPlan.find({ gymId: req.gymId })
+      .sort({ createdAt: -1 });
+    res.json({ success: true, workoutPlans });
   } catch (error) {
     console.error('Error fetching workout plans:', error);
-    res.status(500).json({ error: 'Failed to fetch workout plans' });
+    res.status(500).json({ success: false, message: 'Error fetching workout plans' });
   }
 });
 
-// Get a single workout plan
-router.get('/:id', auth, async (req, res) => {
+// Get a specific workout plan
+router.get('/:id', async (req, res) => {
   try {
-    const plan = await WorkoutPlan.findById(req.params.id).lean();
-    if (!plan) {
-      return res.status(404).json({ error: 'Workout plan not found' });
+    const workoutPlan = await WorkoutPlan.findOne({
+      _id: req.params.id,
+      gymId: req.gymId
+    });
+    
+    if (!workoutPlan) {
+      return res.status(404).json({ success: false, message: 'Workout plan not found' });
     }
-    res.json({ plan });
+    
+    res.json({ success: true, workoutPlan });
   } catch (error) {
     console.error('Error fetching workout plan:', error);
-    res.status(500).json({ error: 'Failed to fetch workout plan' });
+    res.status(500).json({ success: false, message: 'Error fetching workout plan' });
   }
 });
 
 // Create a new workout plan
-router.post('/', auth, async (req, res) => {
+router.post('/', async (req, res) => {
   try {
-    const plan = new WorkoutPlan(req.body);
-    await plan.save();
-    res.status(201).json({ plan });
+    const workoutPlan = new WorkoutPlan({
+      ...req.body,
+      gymId: req.gymId
+    });
+    await workoutPlan.save();
+    res.status(201).json({ success: true, workoutPlan });
   } catch (error) {
     console.error('Error creating workout plan:', error);
-    res.status(500).json({ error: 'Failed to create workout plan' });
+    res.status(500).json({ success: false, message: 'Error creating workout plan' });
   }
 });
 
 // Update a workout plan
-router.put('/:id', auth, async (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
-    const plan = await WorkoutPlan.findByIdAndUpdate(
-      req.params.id,
+    const workoutPlan = await WorkoutPlan.findOneAndUpdate(
+      { _id: req.params.id, gymId: req.gymId },
       req.body,
       { new: true }
     );
-    if (!plan) {
-      return res.status(404).json({ error: 'Workout plan not found' });
+    
+    if (!workoutPlan) {
+      return res.status(404).json({ success: false, message: 'Workout plan not found' });
     }
-    res.json({ plan });
+    
+    res.json({ success: true, workoutPlan });
   } catch (error) {
     console.error('Error updating workout plan:', error);
-    res.status(500).json({ error: 'Failed to update workout plan' });
+    res.status(500).json({ success: false, message: 'Error updating workout plan' });
   }
 });
 
 // Delete a workout plan
-router.delete('/:id', auth, async (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
-    const plan = await WorkoutPlan.findByIdAndDelete(req.params.id);
-    if (!plan) {
-      return res.status(404).json({ error: 'Workout plan not found' });
+    const workoutPlan = await WorkoutPlan.findOneAndDelete({
+      _id: req.params.id,
+      gymId: req.gymId
+    });
+    
+    if (!workoutPlan) {
+      return res.status(404).json({ success: false, message: 'Workout plan not found' });
     }
-    res.json({ message: 'Workout plan deleted successfully' });
+    
+    res.json({ success: true, message: 'Workout plan deleted successfully' });
   } catch (error) {
     console.error('Error deleting workout plan:', error);
-    res.status(500).json({ error: 'Failed to delete workout plan' });
+    res.status(500).json({ success: false, message: 'Error deleting workout plan' });
   }
 });
 
 // Assign workout plan to a member
-router.post('/assign', auth, async (req, res) => {
+router.post('/assign', async (req, res) => {
   try {
     const { memberId, memberName, planId, startDate, notes } = req.body;
 
@@ -148,7 +169,7 @@ router.post('/assign', auth, async (req, res) => {
 });
 
 // Delete an assigned workout plan
-router.delete('/assigned/:id', auth, async (req, res) => {
+router.delete('/assigned/:id', async (req, res) => {
   try {
     const assignedPlan = await AssignedWorkoutPlan.findByIdAndDelete(req.params.id);
     if (!assignedPlan) {

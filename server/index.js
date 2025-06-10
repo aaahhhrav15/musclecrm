@@ -23,6 +23,7 @@ const nutritionPlansRoutes = require('./routes/nutritionPlans');
 const eventWorkshopsRoutes = require('./routes/eventWorkshops');
 const waiverFormsRoutes = require('./routes/waiverForms');
 const communicationsRoutes = require('./routes/communications');
+const gymRoutes = require('./routes/gym');
 
 const app = express();
 
@@ -55,6 +56,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/gym', gymRoutes);
 app.use('/api/gym/members', membersRoutes);
 app.use('/api/gym/staff', staffRoutes);
 app.use('/api/gym/attendance', attendanceRoutes);

@@ -1,72 +1,22 @@
 const express = require('express');
 const Customer = require('../models/Customer');
 const auth = require('../middleware/auth');
+const { gymAuth } = require('../middleware/gymAuth');
 const Notification = require('../models/Notification');
 
 const router = express.Router();
 
-// Get all customers
-router.get('/', auth, async (req, res) => {
+// Apply both auth and gymAuth middleware to all routes
+router.use(auth);
+router.use(gymAuth);
+
+// Get all customers for the gym
+router.get('/', async (req, res) => {
   try {
-    const { 
-      page = 1, 
-      limit = 10, 
-      search,
-      membershipType,
-      source,
-      sortBy = 'name',
-      sortOrder = 'asc'
-    } = req.query;
-    
-    console.log('Received filter parameters:', { search, membershipType, source, sortBy, sortOrder });
-    
-    const query = { userId: req.user._id };
-    
-    // Add search query if provided
-    if (search) {
-      query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-        { phone: { $regex: search, $options: 'i' } }
-      ];
-    }
-
-    // Add membership type filter if provided
-    if (membershipType) {
-      query.membershipType = membershipType;
-    }
-
-    // Add source filter if provided
-    if (source) {
-      query.source = source;
-    }
-    
-    console.log('Final query:', query);
-    
-    // Build sort object
-    const sortOptions = {};
-    sortOptions[sortBy] = sortOrder === 'asc' ? 1 : -1;
-    
-    console.log('Sort options:', sortOptions);
-    
-    const options = {
-      limit: parseInt(limit),
-      skip: (parseInt(page) - 1) * parseInt(limit),
-      sort: sortOptions
-    };
-    
-    const customers = await Customer.find(query, null, options);
-    const total = await Customer.countDocuments(query);
-    
-    console.log('Found customers:', customers.length);
-    
-    res.json({
-      success: true,
-      customers,
-      total
-    });
+    const customers = await Customer.find({ gymId: req.gymId });
+    res.json({ success: true, customers });
   } catch (error) {
-    console.error('Get customers error:', error);
+    console.error('Error fetching customers:', error);
     res.status(500).json({ success: false, message: 'Error fetching customers' });
   }
 });
@@ -88,12 +38,12 @@ router.get('/count', auth, async (req, res) => {
   }
 });
 
-// Get single customer
-router.get('/:id', auth, async (req, res) => {
+// Get a specific customer
+router.get('/:id', async (req, res) => {
   try {
-    const customer = await Customer.findOne({ 
+    const customer = await Customer.findOne({
       _id: req.params.id,
-      userId: req.user._id 
+      gymId: req.gymId
     });
     
     if (!customer) {
@@ -102,103 +52,53 @@ router.get('/:id', auth, async (req, res) => {
     
     res.json({ success: true, customer });
   } catch (error) {
-    console.error('Get customer error:', error);
+    console.error('Error fetching customer:', error);
     res.status(500).json({ success: false, message: 'Error fetching customer' });
   }
 });
 
-// Create new customer
-router.post('/', auth, async (req, res) => {
+// Create a new customer
+router.post('/', async (req, res) => {
   try {
-    const { membershipFees, ...customerData } = req.body;
-    
-    // Create customer with initial total spent from membership fees
-    const customer = await Customer.create({
+    const customer = new Customer({
+      ...req.body,
       userId: req.user._id,
-      ...customerData,
-      membershipFees: membershipFees || 0,
-      totalSpent: membershipFees || 0
+      gymId: req.gymId
     });
-
-    // Create notification for customer creation
-    const notification = await Notification.create({
-      userId: req.user._id,
-      type: 'customer_created',
-      title: 'New Customer Added',
-      message: `A new customer ${customer.name} has been added to the system`,
-      data: {
-        customerId: customer._id,
-        customerName: customer.name
-      }
-    });
-
-    res.status(201).json({
-      success: true,
-      message: 'Customer created successfully',
-      customer,
-      notification
-    });
+    await customer.save();
+    res.status(201).json({ success: true, customer });
   } catch (error) {
-    console.error('Create customer error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error creating customer',
-      error: error.message
-    });
+    console.error('Error creating customer:', error);
+    res.status(500).json({ success: false, message: 'Error creating customer' });
   }
 });
 
-// Update customer
-router.put('/:id', auth, async (req, res) => {
+// Update a customer
+router.put('/:id', async (req, res) => {
   try {
-    const { name, email, phone, address, source, notes, membershipType, birthday, membershipFees } = req.body;
+    const customer = await Customer.findOneAndUpdate(
+      { _id: req.params.id, gymId: req.gymId },
+      req.body,
+      { new: true }
+    );
     
-    // First get the current customer to calculate the total spent difference
-    const currentCustomer = await Customer.findOne({ 
-      _id: req.params.id, 
-      userId: req.user._id 
-    });
-    
-    if (!currentCustomer) {
+    if (!customer) {
       return res.status(404).json({ success: false, message: 'Customer not found' });
     }
-
-    // Calculate the new total spent
-    const oldFees = currentCustomer.membershipFees || 0;
-    const newFees = membershipFees || 0;
-    const feeDifference = newFees - oldFees;
-    const newTotalSpent = currentCustomer.totalSpent + feeDifference;
-    
-    const customer = await Customer.findOneAndUpdate(
-      { _id: req.params.id, userId: req.user._id },
-      { 
-        name, 
-        email, 
-        phone, 
-        address, 
-        source, 
-        notes, 
-        membershipType, 
-        birthday, 
-        membershipFees: newFees,
-        totalSpent: newTotalSpent
-      },
-      { new: true, runValidators: true }
-    );
     
     res.json({ success: true, customer });
   } catch (error) {
-    console.error('Update customer error:', error);
+    console.error('Error updating customer:', error);
     res.status(500).json({ success: false, message: 'Error updating customer' });
   }
 });
 
-// Delete customer
-router.delete('/:id', auth, async (req, res) => {
+// Delete a customer
+router.delete('/:id', async (req, res) => {
   try {
-    const customer = await Customer.findOneAndDelete({ 
+    const customer = await Customer.findOneAndDelete({
       _id: req.params.id,
-      userId: req.user._id 
+      gymId: req.gymId
     });
     
     if (!customer) {
@@ -207,7 +107,7 @@ router.delete('/:id', auth, async (req, res) => {
     
     res.json({ success: true, message: 'Customer deleted successfully' });
   } catch (error) {
-    console.error('Delete customer error:', error);
+    console.error('Error deleting customer:', error);
     res.status(500).json({ success: false, message: 'Error deleting customer' });
   }
 });

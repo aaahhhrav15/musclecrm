@@ -1,4 +1,3 @@
-
 const express = require('express');
 const GymMember = require('../models/GymMember');
 const auth = require('../middleware/auth');
@@ -8,7 +7,14 @@ const router = express.Router();
 // Get all members
 router.get('/', auth, async (req, res) => {
   try {
-    const members = await GymMember.find({ userId: req.user._id });
+    if (!req.user.gymId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No gym associated with this account' 
+      });
+    }
+
+    const members = await GymMember.find({ gymId: req.user.gymId });
     res.json({ success: true, data: members });
   } catch (error) {
     console.error('Get members error:', error);
@@ -19,9 +25,16 @@ router.get('/', auth, async (req, res) => {
 // Get single member
 router.get('/:id', auth, async (req, res) => {
   try {
+    if (!req.user.gymId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No gym associated with this account' 
+      });
+    }
+
     const member = await GymMember.findOne({ 
       _id: req.params.id,
-      userId: req.user._id 
+      gymId: req.user.gymId 
     });
     
     if (!member) {
@@ -38,10 +51,17 @@ router.get('/:id', auth, async (req, res) => {
 // Create new member
 router.post('/', auth, async (req, res) => {
   try {
+    if (!req.user.gymId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No gym associated with this account' 
+      });
+    }
+
     const { name, email, phone, membershipType, startDate, endDate, status } = req.body;
     
     const newMember = await GymMember.create({
-      userId: req.user._id,
+      gymId: req.user.gymId,
       name,
       email,
       phone,
@@ -61,10 +81,17 @@ router.post('/', auth, async (req, res) => {
 // Update member
 router.put('/:id', auth, async (req, res) => {
   try {
+    if (!req.user.gymId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No gym associated with this account' 
+      });
+    }
+
     const { name, email, phone, membershipType, startDate, endDate, status } = req.body;
     
     const member = await GymMember.findOneAndUpdate(
-      { _id: req.params.id, userId: req.user._id },
+      { _id: req.params.id, gymId: req.user.gymId },
       { name, email, phone, membershipType, startDate, endDate, status },
       { new: true, runValidators: true }
     );
@@ -83,9 +110,16 @@ router.put('/:id', auth, async (req, res) => {
 // Delete member
 router.delete('/:id', auth, async (req, res) => {
   try {
+    if (!req.user.gymId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No gym associated with this account' 
+      });
+    }
+
     const member = await GymMember.findOneAndDelete({ 
       _id: req.params.id,
-      userId: req.user._id 
+      gymId: req.user.gymId 
     });
     
     if (!member) {

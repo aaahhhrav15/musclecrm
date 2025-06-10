@@ -308,8 +308,8 @@ const Home: React.FC = () => {
               <Button size="lg" variant="secondary" asChild>
                 <Link to="/signup">Get Started</Link>
               </Button>
-              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-primary" asChild>
-                <Link to="/contact">Contact Sales</Link>
+              <Button size="lg" variant="secondary" asChild>
+                <Link to="/contact">Contact Us</Link>
               </Button>
             </div>
           </div>

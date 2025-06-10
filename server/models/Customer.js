@@ -6,6 +6,11 @@ const customerSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  gymId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Gym',
+    required: true
+  },
   name: {
     type: String,
     required: true
@@ -53,7 +58,6 @@ const customerSchema = new mongoose.Schema({
 // Add indexes for common queries
 customerSchema.index({ userId: 1, email: 1 });
 customerSchema.index({ userId: 1, name: 1 });
+customerSchema.index({ gymId: 1 });
 
-const Customer = mongoose.model('Customer', customerSchema);
-
-module.exports = Customer;
+module.exports = mongoose.model('Customer', customerSchema);
