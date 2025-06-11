@@ -43,9 +43,10 @@ const TrainersPage: React.FC = () => {
         withCredentials: true,
       });
       if (response.data.success) {
+        console.log('Fetched trainers:', response.data.data); // Debug log
         setTrainers(response.data.data);
       } else {
-        toast.error('Failed to fetch trainers');
+        toast.error(response.data.message || 'Failed to fetch trainers');
       }
     } catch (error) {
       console.error('Error fetching trainers:', error);
@@ -158,8 +159,9 @@ const TrainersPage: React.FC = () => {
                             Edit
                           </Button>
                           <Button
-                            variant="destructive"
+                            variant="outline"
                             size="sm"
+                            className="text-red-600 hover:text-red-700"
                             onClick={() => handleDelete(trainer._id)}
                           >
                             Delete

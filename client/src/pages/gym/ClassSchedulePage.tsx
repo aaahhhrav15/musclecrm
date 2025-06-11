@@ -93,7 +93,7 @@ const ClassSchedulePage: React.FC = () => {
   const [isUpdating, setIsUpdating] = useState(false);
 
   // Fetch class schedules
-  const { data: schedules, isLoading, refetch } = useQuery({
+  const { data: schedulesData, isLoading, refetch } = useQuery({
     queryKey: ['classSchedules', filters],
     queryFn: async () => {
       const response = await axios.get(`${API_URL}/gym/class-schedules`, {
@@ -103,6 +103,8 @@ const ClassSchedulePage: React.FC = () => {
       return response.data;
     }
   });
+
+  const schedules = schedulesData?.classSchedules || [];
 
   // Fetch calendar data
   const { data: calendarData } = useQuery({
@@ -286,7 +288,7 @@ const ClassSchedulePage: React.FC = () => {
   };
 
   const handleEventClick = (event: any) => {
-    const schedule = schedules?.find(s => s._id === event.id);
+    const schedule = schedules.find(s => s._id === event.id);
     if (schedule) {
       setSelectedClass(schedule);
       setShowViewModal(true);
@@ -349,7 +351,7 @@ const ClassSchedulePage: React.FC = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {schedules?.map((schedule: ClassSchedule) => (
+                    {schedules.map((schedule: ClassSchedule) => (
                       <TableRow key={schedule._id}>
                         <TableCell>{schedule.name}</TableCell>
                         <TableCell>{schedule.instructor?.name || 'No Instructor'}</TableCell>

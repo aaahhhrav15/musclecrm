@@ -27,7 +27,7 @@ const Login: React.FC = () => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Redirect if there's a specified return URL in the location state
+  // Get the return URL from location state or default to dashboard
   const from = location.state?.from?.pathname || '/dashboard';
 
   // Redirect if already authenticated
@@ -50,7 +50,7 @@ const Login: React.FC = () => {
     
     try {
       await login(values.email, values.password);
-      navigate(from, { replace: true });
+      // The navigation will be handled by the useEffect above
     } catch (error) {
       console.error('Login error:', error);
       toast({

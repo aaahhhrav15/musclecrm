@@ -55,14 +55,17 @@ const CreateTrainerPage: React.FC = () => {
       );
       
       if (response.data.success) {
-        toast.success('Trainer added successfully');
+        toast.success(response.data.message || 'Trainer added successfully');
         navigate('/dashboard/gym/trainers');
       } else {
         toast.error(response.data.message || 'Failed to add trainer');
       }
     } catch (error: any) {
       console.error('Error adding trainer:', error);
-      toast.error(error.response?.data?.message || 'Failed to add trainer');
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.error || 
+                          'Failed to add trainer';
+      toast.error(errorMessage);
     }
   };
 
