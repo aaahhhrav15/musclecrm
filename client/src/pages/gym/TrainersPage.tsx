@@ -15,6 +15,8 @@ import { toast } from 'sonner';
 import axios from 'axios';
 import { API_URL } from '@/lib/constants';
 import { Plus, Loader2 } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/components/ui/use-toast';
 
 interface Trainer {
   _id: string;
@@ -26,54 +28,97 @@ interface Trainer {
   status: 'active' | 'inactive';
   bio?: string;
   clients?: number;
+  gymId: string;
 }
 
 const TrainersPage: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [trainers, setTrainers] = useState<Trainer[]>([]);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchTrainers();
-  }, []);
+  const { toast } = useToast();
 
   const fetchTrainers = async () => {
+    if (!user?.gymId) {
+      toast({
+        title: 'Error',
+        description: 'Gym ID not found. Please try logging in again.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       const response = await axios.get(`${API_URL}/trainers`, {
         withCredentials: true,
       });
+      
       if (response.data.success) {
-        console.log('Fetched trainers:', response.data.data); // Debug log
-        setTrainers(response.data.data);
+        // Filter trainers to ensure they belong to the current gym
+        const gymTrainers = response.data.data.filter(
+          (trainer: Trainer) => trainer.gymId === user.gymId
+        );
+        setTrainers(gymTrainers);
       } else {
-        toast.error(response.data.message || 'Failed to fetch trainers');
+        toast({
+          title: 'Error',
+          description: response.data.message || 'Failed to fetch trainers',
+          variant: 'destructive',
+        });
       }
     } catch (error) {
       console.error('Error fetching trainers:', error);
-      toast.error('Failed to fetch trainers');
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch trainers',
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this trainer?')) {
+  useEffect(() => {
+    if (!user?.gymId) {
+      toast({
+        title: 'Error',
+        description: 'No gym associated with your account',
+        variant: 'destructive',
+      });
+      navigate('/dashboard');
       return;
     }
+    fetchTrainers();
+  }, [user?.gymId]);
+
+  const handleDelete = async (trainerId: string) => {
+    if (!confirm('Are you sure you want to delete this trainer?')) return;
 
     try {
-      const response = await axios.delete(`${API_URL}/trainers/${id}`, {
+      const response = await axios.delete(`${API_URL}/trainers/${trainerId}`, {
         withCredentials: true,
       });
+
       if (response.data.success) {
-        toast.success('Trainer deleted successfully');
-        fetchTrainers();
+        toast({
+          title: 'Success',
+          description: 'Trainer deleted successfully',
+        });
+        fetchTrainers(); // Refresh the list
       } else {
-        toast.error(response.data.message || 'Failed to delete trainer');
+        toast({
+          title: 'Error',
+          description: response.data.message || 'Failed to delete trainer',
+          variant: 'destructive',
+        });
       }
     } catch (error) {
       console.error('Error deleting trainer:', error);
-      toast.error('Failed to delete trainer');
+      toast({
+        title: 'Error',
+        description: 'Failed to delete trainer',
+        variant: 'destructive',
+      });
     }
   };
 

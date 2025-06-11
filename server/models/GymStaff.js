@@ -6,6 +6,11 @@ const gymStaffSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  gymId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Gym',
+    required: true
+  },
   name: {
     type: String,
     required: true,
@@ -41,6 +46,9 @@ const gymStaffSchema = new mongoose.Schema({
 }, {
   timestamps: true
 });
+
+// Add compound index to ensure unique trainer per gym
+gymStaffSchema.index({ gymId: 1, trainerId: 1 }, { unique: true });
 
 const GymStaff = mongoose.model('GymStaff', gymStaffSchema);
 

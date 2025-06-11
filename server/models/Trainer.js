@@ -35,6 +35,11 @@ const trainerSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    gymId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Gym',
+      required: true
+    }
   },
   {
     timestamps: true,

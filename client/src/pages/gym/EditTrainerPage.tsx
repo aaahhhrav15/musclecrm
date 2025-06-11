@@ -20,6 +20,7 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { useAuth } from '@/context/AuthContext';
 
 const trainerSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -36,6 +37,7 @@ type TrainerFormData = z.infer<typeof trainerSchema>;
 const EditTrainerPage: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const {
     register,
@@ -50,14 +52,27 @@ const EditTrainerPage: React.FC = () => {
   const status = watch('status');
 
   useEffect(() => {
+    if (!user?.gymId) {
+      toast.error('No gym associated with your account');
+      navigate('/dashboard/gym/trainers');
+      return;
+    }
     fetchTrainer();
-  }, [id]);
+  }, [id, user?.gymId]);
 
   const fetchTrainer = async () => {
     try {
       const response = await axios.get(`${API_URL}/trainers/${id}`, {
         withCredentials: true,
       });
+      
+      // Verify that the trainer belongs to the current gym
+      if (response.data.trainer.gymId !== user?.gymId) {
+        toast.error('You do not have access to this trainer');
+        navigate('/dashboard/gym/trainers');
+        return;
+      }
+      
       const trainer = response.data.trainer;
       
       // Set form values
@@ -79,14 +94,22 @@ const EditTrainerPage: React.FC = () => {
 
   const onSubmit = async (data: TrainerFormData) => {
     try {
-      await axios.put(`${API_URL}/trainers/${id}`, data, {
+      const response = await axios.put(`${API_URL}/trainers/${id}`, data, {
         withCredentials: true,
       });
-      toast.success('Trainer updated successfully');
-      navigate('/dashboard/gym/trainers');
-    } catch (error) {
+      
+      if (response.data.success) {
+        toast.success('Trainer updated successfully');
+        navigate('/dashboard/gym/trainers');
+      } else {
+        toast.error(response.data.message || 'Failed to update trainer');
+      }
+    } catch (error: any) {
       console.error('Error updating trainer:', error);
-      toast.error('Failed to update trainer');
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.error || 
+                          'Failed to update trainer';
+      toast.error(errorMessage);
     }
   };
 

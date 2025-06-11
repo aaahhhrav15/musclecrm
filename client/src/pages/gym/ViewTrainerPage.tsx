@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import axios from 'axios';
 import { API_URL } from '@/config';
 import { ArrowLeft, Loader2 } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 interface Trainer {
   _id: string;
@@ -17,23 +18,38 @@ interface Trainer {
   experience: number;
   status: 'active' | 'inactive';
   bio?: string;
+  gymId: string;
 }
 
 const ViewTrainerPage: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
   const [trainer, setTrainer] = useState<Trainer | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!user?.gymId) {
+      toast.error('No gym associated with your account');
+      navigate('/dashboard/gym/trainers');
+      return;
+    }
     fetchTrainer();
-  }, [id]);
+  }, [id, user?.gymId]);
 
   const fetchTrainer = async () => {
     try {
       const response = await axios.get(`${API_URL}/trainers/${id}`, {
         withCredentials: true,
       });
+      
+      // Verify that the trainer belongs to the current gym
+      if (response.data.trainer.gymId !== user?.gymId) {
+        toast.error('You do not have access to this trainer');
+        navigate('/dashboard/gym/trainers');
+        return;
+      }
+      
       setTrainer(response.data.trainer);
     } catch (error) {
       console.error('Error fetching trainer:', error);
