@@ -24,6 +24,7 @@ const eventWorkshopsRoutes = require('./routes/eventWorkshops');
 const waiverFormsRoutes = require('./routes/waiverForms');
 const communicationsRoutes = require('./routes/communications');
 const gymRoutes = require('./routes/gym');
+const healthAssessmentRoutes = require('./routes/healthAssessments');
 
 const app = express();
 
@@ -72,6 +73,7 @@ app.use('/api/nutrition-plans', nutritionPlansRoutes);
 app.use('/api/events-workshops', eventWorkshopsRoutes);
 app.use('/api/waiver-forms', waiverFormsRoutes);
 app.use('/api/communications', communicationsRoutes);
+app.use('/api/gym/health-assessments', healthAssessmentRoutes);
 
 // Root route
 app.get('/', (req, res) => {

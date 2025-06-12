@@ -50,6 +50,7 @@ import NutritionPlansPage from './pages/gym/NutritionPlansPage';
 import EventsWorkshopsPage from './pages/gym/EventsWorkshopsPage';
 import WaiverFormsPage from './pages/gym/WaiverFormsPage';
 import MemberCommunicationsPage from './pages/gym/MemberCommunicationsPage';
+import HealthAssessmentsPage from '@/pages/gym/HealthAssessmentsPage';
 
 // Profile Pages
 import ProfilePage from "./pages/profile/ProfilePage";
@@ -122,6 +123,7 @@ const App = () => (
                 <Route path="/dashboard/gym/events-workshops" element={<ProtectedRoute element={<EventsWorkshopsPage />} />} />
                 <Route path="/dashboard/gym/waiver-forms" element={<ProtectedRoute element={<WaiverFormsPage />} />} />
                 <Route path="/dashboard/gym/communications" element={<ProtectedRoute element={<MemberCommunicationsPage />} />} />
+                <Route path="/dashboard/gym/health-assessments" element={<ProtectedRoute element={<HealthAssessmentsPage />} />} />
                 
                 {/* Workout Plans Routes */}
                 <Route path="/dashboard/gym/workout-plans" element={<ProtectedRoute element={<WorkoutPlansPage />} />} />
