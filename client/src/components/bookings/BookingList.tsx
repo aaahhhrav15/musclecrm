@@ -68,11 +68,11 @@ const BookingList: React.FC<BookingListProps> = ({
 
     switch (booking.type) {
       case 'class':
-        return booking.className || 'N/A';
+        return typeof booking.classId === 'object' ? booking.classId.name : booking.className || 'N/A';
       case 'personal_training':
-        return booking.trainerName || 'N/A';
+        return typeof booking.trainerId === 'object' ? booking.trainerId.name : booking.trainerName || 'N/A';
       case 'equipment':
-        return booking.equipmentName || 'N/A';
+        return typeof booking.equipmentId === 'object' ? booking.equipmentId.name : booking.equipmentName || 'N/A';
       default:
         return 'N/A';
     }
@@ -110,9 +110,7 @@ const BookingList: React.FC<BookingListProps> = ({
                 <TableCell>{getTypeLabel(booking.type)}</TableCell>
                 <TableCell>{booking.customerId?.name || 'N/A'}</TableCell>
                 <TableCell>
-                  {booking.type === 'class' && booking.classId}
-                  {booking.type === 'personal_training' && booking.trainerId}
-                  {booking.type === 'equipment' && booking.equipmentId}
+                  {getServiceProvided(booking)}
                 </TableCell>
                 <TableCell>
                   {format(new Date(booking.startTime), 'MMM dd, yyyy')}

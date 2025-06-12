@@ -161,15 +161,28 @@ export class BookingService {
     }
   }
 
-  static async updateBooking(id: string, data: Partial<Booking>): Promise<Booking> {
+  static async updateBooking(id: string, data: Partial<Booking>): Promise<{ success: boolean; message?: string; booking?: Booking }> {
     try {
       console.log('Updating booking with data:', { id, data });
       const response = await axios.put(`${API_URL}/bookings/${id}`, data, {
         withCredentials: true
       });
-      return response.data.booking;
+      console.log('Update response:', response.data);
+      
+      if (response.data.success) {
+        return {
+          success: true,
+          message: response.data.message || 'Booking updated successfully',
+          booking: response.data.booking
+        };
+      } else {
+        return {
+          success: false,
+          message: response.data.message || 'Failed to update booking'
+        };
+      }
     } catch (error) {
-      BookingService.handleError(error);
+      console.error('Error updating booking:', error);
       throw error;
     }
   }

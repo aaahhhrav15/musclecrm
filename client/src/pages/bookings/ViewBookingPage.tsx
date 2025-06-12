@@ -6,71 +6,74 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import axios from 'axios';
 import { API_URL } from '@/config';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Edit } from 'lucide-react';
 import { format } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
-
-interface Booking {
-  _id: string;
-  type: 'class' | 'personal_training' | 'equipment';
-  customerId: {
-    _id: string;
-    name: string;
-    email: string;
-    phone: string;
-  };
-  startTime: string;
-  endTime: string;
-  status: 'scheduled' | 'completed' | 'cancelled' | 'no_show';
-  notes?: string;
-  classId?: {
-    _id: string;
-    name: string;
-  };
-  trainerId?: {
-    _id: string;
-    name: string;
-  };
-  equipmentId?: {
-    _id: string;
-    name: string;
-  };
-  price: number;
-  currency: string;
-  createdAt: string;
-  updatedAt: string;
-}
+import BookingForm from '@/components/bookings/BookingForm';
+import BookingService, { Booking } from '@/services/BookingService';
 
 const ViewBookingPage: React.FC = () => {
-  const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showEditForm, setShowEditForm] = useState(false);
 
   useEffect(() => {
-    fetchBooking();
-  }, [id]);
+    const fetchBooking = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/bookings/${id}`, {
+          withCredentials: true
+        });
+        if (response.data.success) {
+          setBooking(response.data.booking);
+        } else {
+          toast.error('Failed to fetch booking details');
+          navigate('/bookings');
+        }
+      } catch (error) {
+        console.error('Error fetching booking:', error);
+        toast.error('Failed to fetch booking details');
+        navigate('/bookings');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const fetchBooking = async () => {
+    if (id) {
+      fetchBooking();
+    }
+  }, [id, navigate]);
+
+  const handleUpdateBooking = async (data: any) => {
     try {
-      const response = await axios.get(`${API_URL}/bookings/${id}`, {
-        withCredentials: true,
-      });
-      setBooking(response.data.booking);
+      const response = await BookingService.updateBooking(id!, data);
+      if (response.success) {
+        // Fetch the updated booking
+        const updatedResponse = await axios.get(`${API_URL}/bookings/${id}`, {
+          withCredentials: true
+        });
+        if (updatedResponse.data.success) {
+          setBooking(updatedResponse.data.booking);
+          setShowEditForm(false);
+          toast.success('Booking updated successfully');
+        } else {
+          toast.error('Failed to fetch updated booking');
+        }
+      } else {
+        toast.error(response.message || 'Failed to update booking');
+      }
     } catch (error) {
-      console.error('Error fetching booking:', error);
-      toast.error('Failed to load booking details');
-      navigate('/dashboard/bookings');
-    } finally {
-      setLoading(false);
+      console.error('Error updating booking:', error);
+      toast.error('Failed to update booking');
     }
   };
 
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
-          <Loader2 className="h-8 w-8 animate-spin" />
+        <div className="flex items-center justify-center h-full">
+          <Loader2 className="w-8 h-8 animate-spin" />
         </div>
       </DashboardLayout>
     );
@@ -79,142 +82,93 @@ const ViewBookingPage: React.FC = () => {
   if (!booking) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
-          <div className="text-center">
-            <p className="text-red-600">Booking not found</p>
-            <Button
-              variant="outline"
-              className="mt-4"
-              onClick={() => navigate('/dashboard/bookings')}
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Bookings
-            </Button>
-          </div>
+        <div className="flex items-center justify-center h-full">
+          <p>Booking not found</p>
         </div>
       </DashboardLayout>
     );
   }
 
-  const getServiceDetails = () => {
-    switch (booking.type) {
-      case 'class':
-        return {
-          label: 'Class',
-          value: booking.classId?.name || 'N/A'
-        };
-      case 'personal_training':
-        return {
-          label: 'Trainer',
-          value: booking.trainerId?.name || 'N/A'
-        };
-      case 'equipment':
-        return {
-          label: 'Equipment',
-          value: booking.equipmentId?.name || 'N/A'
-        };
-      default:
-        return {
-          label: 'Service',
-          value: 'N/A'
-        };
-    }
-  };
-
-  const serviceDetails = getServiceDetails();
-
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <Button
-              variant="outline"
-              onClick={() => navigate('/dashboard/bookings')}
-              className="mb-4"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Bookings
-            </Button>
-            <h1 className="text-2xl font-bold">Booking Details</h1>
-          </div>
+      <div className="container mx-auto py-6">
+        <div className="flex items-center gap-4 mb-6">
           <Button
             variant="outline"
-            onClick={() => navigate(`/dashboard/bookings/edit/${booking._id}`)}
+            onClick={() => navigate('/dashboard/bookings')}
+            className="flex items-center gap-2"
           >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Bookings
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setShowEditForm(true)}
+            className="flex items-center gap-2"
+          >
+            <Edit className="w-4 h-4" />
             Edit Booking
           </Button>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>Booking Information</CardTitle>
+            <CardTitle>Booking Details</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-sm font-medium text-gray-500">Customer</p>
-                <p className="mt-1">{booking.customerId.name}</p>
-                <p className="text-sm text-gray-500">{booking.customerId.email}</p>
-                <p className="text-sm text-gray-500">{booking.customerId.phone}</p>
+                <h3 className="font-semibold mb-2">Customer</h3>
+                <p>{booking.customerId?.name || 'N/A'}</p>
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-500">Booking Type</p>
-                <p className="mt-1 capitalize">{booking.type.replace('_', ' ')}</p>
+                <h3 className="font-semibold mb-2">Booking Type</h3>
+                <p className="capitalize">{booking.type.replace('_', ' ')}</p>
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-500">{serviceDetails.label}</p>
-                <p className="mt-1">{serviceDetails.value}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">Status</p>
-                <p className="mt-1">
-                  <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      booking.status === 'completed'
-                        ? 'bg-green-100 text-green-800'
-                        : booking.status === 'cancelled'
-                        ? 'bg-red-100 text-red-800'
-                        : booking.status === 'no_show'
-                        ? 'bg-yellow-100 text-yellow-800'
-                        : 'bg-blue-100 text-blue-800'
-                    }`}
-                  >
-                    {booking.status}
-                  </span>
+                <h3 className="font-semibold mb-2">Service</h3>
+                <p>
+                  {booking.type === 'class' && booking.className ? booking.className :
+                   booking.type === 'personal_training' && booking.trainerName ? booking.trainerName :
+                   booking.type === 'equipment' && booking.equipmentName ? booking.equipmentName :
+                   'N/A'}
                 </p>
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-500">Start Time</p>
-                <p className="mt-1">{format(new Date(booking.startTime), 'MMM d, yyyy h:mm a')}</p>
+                <h3 className="font-semibold mb-2">Status</h3>
+                <p className="capitalize">{booking.status.replace('_', ' ')}</p>
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-500">End Time</p>
-                <p className="mt-1">{format(new Date(booking.endTime), 'MMM d, yyyy h:mm a')}</p>
+                <h3 className="font-semibold mb-2">Start Time</h3>
+                <p>{format(new Date(booking.startTime), 'PPp')}</p>
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-500">Price</p>
-                <p className="mt-1">{formatCurrency(booking.price, booking.currency)}</p>
+                <h3 className="font-semibold mb-2">End Time</h3>
+                <p>{format(new Date(booking.endTime), 'PPp')}</p>
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-500">Created At</p>
-                <p className="mt-1">{format(new Date(booking.createdAt), 'MMM d, yyyy h:mm a')}</p>
+                <h3 className="font-semibold mb-2">Price</h3>
+                <p>{formatCurrency(booking.price, booking.currency)}</p>
               </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">Last Updated</p>
-                <p className="mt-1">{format(new Date(booking.updatedAt), 'MMM d, yyyy h:mm a')}</p>
-              </div>
+              {booking.notes && (
+                <div className="col-span-2">
+                  <h3 className="font-semibold mb-2">Notes</h3>
+                  <p>{booking.notes}</p>
+                </div>
+              )}
             </div>
-
-            {booking.notes && (
-              <div className="mt-6">
-                <p className="text-sm font-medium text-gray-500">Notes</p>
-                <p className="mt-1 whitespace-pre-wrap">{booking.notes}</p>
-              </div>
-            )}
           </CardContent>
         </Card>
       </div>
+
+      {showEditForm && (
+        <BookingForm
+          open={showEditForm}
+          onClose={() => setShowEditForm(false)}
+          booking={booking}
+          onSubmit={handleUpdateBooking}
+        />
+      )}
     </DashboardLayout>
   );
 };

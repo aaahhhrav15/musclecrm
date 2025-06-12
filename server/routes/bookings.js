@@ -76,16 +76,68 @@ router.get('/:id', async (req, res) => {
 // Create a new booking
 router.post('/', async (req, res) => {
   try {
+    console.log('Received booking data:', req.body);
+    
+    // Validate required fields based on booking type
+    if (req.body.type === 'class' && !req.body.classId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Class ID is required for class bookings' 
+      });
+    }
+    if (req.body.type === 'personal_training' && !req.body.trainerId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Trainer ID is required for personal training bookings' 
+      });
+    }
+    if (req.body.type === 'equipment' && !req.body.equipmentId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Equipment ID is required for equipment bookings' 
+      });
+    }
+
+    // Validate dates
+    if (!req.body.startTime || !req.body.endTime) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Start time and end time are required' 
+      });
+    }
+
+    // Validate price
+    if (typeof req.body.price !== 'number' || req.body.price < 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Price must be a non-negative number' 
+      });
+    }
+
     const booking = new Booking({
       ...req.body,
       userId: req.user._id,
-      gymId: req.gymId
+      gymId: req.gymId,
+      createdBy: req.user._id
     });
+    console.log('Created booking object:', booking);
     await booking.save();
     res.status(201).json({ success: true, booking });
   } catch (error) {
     console.error('Error creating booking:', error);
-    res.status(500).json({ success: false, message: 'Error creating booking' });
+    console.error('Error details:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+      code: error.code,
+      keyPattern: error.keyPattern,
+      keyValue: error.keyValue
+    });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error creating booking',
+      error: error.message 
+    });
   }
 });
 

@@ -1,22 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { format } from 'date-fns';
-import { Calendar, Filter, Plus, MoreHorizontal } from 'lucide-react';
-import DashboardLayout from '@/components/layouts/DashboardLayout';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import BookingService, { 
-  Booking, 
-  BookingFilters, 
-  CreateBookingData, 
-  UpdateBookingData 
-} from '@/services/BookingService';
-import BookingCalendar from '@/components/bookings/BookingCalendar';
-import BookingList from '@/components/bookings/BookingList';
-import BookingForm from '@/components/bookings/BookingForm';
-import FilterModal from '@/components/bookings/FilterModal';
-import { toast } from 'sonner';
+import React, { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { format } from "date-fns";
+import { Calendar, Filter, Plus, MoreHorizontal } from "lucide-react";
+import DashboardLayout from "@/components/layouts/DashboardLayout";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import BookingService, {
+  Booking,
+  BookingFilters,
+  CreateBookingData,
+  UpdateBookingData,
+} from "@/services/BookingService";
+import BookingCalendar from "@/components/bookings/BookingCalendar";
+import BookingList from "@/components/bookings/BookingList";
+import BookingForm from "@/components/bookings/BookingForm";
+import FilterModal from "@/components/bookings/FilterModal";
+import { toast } from "sonner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,7 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency } from "@/lib/utils";
 import {
   Table,
   TableBody,
@@ -42,20 +42,18 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Badge,
-} from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { useNavigate } from 'react-router-dom';
+} from "@/components/ui/select";
+import { useNavigate } from "react-router-dom";
 
 const BookingsPage: React.FC = () => {
-  const [view, setView] = useState<'list' | 'calendar'>('list');
+  const [view, setView] = useState<"list" | "calendar">("list");
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [showBookingForm, setShowBookingForm] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
@@ -63,73 +61,86 @@ const BookingsPage: React.FC = () => {
   const [bookingToDelete, setBookingToDelete] = useState<Booking | null>(null);
   const [filters, setFilters] = useState<BookingFilters>({
     page: 1,
-    limit: 10
+    limit: 10,
   });
 
   const navigate = useNavigate();
 
   // Fetch bookings
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['bookings', filters],
-    queryFn: () => BookingService.getBookings(filters)
+    queryKey: ["bookings", filters],
+    queryFn: () => BookingService.getBookings(filters),
   });
 
   // Fetch calendar data
   const { data: calendarData } = useQuery({
-    queryKey: ['calendar', filters.startDate, filters.endDate, filters.type],
-    queryFn: () => BookingService.getCalendarData(
-      filters.startDate || format(new Date(), 'yyyy-MM-dd'),
-      filters.endDate || format(new Date(new Date().setMonth(new Date().getMonth() + 1)), 'yyyy-MM-dd'),
-      filters.type
-    ),
-    enabled: view === 'calendar'
+    queryKey: ["calendar", filters.startDate, filters.endDate, filters.type],
+    queryFn: () =>
+      BookingService.getCalendarData(
+        filters.startDate || format(new Date(), "yyyy-MM-dd"),
+        filters.endDate ||
+          format(
+            new Date(new Date().setMonth(new Date().getMonth() + 1)),
+            "yyyy-MM-dd"
+          ),
+        filters.type
+      ),
+    enabled: view === "calendar",
   });
 
   const handleFilterChange = (newFilters: BookingFilters) => {
-    setFilters(prev => ({ ...prev, ...newFilters, page: 1 }));
+    setFilters((prev) => ({ ...prev, ...newFilters, page: 1 }));
     setShowFilterModal(false);
   };
 
-  const handleCreateBooking = async (bookingData: CreateBookingData): Promise<{ success: boolean; message?: string }> => {
+  const handleCreateBooking = async (
+    bookingData: CreateBookingData
+  ): Promise<{ success: boolean; message?: string }> => {
     try {
-      console.log('Creating booking with data:', bookingData);
+      console.log("Creating booking with data:", bookingData);
       const response = await BookingService.createBooking(bookingData);
-      console.log('Booking creation response:', response);
-      
+      console.log("Booking creation response:", response);
+
       if (response.success) {
         setShowBookingForm(false);
         await refetch(); // Wait for the refetch to complete
-        toast.success(response.message || 'Booking created successfully');
+        toast.success(response.message || "Booking created successfully");
         return { success: true, message: response.message };
       } else {
-        toast.error(response.message || 'Failed to create booking');
+        toast.error(response.message || "Failed to create booking");
         return { success: false, message: response.message };
       }
     } catch (error) {
-      console.error('Error creating booking:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to create booking';
+      console.error("Error creating booking:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to create booking";
       toast.error(errorMessage);
       return { success: false, message: errorMessage };
     }
   };
 
-  const handleUpdateBooking = async (bookingData: UpdateBookingData): Promise<{ success: boolean; message?: string }> => {
+  const handleUpdateBooking = async (
+    bookingData: UpdateBookingData
+  ): Promise<{ success: boolean; message?: string }> => {
     if (!selectedBooking?._id) {
-      const message = 'No booking selected for update';
+      const message = "No booking selected for update";
       toast.error(message);
       return { success: false, message };
     }
 
     try {
-      const response = await BookingService.updateBooking(selectedBooking._id, bookingData);
+      const response = await BookingService.updateBooking(
+        selectedBooking._id,
+        bookingData
+      );
       setSelectedBooking(null);
       setShowBookingForm(false);
       refetch();
-      toast.success('Booking updated successfully');
-      return { success: true, message: 'Booking updated successfully' };
+      toast.success("Booking updated successfully");
+      return { success: true, message: "Booking updated successfully" };
     } catch (error) {
-      console.error('Error updating booking:', error);
-      const message = 'Failed to update booking';
+      console.error("Error updating booking:", error);
+      const message = "Failed to update booking";
       toast.error(message);
       return { success: false, message };
     }
@@ -137,12 +148,12 @@ const BookingsPage: React.FC = () => {
 
   const handleDeleteBooking = async (bookingId: string) => {
     if (!bookingId) {
-      toast.error('Invalid booking selected for deletion');
+      toast.error("Invalid booking selected for deletion");
       return;
     }
-    const booking = data?.bookings.find(b => b._id === bookingId);
+    const booking = data?.bookings.find((b) => b._id === bookingId);
     if (!booking) {
-      toast.error('Booking not found');
+      toast.error("Booking not found");
       return;
     }
     setBookingToDelete(booking);
@@ -151,31 +162,34 @@ const BookingsPage: React.FC = () => {
 
   const confirmDeleteBooking = async () => {
     if (!bookingToDelete?._id) {
-      toast.error('Invalid booking selected for deletion');
+      toast.error("Invalid booking selected for deletion");
       return;
     }
 
     try {
       await BookingService.deleteBooking(bookingToDelete._id);
       refetch();
-      toast.success('Booking deleted successfully');
+      toast.success("Booking deleted successfully");
     } catch (error) {
-      console.error('Error deleting booking:', error);
-      toast.error('Failed to delete booking');
+      console.error("Error deleting booking:", error);
+      toast.error("Failed to delete booking");
     } finally {
       setShowDeleteDialog(false);
       setBookingToDelete(null);
     }
   };
 
-  const handleStatusChange = async (bookingId: string, newStatus: 'scheduled' | 'completed' | 'cancelled' | 'no_show') => {
+  const handleStatusChange = async (
+    bookingId: string,
+    newStatus: "scheduled" | "completed" | "cancelled" | "no_show"
+  ) => {
     try {
       await BookingService.updateBooking(bookingId, { status: newStatus });
-      toast.success('Booking status updated successfully');
+      toast.success("Booking status updated successfully");
       refetch();
     } catch (error) {
-      console.error('Error updating booking status:', error);
-      toast.error('Failed to update booking status');
+      console.error("Error updating booking status:", error);
+      toast.error("Failed to update booking status");
     }
   };
 
@@ -185,10 +199,7 @@ const BookingsPage: React.FC = () => {
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">Bookings</h1>
           <div className="flex items-center gap-4">
-            <Button
-              variant="outline"
-              onClick={() => setShowFilterModal(true)}
-            >
+            <Button variant="outline" onClick={() => setShowFilterModal(true)}>
               <Filter className="w-4 h-4 mr-2" />
               Filters
             </Button>
@@ -199,7 +210,10 @@ const BookingsPage: React.FC = () => {
           </div>
         </div>
 
-        <Tabs value={view} onValueChange={(value) => setView(value as 'list' | 'calendar')}>
+        <Tabs
+          value={view}
+          onValueChange={(value) => setView(value as "list" | "calendar")}
+        >
           <TabsList>
             <TabsTrigger value="list">List View</TabsTrigger>
             <TabsTrigger value="calendar">Calendar View</TabsTrigger>
@@ -227,28 +241,31 @@ const BookingsPage: React.FC = () => {
                     {data?.bookings.map((booking) => (
                       <TableRow key={booking._id}>
                         <TableCell>
-                          {typeof booking.customerId === 'string' 
-                            ? 'Loading...' 
-                            : booking.customerId?.name || 'N/A'}
+                          {typeof booking.customerId === "string"
+                            ? "Loading..."
+                            : booking.customerId?.name || "N/A"}
                         </TableCell>
-                        <TableCell className="capitalize">{booking.type.replace('_', ' ')}</TableCell>
-                        <TableCell>
-                          {booking.type === 'personal_training' ? (
-                            booking.trainerId && typeof booking.trainerId === 'object' 
-                              ? booking.trainerId.name || 'N/A'
-                              : 'N/A'
-                          ) : booking.type === 'class' ? (
-                            booking.classId && typeof booking.classId === 'object'
-                              ? booking.classId.name || 'N/A'
-                              : 'N/A'
-                          ) : booking.type === 'equipment' ? (
-                            booking.equipmentId && typeof booking.equipmentId === 'object'
-                              ? booking.equipmentId.name || 'N/A'
-                              : 'N/A'
-                          ) : 'N/A'}
+                        <TableCell className="capitalize">
+                          {booking.type.replace("_", " ")}
                         </TableCell>
                         <TableCell>
-                          {format(new Date(booking.startTime), 'MMM d, yyyy h:mm a')}
+                          <p>
+                            {booking.type === "class" && booking.className
+                              ? booking.className
+                              : booking.type === "personal_training" &&
+                                booking.trainerName
+                              ? booking.trainerName
+                              : booking.type === "equipment" &&
+                                booking.equipmentName
+                              ? booking.equipmentName
+                              : "N/A"}
+                          </p>
+                        </TableCell>
+                        <TableCell>
+                          {format(
+                            new Date(booking.startTime),
+                            "MMM d, yyyy h:mm a"
+                          )}
                         </TableCell>
                         <TableCell>
                           {formatCurrency(booking.price, booking.currency)}
@@ -256,29 +273,45 @@ const BookingsPage: React.FC = () => {
                         <TableCell>
                           <Select
                             defaultValue={booking.status}
-                            onValueChange={(value) => handleStatusChange(booking._id, value as 'scheduled' | 'completed' | 'cancelled' | 'no_show')}
+                            onValueChange={(value) =>
+                              handleStatusChange(
+                                booking._id,
+                                value as
+                                  | "scheduled"
+                                  | "completed"
+                                  | "cancelled"
+                                  | "no_show"
+                              )
+                            }
                           >
                             <SelectTrigger className="w-[130px]">
                               <SelectValue>
                                 <Badge
                                   variant={
-                                    booking.status === 'completed'
-                                      ? 'default'
-                                      : booking.status === 'cancelled'
-                                      ? 'destructive'
-                                      : booking.status === 'no_show'
-                                      ? 'secondary'
-                                      : 'outline'
+                                    booking.status === "completed"
+                                      ? "default"
+                                      : booking.status === "cancelled"
+                                      ? "destructive"
+                                      : booking.status === "no_show"
+                                      ? "secondary"
+                                      : "outline"
                                   }
                                 >
-                                  {booking.status.charAt(0).toUpperCase() + booking.status.slice(1).replace('_', ' ')}
+                                  {booking.status.charAt(0).toUpperCase() +
+                                    booking.status.slice(1).replace("_", " ")}
                                 </Badge>
                               </SelectValue>
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="scheduled">Scheduled</SelectItem>
-                              <SelectItem value="completed">Completed</SelectItem>
-                              <SelectItem value="cancelled">Cancelled</SelectItem>
+                              <SelectItem value="scheduled">
+                                Scheduled
+                              </SelectItem>
+                              <SelectItem value="completed">
+                                Completed
+                              </SelectItem>
+                              <SelectItem value="cancelled">
+                                Cancelled
+                              </SelectItem>
                               <SelectItem value="no_show">No Show</SelectItem>
                             </SelectContent>
                           </Select>
@@ -288,7 +321,9 @@ const BookingsPage: React.FC = () => {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => navigate(`/dashboard/bookings/${booking._id}`)}
+                              onClick={() =>
+                                navigate(`/dashboard/bookings/${booking._id}`)
+                              }
                             >
                               View
                             </Button>
@@ -351,7 +386,9 @@ const BookingsPage: React.FC = () => {
               setSelectedBooking(null);
             }}
             booking={selectedBooking}
-            onSubmit={selectedBooking ? handleUpdateBooking : handleCreateBooking}
+            onSubmit={
+              selectedBooking ? handleUpdateBooking : handleCreateBooking
+            }
           />
         )}
 
@@ -360,12 +397,15 @@ const BookingsPage: React.FC = () => {
             <AlertDialogHeader>
               <AlertDialogTitle>Are you sure?</AlertDialogTitle>
               <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete the booking.
+                This action cannot be undone. This will permanently delete the
+                booking.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={confirmDeleteBooking}>Delete</AlertDialogAction>
+              <AlertDialogAction onClick={confirmDeleteBooking}>
+                Delete
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

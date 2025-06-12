@@ -133,6 +133,8 @@ interface Class {
   description: string;
   startTime: string;
   endTime: string;
+  price: number;
+  currency?: string;
 }
 
 interface Equipment {
@@ -168,11 +170,22 @@ const BookingForm: React.FC<BookingFormProps> = ({
           axios.get(`${API_URL}/gym/class-schedules`, { withCredentials: true })
         ]);
 
+        console.log('Classes Response:', classesResponse.data); // Debug log
+
         // Ensure we have arrays even if the response is empty
         setCustomers(Array.isArray(customersResponse.data.customers) ? customersResponse.data.customers : []);
         setTrainers(Array.isArray(trainersResponse.data.data) ? trainersResponse.data.data : 
                    Array.isArray(trainersResponse.data) ? trainersResponse.data : []);
-        setClasses(Array.isArray(classesResponse.data) ? classesResponse.data : []);
+        
+        // Handle class schedules response
+        if (classesResponse.data.success && Array.isArray(classesResponse.data.classSchedules)) {
+          setClasses(classesResponse.data.classSchedules);
+        } else if (Array.isArray(classesResponse.data)) {
+          setClasses(classesResponse.data);
+        } else {
+          console.error('Unexpected class schedules response format:', classesResponse.data);
+          setClasses([]);
+        }
       } catch (error) {
         console.error('Error fetching data:', error);
         toast.error('Failed to load form data');
@@ -228,6 +241,23 @@ const BookingForm: React.FC<BookingFormProps> = ({
   const selectedClassId = form.watch('classId');
   const selectedClass = Array.isArray(classes) ? classes.find((cls) => cls._id === selectedClassId) : undefined;
 
+  // Add effect to handle class selection
+  useEffect(() => {
+    if (selectedClass) {
+      // Set the start and end time from the class schedule
+      const startTime = new Date(selectedClass.startTime);
+      const endTime = new Date(selectedClass.endTime);
+      
+      form.setValue('startTime', startTime);
+      form.setValue('endTime', endTime);
+      
+      // Set the price from the class
+      if (selectedClass.price) {
+        form.setValue('price', selectedClass.price);
+      }
+    }
+  }, [selectedClass, form]);
+
   const handleSubmit = async (values: FormData) => {
     try {
       // Convert dates to ISO strings for the API
@@ -240,30 +270,40 @@ const BookingForm: React.FC<BookingFormProps> = ({
       };
 
       // Add service names based on type
-      if (apiData.type === 'class' && selectedClass) {
-        apiData.classId = values.classId;
-        apiData.className = selectedClass.name;
+      if (apiData.type === 'class') {
+        if (selectedClass) {
+          // For new class bookings or when changing class
+          apiData.classId = selectedClass._id;
+          apiData.className = selectedClass.name;
+          apiData.price = selectedClass.price;
+          apiData.currency = selectedClass.currency || 'INR';
+        } else if (booking) {
+          // For editing existing class bookings without changing class
+          apiData.classId = typeof booking.classId === 'string' ? booking.classId : booking.classId?._id || '';
+          apiData.className = booking.className || '';
+        }
       } else if (apiData.type === 'personal_training') {
         const selectedTrainer = trainers.find(t => t._id === values.trainerId);
         apiData.trainerId = values.trainerId;
-        apiData.trainerName = selectedTrainer?.name || '';
+        apiData.trainerName = selectedTrainer?.name || (booking?.trainerName || '');
       } else if (apiData.type === 'equipment') {
         const selectedEquipment = equipment.find(e => e._id === values.equipmentId);
         apiData.equipmentId = values.equipmentId;
-        apiData.equipmentName = selectedEquipment?.name || '';
+        apiData.equipmentName = selectedEquipment?.name || (booking?.equipmentName || '');
       }
 
+      // Log the data being sent
+      console.log('Submitting booking with data:', apiData);
+
       const result = await onSubmit(apiData);
-      if (result.success) {
-        toast.success('Booking saved successfully');
+      if (result && result.success) {
         queryClient.invalidateQueries(['bookings']);
         onClose();
-      } else {
-        toast.error(result.message || 'Failed to save booking');
       }
+      // Let the parent component handle success/error messages
     } catch (error) {
       console.error('Error submitting booking:', error);
-      toast.error('Failed to save booking');
+      // Let the parent component handle error messages
     }
   };
 
@@ -355,7 +395,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
                       <SelectContent>
                         {classes.map((cls) => (
                           <SelectItem key={cls._id} value={cls._id}>
-                            {cls.name}
+                            {`${cls.name} - ${formatCurrency(cls.price, cls.currency || 'INR')}`}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -443,6 +483,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
                         showTimeSelect
                         dateFormat="MMMM d, yyyy h:mm aa"
                         className="w-full rounded-md border border-input bg-background px-3 py-2"
+                        readOnly={bookingType === 'class' && selectedClass !== undefined}
                       />
                     </FormControl>
                     <FormMessage />
@@ -463,6 +504,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
                         showTimeSelect
                         dateFormat="MMMM d, yyyy h:mm aa"
                         className="w-full rounded-md border border-input bg-background px-3 py-2"
+                        readOnly={bookingType === 'class' && selectedClass !== undefined}
                       />
                     </FormControl>
                     <FormMessage />
@@ -517,6 +559,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
                         field.onChange(value);
                       }}
                       value={field.value || ''}
+                      readOnly={bookingType === 'class' && selectedClass !== undefined}
                     />
                   </FormControl>
                   <FormMessage />
