@@ -9,7 +9,7 @@ const { validateMembershipPlan } = require('../middleware/validation');
 // @access  Private
 router.get('/', auth, async (req, res) => {
   try {
-    const plans = await MembershipPlan.find();
+    const plans = await MembershipPlan.find({ gymId: req.user.gymId });
     res.json({
       success: true,
       data: plans
@@ -28,7 +28,7 @@ router.get('/', auth, async (req, res) => {
 // @access  Private
 router.post('/', auth, validateMembershipPlan, async (req, res) => {
   try {
-    const plan = await MembershipPlan.create(req.body);
+    const plan = await MembershipPlan.create({ ...req.body, gymId: req.user.gymId });
     res.status(201).json({
       success: true,
       data: plan

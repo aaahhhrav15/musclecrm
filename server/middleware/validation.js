@@ -38,6 +38,10 @@ const validateMembershipPlan = [
     .isBoolean().withMessage('isActive must be a boolean')
     .optional(),
   
+  body('gymId')
+    .optional()
+    .isMongoId().withMessage('gymId must be a valid Mongo ID'),
+  
   validate
 ];
 

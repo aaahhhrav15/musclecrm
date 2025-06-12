@@ -55,6 +55,7 @@ interface MembershipPlan {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  gymId: string;
 }
 
 const MembershipPlansPage: React.FC = () => {

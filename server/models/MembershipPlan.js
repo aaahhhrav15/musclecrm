@@ -28,6 +28,11 @@ const membershipPlanSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  gymId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Gym',
+    required: true
   }
 }, {
   timestamps: true
