@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
-import axios from 'axios';
+import axiosInstance from '@/lib/axios';
 
 interface NutritionPlan {
   _id: string;
@@ -18,9 +18,12 @@ interface NutritionPlan {
   duration: number;
   features: string[];
   isActive: boolean;
+  goal: string;
+  targetCalories: string;
+  targetProtein: string;
+  targetCarbs: string;
+  targetFats: string;
 }
-
-const API_BASE_URL = 'http://localhost:5001/api';
 
 const NutritionPlansPage: React.FC = () => {
   const [plans, setPlans] = useState<NutritionPlan[]>([]);
@@ -32,7 +35,12 @@ const NutritionPlansPage: React.FC = () => {
     price: '',
     duration: '',
     features: [''],
-    isActive: true
+    isActive: true,
+    goal: '',
+    targetCalories: '',
+    targetProtein: '',
+    targetCarbs: '',
+    targetFats: ''
   });
 
   useEffect(() => {
@@ -41,11 +49,18 @@ const NutritionPlansPage: React.FC = () => {
 
   const fetchPlans = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/nutrition-plans`);
-      setPlans(response.data);
+      const response = await axiosInstance.get('/nutrition-plans');
+      if (response.data.success && Array.isArray(response.data.nutritionPlans)) {
+        setPlans(response.data.nutritionPlans);
+      } else {
+        console.error('Unexpected API response format:', response.data);
+        setPlans([]); // Set empty array as fallback
+        toast.error('Invalid data format received from server');
+      }
     } catch (error) {
       console.error('Error fetching nutrition plans:', error);
       toast.error('Failed to fetch nutrition plans');
+      setPlans([]); // Set empty array on error
     }
   };
 
@@ -55,14 +70,22 @@ const NutritionPlansPage: React.FC = () => {
         ...formData,
         price: Number(formData.price),
         duration: Number(formData.duration),
+        targetCalories: Number(formData.targetCalories),
+        targetProtein: Number(formData.targetProtein),
+        targetCarbs: Number(formData.targetCarbs),
+        targetFats: Number(formData.targetFats),
         features: formData.features.filter(feature => feature.trim() !== '')
       };
       console.log('Sending data:', dataToSend);
-      const response = await axios.post(`${API_BASE_URL}/nutrition-plans`, dataToSend);
-      setPlans([...plans, response.data]);
-      setIsDialogOpen(false);
-      resetForm();
-      toast.success('Nutrition plan created successfully');
+      const response = await axiosInstance.post('/nutrition-plans', dataToSend);
+      if (response.data.success && response.data.nutritionPlan) {
+        setPlans([...plans, response.data.nutritionPlan]);
+        setIsDialogOpen(false);
+        resetForm();
+        toast.success('Nutrition plan created successfully');
+      } else {
+        throw new Error('Invalid response format from server');
+      }
     } catch (error) {
       console.error('Error creating nutrition plan:', error);
       const errorMessage = error.response?.data?.message || error.response?.data?.details || 'Failed to create nutrition plan';
@@ -73,22 +96,32 @@ const NutritionPlansPage: React.FC = () => {
   const handleUpdatePlan = async () => {
     if (!editingPlan) return;
     try {
-      const response = await axios.put(`${API_BASE_URL}/nutrition-plans/${editingPlan._id}`, formData);
-      setPlans(plans.map(plan => plan._id === editingPlan._id ? response.data : plan));
-      setIsDialogOpen(false);
-      resetForm();
-      toast.success('Nutrition plan updated successfully');
+      const response = await axiosInstance.put(`/nutrition-plans/${editingPlan._id}`, formData);
+      if (response.data.success && response.data.nutritionPlan) {
+        setPlans(plans.map(plan => plan._id === editingPlan._id ? response.data.nutritionPlan : plan));
+        setIsDialogOpen(false);
+        resetForm();
+        toast.success('Nutrition plan updated successfully');
+      } else {
+        throw new Error('Invalid response format from server');
+      }
     } catch (error) {
+      console.error('Error updating nutrition plan:', error);
       toast.error('Failed to update nutrition plan');
     }
   };
 
   const handleDeletePlan = async (id: string) => {
     try {
-      await axios.delete(`${API_BASE_URL}/nutrition-plans/${id}`);
-      setPlans(plans.filter(plan => plan._id !== id));
-      toast.success('Nutrition plan deleted successfully');
+      const response = await axiosInstance.delete(`/nutrition-plans/${id}`);
+      if (response.data.success) {
+        setPlans(plans.filter(plan => plan._id !== id));
+        toast.success('Nutrition plan deleted successfully');
+      } else {
+        throw new Error('Invalid response format from server');
+      }
     } catch (error) {
+      console.error('Error deleting nutrition plan:', error);
       toast.error('Failed to delete nutrition plan');
     }
   };
@@ -101,7 +134,12 @@ const NutritionPlansPage: React.FC = () => {
       price: plan.price.toString(),
       duration: plan.duration.toString(),
       features: plan.features,
-      isActive: plan.isActive
+      isActive: plan.isActive,
+      goal: plan.goal,
+      targetCalories: plan.targetCalories,
+      targetProtein: plan.targetProtein,
+      targetCarbs: plan.targetCarbs,
+      targetFats: plan.targetFats
     });
     setIsDialogOpen(true);
   };
@@ -134,7 +172,12 @@ const NutritionPlansPage: React.FC = () => {
       price: '',
       duration: '',
       features: [''],
-      isActive: true
+      isActive: true,
+      goal: '',
+      targetCalories: '',
+      targetProtein: '',
+      targetCarbs: '',
+      targetFats: ''
     });
     setEditingPlan(null);
   };
@@ -211,6 +254,59 @@ const NutritionPlansPage: React.FC = () => {
                         value={formData.duration}
                         onChange={(e) => setFormData(prev => ({ ...prev, duration: e.target.value }))}
                         placeholder="Enter duration"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid gap-2">
+                    <label htmlFor="goal" className="text-sm font-medium">Goal</label>
+                    <Input
+                      id="goal"
+                      value={formData.goal}
+                      onChange={(e) => setFormData(prev => ({ ...prev, goal: e.target.value }))}
+                      placeholder="e.g., Weight Loss, Muscle Gain"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <label htmlFor="targetCalories" className="text-sm font-medium">Target Calories</label>
+                      <Input
+                        id="targetCalories"
+                        type="number"
+                        value={formData.targetCalories}
+                        onChange={(e) => setFormData(prev => ({ ...prev, targetCalories: e.target.value }))}
+                        placeholder="Daily calories"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <label htmlFor="targetProtein" className="text-sm font-medium">Target Protein (g)</label>
+                      <Input
+                        id="targetProtein"
+                        type="number"
+                        value={formData.targetProtein}
+                        onChange={(e) => setFormData(prev => ({ ...prev, targetProtein: e.target.value }))}
+                        placeholder="Daily protein"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <label htmlFor="targetCarbs" className="text-sm font-medium">Target Carbs (g)</label>
+                      <Input
+                        id="targetCarbs"
+                        type="number"
+                        value={formData.targetCarbs}
+                        onChange={(e) => setFormData(prev => ({ ...prev, targetCarbs: e.target.value }))}
+                        placeholder="Daily carbs"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <label htmlFor="targetFats" className="text-sm font-medium">Target Fats (g)</label>
+                      <Input
+                        id="targetFats"
+                        type="number"
+                        value={formData.targetFats}
+                        onChange={(e) => setFormData(prev => ({ ...prev, targetFats: e.target.value }))}
+                        placeholder="Daily fats"
                       />
                     </div>
                   </div>
@@ -308,7 +404,32 @@ const NutritionPlansPage: React.FC = () => {
                           <span className="text-gray-500">/ {plan.duration} months</span>
                         </div>
                         <div className="space-y-3">
-                          <h4 className="font-medium text-sm text-gray-500 uppercase tracking-wider">Features</h4>
+                          <h4 className="font-medium text-sm text-gray-500 uppercase tracking-wider">Nutrition Targets</h4>
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div>
+                              <span className="text-gray-500">Goal:</span>
+                              <span className="ml-2 text-gray-900">{plan.goal}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-500">Calories:</span>
+                              <span className="ml-2 text-gray-900">{plan.targetCalories} kcal</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-500">Protein:</span>
+                              <span className="ml-2 text-gray-900">{plan.targetProtein}g</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-500">Carbs:</span>
+                              <span className="ml-2 text-gray-900">{plan.targetCarbs}g</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-500">Fats:</span>
+                              <span className="ml-2 text-gray-900">{plan.targetFats}g</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="space-y-3">
+                          <h4 className="font-medium text-sm text-gray-500 uppercase tracking-wider">Meals</h4>
                           <ul className="space-y-3">
                             {plan.features.map((feature, index) => (
                               <li key={index} className="flex items-start gap-3">

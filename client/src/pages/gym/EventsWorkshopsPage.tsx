@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
-import axios from 'axios';
+import axiosInstance from '@/lib/axios';
 
 interface EventWorkshop {
   _id: string;
@@ -33,8 +33,6 @@ interface FormData {
   isActive: boolean;
 }
 
-const API_BASE_URL = 'http://localhost:5001/api';
-
 const EventsWorkshopsPage: React.FC = () => {
   const [events, setEvents] = useState<EventWorkshop[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -58,22 +56,34 @@ const EventsWorkshopsPage: React.FC = () => {
 
   const fetchEvents = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/events-workshops`);
-      setEvents(response.data);
+      const response = await axiosInstance.get('/events-workshops');
+      if (response.data.success && Array.isArray(response.data.events)) {
+        setEvents(response.data.events);
+      } else {
+        console.error('Unexpected API response format:', response.data);
+        setEvents([]); // Set empty array as fallback
+        toast.error('Invalid data format received from server');
+      }
     } catch (error) {
       console.error('Error fetching events:', error);
       toast.error('Failed to fetch events');
+      setEvents([]); // Set empty array on error
     }
   };
 
   const handleCreateEvent = async () => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/events-workshops`, formData);
-      setEvents([...events, response.data]);
-      setIsDialogOpen(false);
-      resetForm();
-      toast.success('Event created successfully');
+      const response = await axiosInstance.post('/events-workshops', formData);
+      if (response.data.success && response.data.event) {
+        setEvents([...events, response.data.event]);
+        setIsDialogOpen(false);
+        resetForm();
+        toast.success('Event created successfully');
+      } else {
+        throw new Error('Invalid response format from server');
+      }
     } catch (error) {
+      console.error('Error creating event:', error);
       toast.error('Failed to create event');
     }
   };
@@ -81,12 +91,17 @@ const EventsWorkshopsPage: React.FC = () => {
   const handleUpdateEvent = async () => {
     if (!editingEvent) return;
     try {
-      const response = await axios.put(`${API_BASE_URL}/events-workshops/${editingEvent._id}`, formData);
-      setEvents(events.map(event => event._id === editingEvent._id ? response.data : event));
-      setIsDialogOpen(false);
-      resetForm();
-      toast.success('Event updated successfully');
+      const response = await axiosInstance.put(`/events-workshops/${editingEvent._id}`, formData);
+      if (response.data.success && response.data.event) {
+        setEvents(events.map(event => event._id === editingEvent._id ? response.data.event : event));
+        setIsDialogOpen(false);
+        resetForm();
+        toast.success('Event updated successfully');
+      } else {
+        throw new Error('Invalid response format from server');
+      }
     } catch (error) {
+      console.error('Error updating event:', error);
       toast.error('Failed to update event');
     }
   };
@@ -99,10 +114,15 @@ const EventsWorkshopsPage: React.FC = () => {
   const handleDeleteConfirm = async () => {
     if (!eventToDelete) return;
     try {
-      await axios.delete(`${API_BASE_URL}/events-workshops/${eventToDelete}`);
-      setEvents(events.filter(event => event._id !== eventToDelete));
-      toast.success('Event deleted successfully');
+      const response = await axiosInstance.delete(`/events-workshops/${eventToDelete}`);
+      if (response.data.success) {
+        setEvents(events.filter(event => event._id !== eventToDelete));
+        toast.success('Event deleted successfully');
+      } else {
+        throw new Error('Invalid response format from server');
+      }
     } catch (error) {
+      console.error('Error deleting event:', error);
       toast.error('Failed to delete event');
     } finally {
       setIsDeleteDialogOpen(false);

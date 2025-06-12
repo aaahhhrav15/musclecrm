@@ -43,7 +43,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
 import { useIndustry } from '@/context/IndustryContext';
-import axios from 'axios';
+import axiosInstance from '@/lib/axios';
 
 interface MembershipPlan {
   _id: string;
@@ -56,8 +56,6 @@ interface MembershipPlan {
   createdAt: string;
   updatedAt: string;
 }
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
 const MembershipPlansPage: React.FC = () => {
   useRequireAuth();
@@ -94,9 +92,17 @@ const MembershipPlansPage: React.FC = () => {
   const fetchPlans = async () => {
     setIsLoading(true);
     try {
-      const response = await axios.get(`${API_URL}/gym/membership-plans`);
-      if (response.data.success) {
+      const response = await axiosInstance.get('/gym/membership-plans');
+      if (response.data.success && Array.isArray(response.data.data)) {
         setPlans(response.data.data);
+      } else {
+        console.error('Unexpected API response format:', response.data);
+        setPlans([]); // Set empty array as fallback
+        toast({
+          title: "Error",
+          description: "Invalid data format received from server",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Error fetching membership plans:', error);
@@ -105,6 +111,7 @@ const MembershipPlansPage: React.FC = () => {
         description: "Failed to load membership plans",
         variant: "destructive",
       });
+      setPlans([]); // Set empty array on error
     } finally {
       setIsLoading(false);
     }
@@ -119,9 +126,9 @@ const MembershipPlansPage: React.FC = () => {
         features: formData.features.filter(f => f.trim() !== '')
       };
 
-      const response = await axios.post(`${API_URL}/gym/membership-plans`, planData);
+      const response = await axiosInstance.post('/gym/membership-plans', planData);
       
-      if (response.data.success) {
+      if (response.data.success && response.data.data) {
         toast({
           title: "Success",
           description: "Membership plan created successfully",
@@ -129,6 +136,8 @@ const MembershipPlansPage: React.FC = () => {
         setIsDialogOpen(false);
         resetForm();
         fetchPlans();
+      } else {
+        throw new Error('Invalid response format from server');
       }
     } catch (error) {
       console.error('Error creating membership plan:', error);
@@ -151,12 +160,12 @@ const MembershipPlansPage: React.FC = () => {
         features: formData.features.filter(f => f.trim() !== '')
       };
 
-      const response = await axios.put(
-        `${API_URL}/gym/membership-plans/${editingPlan._id}`,
+      const response = await axiosInstance.put(
+        `/gym/membership-plans/${editingPlan._id}`,
         planData
       );
       
-      if (response.data.success) {
+      if (response.data.success && response.data.data) {
         toast({
           title: "Success",
           description: "Membership plan updated successfully",
@@ -164,6 +173,8 @@ const MembershipPlansPage: React.FC = () => {
         setIsDialogOpen(false);
         resetForm();
         fetchPlans();
+      } else {
+        throw new Error('Invalid response format from server');
       }
     } catch (error) {
       console.error('Error updating membership plan:', error);
@@ -179,7 +190,7 @@ const MembershipPlansPage: React.FC = () => {
     if (!confirm('Are you sure you want to delete this plan?')) return;
 
     try {
-      const response = await axios.delete(`${API_URL}/gym/membership-plans/${planId}`);
+      const response = await axiosInstance.delete(`/gym/membership-plans/${planId}`);
       
       if (response.data.success) {
         toast({
@@ -187,6 +198,8 @@ const MembershipPlansPage: React.FC = () => {
           description: "Membership plan deleted successfully",
         });
         fetchPlans();
+      } else {
+        throw new Error('Invalid response format from server');
       }
     } catch (error) {
       console.error('Error deleting membership plan:', error);
