@@ -47,7 +47,14 @@ const ViewWorkoutPlanPage: React.FC = () => {
         const response = await axios.get(`${API_URL}/workout-plans/${id}`, {
           withCredentials: true,
         });
-        setPlan(response.data.plan);
+        console.log('View Plan API Response:', response.data); // Debug log
+        if (response.data.success && response.data.workoutPlan) {
+          setPlan(response.data.workoutPlan);
+        } else {
+          console.error('Unexpected API response format:', response.data);
+          toast.error('Invalid data format received from server');
+          navigate('/dashboard/gym/workout-plans');
+        }
       } catch (error) {
         console.error('Error fetching workout plan:', error);
         toast.error('Failed to load workout plan');

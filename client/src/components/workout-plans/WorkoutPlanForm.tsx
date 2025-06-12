@@ -188,10 +188,10 @@ const WorkoutPlanForm: React.FC<WorkoutPlanFormProps> = ({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="weight_loss">Weight Loss</SelectItem>
-                      <SelectItem value="muscle_gain">Muscle Gain</SelectItem>
-                      <SelectItem value="endurance">Endurance</SelectItem>
-                      <SelectItem value="flexibility">Flexibility</SelectItem>
+                      <SelectItem value="Weight Loss">Weight Loss</SelectItem>
+                      <SelectItem value="Muscle Gain">Muscle Gain</SelectItem>
+                      <SelectItem value="Endurance">Endurance</SelectItem>
+                      <SelectItem value="Flexibility">Flexibility</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />

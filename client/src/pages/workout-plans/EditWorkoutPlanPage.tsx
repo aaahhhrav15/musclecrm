@@ -19,7 +19,23 @@ const EditWorkoutPlanPage: React.FC = () => {
         const response = await axios.get(`${API_URL}/workout-plans/${id}`, {
           withCredentials: true,
         });
-        setInitialData(response.data.plan);
+        console.log('Edit Plan API Response:', response.data);
+        
+        if (response.data.success && response.data.workoutPlan) {
+          // Transform the data to match the form structure
+          const planData = {
+            name: response.data.workoutPlan.name,
+            goal: response.data.workoutPlan.goal,
+            duration: response.data.workoutPlan.duration,
+            level: response.data.workoutPlan.level,
+            weeks: response.data.workoutPlan.weeks || []
+          };
+          setInitialData(planData);
+        } else {
+          console.error('Unexpected API response format:', response.data);
+          toast.error('Invalid data format received from server');
+          navigate('/dashboard/gym/workout-plans');
+        }
       } catch (error) {
         console.error('Error fetching workout plan:', error);
         toast.error('Failed to load workout plan');

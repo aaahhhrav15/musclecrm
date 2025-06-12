@@ -1,125 +1,158 @@
-
-import React from 'react';
-import { motion } from 'framer-motion';
-import { Dumbbell, Plus, Search, Filter } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { 
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardFooter,
-} from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { toast } from 'sonner';
+import axios from 'axios';
+import { API_URL } from '@/config';
+import { Plus, ListChecks } from 'lucide-react';
 
-// Mock data for workout plans
-const workoutPlans = [
-  { 
-    id: 1, 
-    name: 'Beginner Strength Training', 
-    duration: '4 weeks',
-    difficulty: 'Beginner',
-    description: 'A complete workout plan for beginners focusing on building strength and proper form.'
-  },
-  { 
-    id: 2, 
-    name: 'Intermediate Hypertrophy', 
-    duration: '6 weeks',
-    difficulty: 'Intermediate',
-    description: 'Focus on muscle growth with progressive overload techniques and proper nutrition guidance.'
-  },
-  { 
-    id: 3, 
-    name: 'Advanced Powerlifting', 
-    duration: '8 weeks',
-    difficulty: 'Advanced',
-    description: 'Specialized training program for competitive powerlifters focusing on the big three lifts.'
-  },
-  { 
-    id: 4, 
-    name: 'Functional Fitness', 
-    duration: '4 weeks',
-    difficulty: 'All Levels',
-    description: 'Improve everyday movement patterns and build practical strength for daily activities.'
-  },
-  { 
-    id: 5, 
-    name: 'HIIT Cardio Program', 
-    duration: '3 weeks',
-    difficulty: 'Intermediate',
-    description: 'High-intensity interval training to improve cardiovascular health and burn fat efficiently.'
-  },
-];
+interface WorkoutPlan {
+  _id: string;
+  name: string;
+  goal: string;
+  duration: number;
+  level: string;
+}
 
 const WorkoutPlansPage: React.FC = () => {
+  const navigate = useNavigate();
+  const [plans, setPlans] = useState<WorkoutPlan[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchPlans();
+  }, []);
+
+  const fetchPlans = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/workout-plans`, {
+        withCredentials: true,
+      });
+      
+      if (response.data && response.data.success && Array.isArray(response.data.workoutPlans)) {
+        setPlans(response.data.workoutPlans);
+      } else {
+        console.error('Unexpected response structure:', response.data);
+        toast.error('Invalid response format from server');
+        setPlans([]);
+      }
+    } catch (error) {
+      console.error('Error fetching workout plans:', error);
+      toast.error('Failed to fetch workout plans');
+      setPlans([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this workout plan?')) {
+      return;
+    }
+
+    try {
+      await axios.delete(`${API_URL}/workout-plans/${id}`, {
+        withCredentials: true,
+      });
+      toast.success('Workout plan deleted successfully');
+      fetchPlans();
+    } catch (error) {
+      console.error('Error deleting workout plan:', error);
+      toast.error('Failed to delete workout plan');
+    }
+  };
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-        className="space-y-6"
-      >
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Workout Plans</h1>
-            <p className="text-muted-foreground">
-              Create and manage workout programs for your clients.
-            </p>
-          </div>
-          <Button>
-            <Plus className="mr-2 h-4 w-4" /> Create Plan
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-bold">Workout Plans</h1>
+          <Button onClick={() => navigate('/dashboard/gym/workout-plans/create')}>
+            <Plus className="h-4 w-4 mr-2" />
+            Create Plan
           </Button>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search workout plans..."
-              className="pl-8"
-            />
-          </div>
-          <Button variant="outline" className="w-full sm:w-auto">
-            <Filter className="mr-2 h-4 w-4" />
-            Filters
-          </Button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {workoutPlans.map((plan) => (
-            <Card key={plan.id}>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>{plan.name}</CardTitle>
-                  <div className="p-2 rounded-full bg-primary/10">
-                    <Dumbbell className="h-4 w-4 text-primary" />
-                  </div>
-                </div>
-                <CardDescription>
-                  <div className="flex gap-2 mt-1">
-                    <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-600/10">
-                      {plan.duration}
-                    </span>
-                    <span className="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/10">
-                      {plan.difficulty}
-                    </span>
-                  </div>
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">{plan.description}</p>
-              </CardContent>
-              <CardFooter className="flex justify-between">
-                <Button variant="outline" size="sm">View Details</Button>
-                <Button variant="outline" size="sm">Assign</Button>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
-      </motion.div>
+        <Card>
+          <CardHeader>
+            <CardTitle>All Workout Plans</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {plans.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No workout plans found</p>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Goal</TableHead>
+                    <TableHead>Duration (weeks)</TableHead>
+                    <TableHead>Level</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {plans.map((plan) => (
+                    <TableRow key={plan._id}>
+                      <TableCell>{plan.name}</TableCell>
+                      <TableCell>{plan.goal}</TableCell>
+                      <TableCell>{plan.duration}</TableCell>
+                      <TableCell>{plan.level}</TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(`/dashboard/gym/workout-plans/${plan._id}`)}
+                          >
+                            View
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(`/dashboard/gym/workout-plans/${plan._id}/edit`)}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDelete(plan._id)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </DashboardLayout>
   );
 };

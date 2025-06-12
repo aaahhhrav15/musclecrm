@@ -38,10 +38,19 @@ const WorkoutPlansPage: React.FC = () => {
       const response = await axios.get(`${API_URL}/workout-plans`, {
         withCredentials: true,
       });
-      setPlans(response.data.plans);
+      console.log('API Response:', response.data);
+      
+      if (response.data.success && Array.isArray(response.data.workoutPlans)) {
+        setPlans(response.data.workoutPlans);
+      } else {
+        console.error('Unexpected API response format:', response.data);
+        setPlans([]); // Set empty array as fallback
+        toast.error('Invalid data format received from server');
+      }
     } catch (error) {
       console.error('Error fetching workout plans:', error);
       toast.error('Failed to fetch workout plans');
+      setPlans([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
