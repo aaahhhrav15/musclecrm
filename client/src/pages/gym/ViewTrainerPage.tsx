@@ -1,69 +1,70 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { 
+  ArrowLeft, 
+  Loader2,
+  Dumbbell,
+  User,
+  Calendar,
+  Mail,
+  Phone,
+  Briefcase,
+  Clock,
+  Users
+} from 'lucide-react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { toast } from 'sonner';
 import axios from 'axios';
-import { API_URL } from '@/config';
-import { ArrowLeft, Loader2 } from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
+import { API_URL } from '@/lib/constants';
+import { cn } from '@/lib/utils';
 
 interface Trainer {
   _id: string;
   name: string;
   email: string;
   phone: string;
+  dateOfBirth: string;
   specialization: string;
   experience: number;
   status: 'active' | 'inactive';
-  bio?: string;
+  bio: string;
+  clients: number;
   gymId: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 const ViewTrainerPage: React.FC = () => {
-  const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuth();
+  const navigate = useNavigate();
   const [trainer, setTrainer] = useState<Trainer | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user?.gymId) {
-      toast.error('No gym associated with your account');
-      navigate('/dashboard/gym/trainers');
-      return;
-    }
-    fetchTrainer();
-  }, [id, user?.gymId]);
-
-  const fetchTrainer = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/trainers/${id}`, {
-        withCredentials: true,
-      });
-      
-      // Verify that the trainer belongs to the current gym
-      if (response.data.trainer.gymId !== user?.gymId) {
-        toast.error('You do not have access to this trainer');
-        navigate('/dashboard/gym/trainers');
-        return;
+    const fetchTrainer = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/trainers/${id}`, { withCredentials: true });
+        setTrainer(response.data.trainer);
+      } catch (error) {
+        console.error('Error fetching trainer:', error);
+        toast.error('Failed to fetch trainer details');
+      } finally {
+        setLoading(false);
       }
-      
-      setTrainer(response.data.trainer);
-    } catch (error) {
-      console.error('Error fetching trainer:', error);
-      toast.error('Failed to load trainer details');
-      navigate('/dashboard/gym/trainers');
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+
+    fetchTrainer();
+  }, [id]);
 
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+        <div className="flex items-center justify-center h-64">
           <Loader2 className="h-8 w-8 animate-spin" />
         </div>
       </DashboardLayout>
@@ -73,93 +74,128 @@ const ViewTrainerPage: React.FC = () => {
   if (!trainer) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
-          <div className="text-center">
-            <p className="text-red-600">Trainer not found</p>
-            <Button
-              variant="outline"
-              className="mt-4"
-              onClick={() => navigate('/dashboard/gym/trainers')}
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Trainers
-            </Button>
-          </div>
+        <div className="text-center">
+          <h2 className="text-2xl font-bold">Trainer not found</h2>
+          <Button onClick={() => navigate('/dashboard/gym/trainers')} className="mt-4">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Trainers
+          </Button>
         </div>
       </DashboardLayout>
     );
   }
 
+  const getStatusColor = (status: string) => {
+    return status === 'active' 
+      ? 'bg-green-500/10 text-green-500'
+      : 'bg-red-500/10 text-red-500';
+  };
+
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="space-y-6"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
             <Button
-              variant="outline"
+              variant="ghost"
               onClick={() => navigate('/dashboard/gym/trainers')}
-              className="mb-4"
+              className="p-0"
             >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Trainers
+              <ArrowLeft className="h-4 w-4" />
             </Button>
-            <h1 className="text-2xl font-bold">{trainer.name}</h1>
+            <h1 className="text-2xl font-bold">Trainer Details</h1>
           </div>
-          <Button
-            variant="outline"
-            onClick={() => navigate(`/dashboard/gym/trainers/${trainer._id}/edit`)}
-          >
+          <Button onClick={() => navigate(`/dashboard/gym/trainers/${id}/edit`)}>
             Edit Trainer
           </Button>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Trainer Details</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-6">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Email</p>
-                <p className="mt-1">{trainer.email}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">Phone</p>
-                <p className="mt-1">{trainer.phone}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">Specialization</p>
-                <p className="mt-1">{trainer.specialization}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">Experience</p>
-                <p className="mt-1">{trainer.experience} years</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">Status</p>
-                <p className="mt-1">
-                  <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      trainer.status === 'active'
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-red-100 text-red-800'
-                    }`}
-                  >
-                    {trainer.status}
-                  </span>
-                </p>
+        <div className="space-y-6">
+          <div className="flex items-center gap-4">
+            <Avatar className="h-16 w-16">
+              <AvatarFallback className="text-lg">{trainer.name.slice(0, 2)}</AvatarFallback>
+            </Avatar>
+            <div>
+              <h2 className="text-2xl font-bold">{trainer.name}</h2>
+              <div className="flex items-center gap-2 mt-1">
+                <Dumbbell className="h-4 w-4" />
+                <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  {trainer.specialization}
+                </span>
+                <Badge className={getStatusColor(trainer.status)}>
+                  {trainer.status}
+                </Badge>
               </div>
             </div>
+          </div>
 
-            {trainer.bio && (
-              <div className="mt-6">
-                <p className="text-sm font-medium text-gray-500">Bio</p>
-                <p className="mt-1 whitespace-pre-wrap">{trainer.bio}</p>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Trainer Information</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Email</p>
+                    <p className="mt-1">{trainer.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Phone</p>
+                    <p className="mt-1">{trainer.phone}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Date of Birth</p>
+                    <p className="mt-1">{new Date(trainer.dateOfBirth).toLocaleDateString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Specialization</p>
+                    <p className="mt-1">{trainer.specialization}</p>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Experience</p>
+                    <p className="mt-1">{trainer.experience} years</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Status</p>
+                    <div className="mt-1">
+                      <Badge className={getStatusColor(trainer.status)}>
+                        {trainer.status}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Number of Clients</p>
+                    <p className="mt-1">{trainer.clients}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Created At</p>
+                    <p className="mt-1">{new Date(trainer.createdAt).toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Last Updated</p>
+                    <p className="mt-1">{new Date(trainer.updatedAt).toLocaleString()}</p>
+                  </div>
+                </div>
               </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+
+              {trainer.bio && (
+                <div className="mt-6">
+                  <p className="text-sm font-medium text-gray-500">Bio</p>
+                  <p className="mt-1 whitespace-pre-wrap">{trainer.bio}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </motion.div>
     </DashboardLayout>
   );
 };

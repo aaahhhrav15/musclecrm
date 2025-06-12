@@ -15,8 +15,22 @@ router.get('/', auth, async (req, res) => {
       });
     }
 
-    const staff = await GymStaff.find({ gymId: req.user.gymId }).populate('trainerId');
-    res.json({ success: true, data: staff });
+    const staff = await GymStaff.find({ gymId: req.user.gymId })
+      .populate('trainerId', 'experience specialization bio')
+      .lean();
+
+    // If staff member is a trainer, use the trainer's experience
+    const staffWithTrainerInfo = staff.map(member => {
+      if (member.trainerId) {
+        return {
+          ...member,
+          experience: member.trainerId.experience || member.experience
+        };
+      }
+      return member;
+    });
+
+    res.json({ success: true, data: staffWithTrainerInfo });
   } catch (error) {
     console.error('Get staff error:', error);
     res.status(500).json({ success: false, message: 'Error fetching staff' });
@@ -36,10 +50,17 @@ router.get('/:id', auth, async (req, res) => {
     const staff = await GymStaff.findOne({ 
       _id: req.params.id,
       gymId: req.user.gymId 
-    }).populate('trainerId');
+    })
+    .populate('trainerId', 'experience specialization bio')
+    .lean();
     
     if (!staff) {
       return res.status(404).json({ success: false, message: 'Staff member not found' });
+    }
+
+    // If staff member is a trainer, use the trainer's experience
+    if (staff.trainerId) {
+      staff.experience = staff.trainerId.experience || staff.experience;
     }
     
     res.json({ success: true, data: staff });
@@ -59,7 +80,7 @@ router.post('/', auth, async (req, res) => {
       });
     }
 
-    const { name, email, phone, position, hireDate, status } = req.body;
+    const { name, email, phone, position, hireDate, status, dateOfBirth, experience } = req.body;
     
     let trainerId = null;
     
@@ -70,22 +91,26 @@ router.post('/', auth, async (req, res) => {
         email,
         phone,
         specialization: 'Personal Training',
-        experience: 0,
+        experience: experience !== undefined ? experience : 0,
         status: status === 'Active' ? 'active' : 'inactive',
-        bio: 'Personal Trainer'
+        bio: 'Personal Trainer',
+        gymId: req.user.gymId
       });
       trainerId = trainer._id;
     }
     
     const newStaff = await GymStaff.create({
       gymId: req.user.gymId,
+      userId: req.user._id,
       name,
       email,
       phone,
+      dateOfBirth,
       position,
       hireDate,
       status,
-      trainerId
+      trainerId,
+      experience: experience !== undefined ? experience : 0
     });
     
     res.status(201).json({ success: true, data: newStaff });
@@ -105,7 +130,7 @@ router.put('/:id', auth, async (req, res) => {
       });
     }
 
-    const { name, email, phone, position, hireDate, status } = req.body;
+    const { name, email, phone, position, hireDate, status, dateOfBirth, experience } = req.body;
     
     const staff = await GymStaff.findOne({ 
       _id: req.params.id, 
@@ -124,9 +149,10 @@ router.put('/:id', auth, async (req, res) => {
         email,
         phone,
         specialization: 'Personal Training',
-        experience: 0,
+        experience: experience !== undefined ? experience : 0,
         status: status === 'Active' ? 'active' : 'inactive',
-        bio: 'Personal Trainer'
+        bio: 'Personal Trainer',
+        gymId: req.user.gymId
       });
       staff.trainerId = trainer._id;
     } else if (position !== 'Personal Trainer' && staff.trainerId) {
@@ -139,6 +165,7 @@ router.put('/:id', auth, async (req, res) => {
         name,
         email,
         phone,
+        experience: experience !== undefined ? experience : 0,
         status: status === 'Active' ? 'active' : 'inactive'
       });
     }
@@ -147,9 +174,11 @@ router.put('/:id', auth, async (req, res) => {
     staff.name = name;
     staff.email = email;
     staff.phone = phone;
+    staff.dateOfBirth = dateOfBirth;
     staff.position = position;
     staff.hireDate = hireDate;
     staff.status = status;
+    staff.experience = experience !== undefined ? experience : 0;
     
     await staff.save();
     

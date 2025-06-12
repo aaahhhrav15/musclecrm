@@ -25,6 +25,10 @@ const gymStaffSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  dateOfBirth: {
+    type: Date,
+    required: true
+  },
   position: {
     type: String,
     required: true,
@@ -42,6 +46,10 @@ const gymStaffSchema = new mongoose.Schema({
   trainerId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Trainer'
+  },
+  experience: {
+    type: Number,
+    default: 0
   }
 }, {
   timestamps: true

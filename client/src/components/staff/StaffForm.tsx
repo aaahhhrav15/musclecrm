@@ -16,23 +16,39 @@ import { toast } from 'sonner';
 interface StaffFormProps {
   onSuccess?: () => void;
   initialData?: {
+    _id?: string;
     name: string;
     email: string;
     phone: string;
     position: string;
     hireDate: string;
     status: 'Active' | 'Inactive' | 'On Leave';
+    dateOfBirth?: string;
+    experience?: number;
   };
 }
 
+interface InitialData {
+  name: string;
+  email: string;
+  phone: string;
+  dateOfBirth: string;
+  position: string;
+  hireDate: string;
+  status: string;
+  experience?: number;
+}
+
 export const StaffForm: React.FC<StaffFormProps> = ({ onSuccess, initialData }) => {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<InitialData>({
     name: initialData?.name || '',
     email: initialData?.email || '',
     phone: initialData?.phone || '',
+    dateOfBirth: initialData?.dateOfBirth ? new Date(initialData.dateOfBirth).toISOString().split('T')[0] : '',
     position: initialData?.position || '',
-    hireDate: initialData?.hireDate || '',
-    status: initialData?.status || 'Active'
+    hireDate: initialData?.hireDate || new Date().toISOString().split('T')[0],
+    status: initialData?.status || 'Active',
+    experience: initialData?.experience !== undefined ? initialData.experience : undefined
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -41,13 +57,17 @@ export const StaffForm: React.FC<StaffFormProps> = ({ onSuccess, initialData }) 
     e.preventDefault();
     setIsLoading(true);
 
+    if (!formData.name || !formData.email || !formData.phone || !formData.position || !formData.hireDate || !formData.dateOfBirth) {
+      toast.error('Please fill in all required fields');
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      if (initialData) {
-        // Update existing staff
+      if (initialData?._id) {
         await axios.put(`${API_URL}/gym/staff/${initialData._id}`, formData, { withCredentials: true });
         toast.success('Staff member updated successfully');
       } else {
-        // Create new staff
         await axios.post(`${API_URL}/gym/staff`, formData, { withCredentials: true });
         toast.success('Staff member added successfully');
       }
@@ -55,11 +75,23 @@ export const StaffForm: React.FC<StaffFormProps> = ({ onSuccess, initialData }) 
       if (onSuccess) {
         onSuccess();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving staff:', error);
-      toast.error('Failed to save staff member');
+      const errorMessage = error.response?.data?.message || 'Failed to save staff member';
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleExperienceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Allow empty string or valid numbers
+    if (value === '' || /^\d*$/.test(value)) {
+      setFormData(prev => ({
+        ...prev,
+        experience: value === '' ? undefined : parseInt(value)
+      }));
     }
   };
 
@@ -98,10 +130,22 @@ export const StaffForm: React.FC<StaffFormProps> = ({ onSuccess, initialData }) 
       </div>
 
       <div className="space-y-2">
+        <Label htmlFor="dateOfBirth">Date of Birth</Label>
+        <Input
+          id="dateOfBirth"
+          type="date"
+          value={formData.dateOfBirth}
+          onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+          required
+        />
+      </div>
+
+      <div className="space-y-2">
         <Label htmlFor="position">Position</Label>
         <Select
           value={formData.position}
           onValueChange={(value) => setFormData({ ...formData, position: value })}
+          required
         >
           <SelectTrigger>
             <SelectValue placeholder="Select position" />
@@ -114,6 +158,19 @@ export const StaffForm: React.FC<StaffFormProps> = ({ onSuccess, initialData }) 
           </SelectContent>
         </Select>
       </div>
+
+      {formData.position === 'Personal Trainer' && (
+        <div className="space-y-2">
+          <Label htmlFor="experience">Years of Experience</Label>
+          <Input
+            id="experience"
+            type="number"
+            min="0"
+            value={formData.experience === undefined ? '' : formData.experience}
+            onChange={handleExperienceChange}
+          />
+        </div>
+      )}
 
       <div className="space-y-2">
         <Label htmlFor="hireDate">Hire Date</Label>
@@ -144,7 +201,7 @@ export const StaffForm: React.FC<StaffFormProps> = ({ onSuccess, initialData }) 
       </div>
 
       <Button type="submit" className="w-full" disabled={isLoading}>
-        {isLoading ? 'Saving...' : initialData ? 'Update Staff' : 'Add Staff'}
+        {isLoading ? 'Saving...' : initialData?._id ? 'Update Staff' : 'Add Staff'}
       </Button>
     </form>
   );

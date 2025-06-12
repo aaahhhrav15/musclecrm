@@ -15,6 +15,10 @@ const trainerSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    dateOfBirth: {
+      type: Date,
+      required: true,
+    },
     specialization: {
       type: String,
       required: true,

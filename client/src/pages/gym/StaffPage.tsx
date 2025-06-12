@@ -14,7 +14,8 @@ import {
   Trash2,
   Dumbbell,
   Briefcase,
-  Sparkles
+  Sparkles,
+  Eye
 } from 'lucide-react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -49,8 +50,10 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { StaffForm } from '@/components/staff/StaffForm';
+import { StaffView } from '@/components/staff/StaffView';
 import axios from 'axios';
 import { API_URL } from '@/lib/constants';
 import { toast } from 'sonner';
@@ -65,6 +68,8 @@ interface Staff {
   position: string;
   hireDate: string;
   status: 'Active' | 'Inactive' | 'On Leave';
+  dateOfBirth?: string;
+  experience?: number;
 }
 
 const StaffPage: React.FC = () => {
@@ -73,6 +78,7 @@ const StaffPage: React.FC = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [form, setForm] = useState({
     name: '',
@@ -162,6 +168,11 @@ const StaffPage: React.FC = () => {
   const handleEdit = (staff: Staff) => {
     setSelectedStaff(staff);
     setIsEditDialogOpen(true);
+  };
+
+  const handleView = (staff: Staff) => {
+    setSelectedStaff(staff);
+    setIsViewDialogOpen(true);
   };
 
   return (
@@ -305,6 +316,12 @@ const StaffPage: React.FC = () => {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
+                          onClick={() => handleView(member)}
+                        >
+                          <Eye className="mr-2 h-4 w-4" />
+                          View
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
                           onClick={() => handleEdit(member)}
                         >
                           <Edit className="mr-2 h-4 w-4" />
@@ -338,15 +355,29 @@ const StaffPage: React.FC = () => {
               fetchStaff();
             }}
             initialData={selectedStaff ? {
+              _id: selectedStaff._id,
               name: selectedStaff.name,
               email: selectedStaff.email,
               phone: selectedStaff.phone,
               position: selectedStaff.position,
               hireDate: new Date(selectedStaff.hireDate).toISOString().split('T')[0],
-              status: selectedStaff.status
+              status: selectedStaff.status,
+              dateOfBirth: selectedStaff.dateOfBirth ? new Date(selectedStaff.dateOfBirth).toISOString().split('T')[0] : '',
+              experience: selectedStaff.experience
             } : undefined}
-            staffId={selectedStaff?._id}
           />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Staff Details</DialogTitle>
+            <DialogDescription>
+              View detailed information about the staff member
+            </DialogDescription>
+          </DialogHeader>
+          {selectedStaff && <StaffView staff={selectedStaff} />}
         </DialogContent>
       </Dialog>
     </DashboardLayout>

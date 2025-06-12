@@ -18,6 +18,7 @@ const trainerSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.string().email('Invalid email address'),
   phone: z.string().min(10, 'Phone number must be at least 10 digits'),
+  dateOfBirth: z.string().min(1, 'Date of birth is required'),
   specialization: z.string().min(2, 'Specialization is required'),
   experience: z.coerce.number().min(0, 'Experience must be a positive number'),
   bio: z.string().optional(),
@@ -142,6 +143,19 @@ const CreateTrainerPage: React.FC = () => {
                   />
                   {errors.phone && (
                     <p className="text-sm text-red-500">{errors.phone.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                  <Input
+                    id="dateOfBirth"
+                    type="date"
+                    {...register('dateOfBirth')}
+                    required
+                  />
+                  {errors.dateOfBirth && (
+                    <p className="text-sm text-red-500">{errors.dateOfBirth.message}</p>
                   )}
                 </div>
 

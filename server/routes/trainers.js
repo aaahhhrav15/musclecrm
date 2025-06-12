@@ -76,6 +76,7 @@ router.post('/', async (req, res) => {
       name,
       email,
       phone,
+      dateOfBirth,
       specialization,
       experience,
       status,
@@ -96,6 +97,7 @@ router.post('/', async (req, res) => {
       name,
       email,
       phone,
+      dateOfBirth,
       specialization,
       experience,
       status: status || 'active',
@@ -109,10 +111,12 @@ router.post('/', async (req, res) => {
       name,
       email,
       phone,
+      dateOfBirth,
       position: 'Personal Trainer',
       status: status === 'active' ? 'Active' : 'Inactive',
       trainerId: trainer._id,
-      userId: req.user._id
+      userId: req.user._id,
+      experience: experience || 0
     });
 
     console.log('Created new trainer and staff:', {
@@ -213,6 +217,7 @@ router.put('/:id', async (req, res) => {
       existingStaff.email = email;
       existingStaff.phone = phone;
       existingStaff.status = status === 'active' ? 'Active' : 'Inactive';
+      existingStaff.experience = experience || 0;
       await existingStaff.save();
     } else {
       // Create new staff record if none exists
@@ -224,7 +229,8 @@ router.put('/:id', async (req, res) => {
         position: 'Personal Trainer',
         status: status === 'active' ? 'Active' : 'Inactive',
         trainerId: trainer._id,
-        userId: req.user._id
+        userId: req.user._id,
+        experience: experience || 0
       });
     }
 
