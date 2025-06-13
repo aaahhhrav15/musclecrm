@@ -80,12 +80,15 @@ const TrainersPage: React.FC = () => {
 
   useEffect(() => {
     if (!user?.gymId) {
-      toast({
-        title: 'Error',
-        description: 'No gym associated with your account',
-        variant: 'destructive',
-      });
-      navigate('/dashboard');
+      // Only show error toast if not already on the trainers page
+      if (window.location.pathname !== '/dashboard/gym/trainers') {
+        toast({
+          title: 'Error',
+          description: 'No gym associated with your account',
+          variant: 'destructive',
+        });
+        navigate('/dashboard');
+      }
       return;
     }
     fetchTrainers();
