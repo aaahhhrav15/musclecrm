@@ -17,12 +17,17 @@ export function useRequireAuth(redirectTo = '/login') {
 
   useEffect(() => {
     if (!initialLoad && !isLoading && !isAuthenticated) {
-      toast({
-        title: "Authentication required",
-        description: "Please log in to access this page.",
-        variant: "destructive",
-      });
-      navigate(redirectTo);
+      // Only redirect if not on a protected page (e.g., not on /dashboard, /customers, etc.)
+      const protectedPaths = ['/dashboard', '/customers', '/membership-plans', '/trainers', '/class-schedules', '/nutrition-plans', '/events-workshops', '/waiver-forms', '/member-communications', '/health-assessments'];
+      const isProtectedPage = protectedPaths.some(path => window.location.pathname.includes(path));
+      if (!isProtectedPage) {
+        toast({
+          title: "Authentication required",
+          description: "Please log in to access this page.",
+          variant: "destructive",
+        });
+        navigate(redirectTo);
+      }
     }
   }, [isAuthenticated, isLoading, navigate, redirectTo, toast, initialLoad]);
 
