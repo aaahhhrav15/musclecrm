@@ -107,7 +107,19 @@ const App = () => (
                     <Route path="/dashboard/notifications" element={<ProtectedRoute element={<NotificationsPage />} />} />
                     <Route path="/dashboard/settings" element={<ProtectedRoute element={<SettingsPage />} />} />
                     
-                    {/* Industry-specific routes */}
+                    {/* Gym Module Routes */}
+                    <Route path="/dashboard/gym/staff" element={<ProtectedRoute element={<GymStaffPage />} />} />
+                    <Route path="/dashboard/gym/finance" element={<ProtectedRoute element={<GymFinancePage />} />} />
+                    <Route path="/dashboard/gym/attendance" element={<ProtectedRoute element={<GymAttendancePage />} />} />
+                    <Route path="/dashboard/gym/class-schedule" element={<ProtectedRoute element={<ClassSchedulePage />} />} />
+                    <Route path="/dashboard/gym/membership-plans" element={<ProtectedRoute element={<MembershipPlansPage />} />} />
+                    <Route path="/dashboard/gym/nutrition-plans" element={<ProtectedRoute element={<NutritionPlansPage />} />} />
+                    <Route path="/dashboard/gym/events-workshops" element={<ProtectedRoute element={<EventsWorkshopsPage />} />} />
+                    <Route path="/dashboard/gym/waiver-forms" element={<ProtectedRoute element={<WaiverFormsPage />} />} />
+                    <Route path="/dashboard/gym/communications" element={<ProtectedRoute element={<MemberCommunicationsPage />} />} />
+                    <Route path="/dashboard/gym/health-assessments" element={<ProtectedRoute element={<HealthAssessmentsPage />} />} />
+                    
+                    {/* Existing Gym Routes */}
                     <Route path="/dashboard/gym/trainers" element={<ProtectedRoute element={<TrainersPage />} />} />
                     <Route path="/dashboard/gym/trainers/:id" element={<ProtectedRoute element={<ViewTrainerPage />} />} />
                     <Route path="/dashboard/gym/workout-plans" element={<ProtectedRoute element={<WorkoutPlansPage />} />} />

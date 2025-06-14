@@ -6,6 +6,7 @@ const Customer = require('../models/Customer');
 const Booking = require('../models/Booking');
 const Invoice = require('../models/Invoice');
 const Gym = require('../models/Gym');
+const GymStaff = require('../models/GymStaff');
 
 // Get dashboard overview data
 router.get('/overview', auth, async (req, res) => {
@@ -198,23 +199,83 @@ router.get('/', auth, async (req, res) => {
     // Members Section
     console.log('Fetching member metrics...');
     const totalMembers = await Customer.countDocuments({ userId });
-    const activeMembers = await Customer.countDocuments({ userId, membershipStatus: 'active' });
-    const inactiveMembers = await Customer.countDocuments({ userId, membershipStatus: 'inactive' });
-    
-    console.log('Fetching today\'s metrics...');
+
+    // Calculate active members (membership duration hasn't expired)
+    const activeMembers = await Customer.countDocuments({
+      userId,
+      $expr: {
+        $and: [
+          { $gt: ['$membershipDuration', 0] },
+          {
+            $gt: [
+              {
+                $add: [
+                  { $toDate: '$joinDate' },
+                  { $multiply: ['$membershipDuration', 30 * 24 * 60 * 60 * 1000] } // Convert months to milliseconds (30 days per month)
+                ]
+              },
+              new Date()
+            ]
+          }
+        ]
+      }
+    });
+
+    // Calculate inactive members (membership duration has expired)
+    const inactiveMembers = await Customer.countDocuments({
+      userId,
+      $expr: {
+        $or: [
+          { $lte: ['$membershipDuration', 0] },
+          {
+            $lte: [
+              {
+                $add: [
+                  { $toDate: '$joinDate' },
+                  { $multiply: ['$membershipDuration', 30 * 24 * 60 * 60 * 1000] } // Convert months to milliseconds (30 days per month)
+                ]
+              },
+              new Date()
+            ]
+          }
+        ]
+      }
+    });
+
+    // Calculate today's expiring memberships
+    const todayExpiry = await Customer.countDocuments({
+      userId,
+      $expr: {
+        $and: [
+          { $gt: ['$membershipDuration', 0] },
+          {
+            $eq: [
+              {
+                $dateToString: {
+                  date: {
+                    $add: [
+                      { $toDate: '$joinDate' },
+                      { $multiply: ['$membershipDuration', 30 * 24 * 60 * 60 * 1000] } // Convert months to milliseconds (30 days per month)
+                    ]
+                  },
+                  format: '%Y-%m-%d'
+                }
+              },
+              {
+                $dateToString: {
+                  date: new Date(),
+                  format: '%Y-%m-%d'
+                }
+              }
+            ]
+          }
+        ]
+      }
+    });
+
     const todayEmployees = await Customer.countDocuments({
       userId,
       joinDate: { $gte: today, $lt: tomorrow }
-    });
-
-    const todayExpiry = await Customer.countDocuments({
-      userId,
-      membershipExpiry: { $gte: today, $lt: tomorrow }
-    });
-
-    const expiredPackages = await Customer.countDocuments({
-      userId,
-      membershipExpiry: { $lt: today }
     });
 
     const todayEnrolled = await Customer.countDocuments({
@@ -222,28 +283,53 @@ router.get('/', auth, async (req, res) => {
       joinDate: { $gte: today, $lt: tomorrow }
     });
 
+    // Calculate today's birthdays
+    const todayMonth = today.getMonth() + 1;
+    const todayDay = today.getDate();
+    
+    console.log('Today\'s date:', today);
+    console.log('Today\'s month:', todayMonth);
+    console.log('Today\'s day:', todayDay);
+
+    // First, let's find all customers and log their birthdays
+    const allCustomers = await Customer.find({ userId });
+    console.log('All customers:', allCustomers.map(c => ({
+      name: c.name,
+      birthday: c.birthday
+    })));
+
+    // Get all customers and filter in memory
+    const customers = await Customer.find({ userId });
+    const todayMemberBirthdays = customers.filter(customer => {
+      if (!customer.birthday) return false;
+      const birthday = new Date(customer.birthday);
+      return birthday.getMonth() + 1 === todayMonth && birthday.getDate() === todayDay;
+    }).length;
+
+    console.log('Today\'s member birthdays count:', todayMemberBirthdays);
+
+    // Get all employees and filter in memory
+    const employees = await GymStaff.find({ userId });
+    const todayEmployeeBirthdays = employees.filter(employee => {
+      if (!employee.dateOfBirth) return false;
+      const birthday = new Date(employee.dateOfBirth);
+      return birthday.getMonth() + 1 === todayMonth && birthday.getDate() === todayDay;
+    }).length;
+
     console.log('Fetching financial metrics...');
-    const totalMemberAmount = await Invoice.aggregate([
+    const totalMemberAmount = await Customer.aggregate([
       { 
         $match: { 
-          userId,
-          type: 'membership' // Only count membership invoices
+          userId
         } 
       },
       { 
         $group: { 
           _id: null, 
-          total: { $sum: '$total' } 
+          total: { $sum: '$totalSpent' } 
         } 
       }
     ]);
-
-    const todayEmployeeBirthdays = await Customer.countDocuments({
-      userId,
-      birthday: {
-        $regex: `-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`
-      }
-    });
 
     const todayInvoices = await Invoice.countDocuments({
       userId,
@@ -267,13 +353,6 @@ router.get('/', auth, async (req, res) => {
         } 
       }
     ]);
-
-    const todayMemberBirthdays = await Customer.countDocuments({
-      userId,
-      birthday: {
-        $regex: `-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`
-      }
-    });
 
     const todayExpense = await Invoice.aggregate([
       {
@@ -353,7 +432,6 @@ router.get('/', auth, async (req, res) => {
           inactiveMembers: inactiveMembers || 0,
           todayEmployees: todayEmployees || 0,
           todayExpiry: todayExpiry || 0,
-          expiredPackages: expiredPackages || 0,
           todayEnrolled: todayEnrolled || 0,
           totalMemberAmount: totalMemberAmount[0]?.total || 0,
           todayEmployeeBirthdays: todayEmployeeBirthdays || 0,
@@ -397,12 +475,7 @@ router.get('/', auth, async (req, res) => {
     });
   } catch (error) {
     console.error('Dashboard data error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Error fetching dashboard data',
-      error: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    });
+    res.status(500).json({ success: false, message: 'Error fetching dashboard data', error: error.message });
   }
 });
 
