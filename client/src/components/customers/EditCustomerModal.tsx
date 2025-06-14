@@ -50,6 +50,8 @@ const formSchema = z.object({
   membershipType: z.string().optional(),
   birthday: z.date().optional(),
   membershipFees: z.number().min(0, 'Membership fees must be a positive number'),
+  membershipDuration: z.number().min(0, 'Membership duration must be a positive number'),
+  joinDate: z.date(),
 });
 
 interface EditCustomerModalProps {
@@ -58,7 +60,11 @@ interface EditCustomerModalProps {
   customer: Customer;
 }
 
-export function EditCustomerModal({ isOpen, onClose, customer }: EditCustomerModalProps) {
+export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
+  isOpen,
+  onClose,
+  customer,
+}) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -70,46 +76,47 @@ export function EditCustomerModal({ isOpen, onClose, customer }: EditCustomerMod
       email: customer.email,
       phone: customer.phone || '',
       address: customer.address || '',
-      source: customer.source || '',
-      notes: customer.notes || '',
-      membershipType: customer.membershipType || '',
-      birthday: customer.birthday ? new Date(customer.birthday) : undefined,
+      source: customer.source || 'other',
+      membershipType: customer.membershipType || 'none',
       membershipFees: customer.membershipFees || 0,
-    },
+      membershipDuration: customer.membershipDuration || 0,
+      joinDate: customer.joinDate ? new Date(customer.joinDate) : new Date(),
+      notes: customer.notes || '',
+      birthday: customer.birthday ? new Date(customer.birthday) : undefined,
+    }
   });
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       setIsSubmitting(true);
-      const oldFees = customer.membershipFees || 0;
-      const newFees = values.membershipFees || 0;
-      const feeDifference = newFees - oldFees;
-
-      await CustomerService.updateCustomer(customer.id, {
+      const response = await CustomerService.updateCustomer(customer.id, {
         name: values.name,
         email: values.email,
         phone: values.phone || '',
         address: values.address || '',
-        source: values.source,
-        notes: values.notes || '',
-        membershipType: values.membershipType,
-        birthday: values.birthday,
+        source: values.source || 'other',
+        membershipType: values.membershipType || 'none',
         membershipFees: values.membershipFees,
-        totalSpent: customer.totalSpent + feeDifference
+        membershipDuration: values.membershipDuration,
+        joinDate: values.joinDate,
+        notes: values.notes || '',
+        birthday: values.birthday
       });
-      
-      toast({
-        title: 'Success',
-        description: 'Customer updated successfully',
-      });
-      
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
-      onClose();
+
+      if (response.success) {
+        toast({
+          title: "Success",
+          description: "Customer updated successfully",
+        });
+        queryClient.invalidateQueries({ queryKey: ['customers'] });
+        form.reset();
+        onClose();
+      }
     } catch (error) {
       toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to update customer',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to update customer",
+        variant: "destructive",
       });
     } finally {
       setIsSubmitting(false);
@@ -131,13 +138,12 @@ export function EditCustomerModal({ isOpen, onClose, customer }: EditCustomerMod
                 <FormItem>
                   <FormLabel>Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="John Doe" {...field} />
+                    <Input placeholder="Enter name" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            
             <FormField
               control={form.control}
               name="email"
@@ -145,13 +151,12 @@ export function EditCustomerModal({ isOpen, onClose, customer }: EditCustomerMod
                 <FormItem>
                   <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <Input placeholder="john@example.com" {...field} />
+                    <Input placeholder="Enter email" type="email" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            
             <FormField
               control={form.control}
               name="phone"
@@ -159,13 +164,12 @@ export function EditCustomerModal({ isOpen, onClose, customer }: EditCustomerMod
                 <FormItem>
                   <FormLabel>Phone</FormLabel>
                   <FormControl>
-                    <Input placeholder="+1234567890" {...field} />
+                    <Input placeholder="Enter phone number" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            
             <FormField
               control={form.control}
               name="address"
@@ -173,13 +177,12 @@ export function EditCustomerModal({ isOpen, onClose, customer }: EditCustomerMod
                 <FormItem>
                   <FormLabel>Address</FormLabel>
                   <FormControl>
-                    <Input placeholder="123 Main St" {...field} />
+                    <Input placeholder="Enter address" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            
             <FormField
               control={form.control}
               name="source"
@@ -195,7 +198,8 @@ export function EditCustomerModal({ isOpen, onClose, customer }: EditCustomerMod
                     <SelectContent>
                       <SelectItem value="website">Website</SelectItem>
                       <SelectItem value="referral">Referral</SelectItem>
-                      <SelectItem value="social">Social Media</SelectItem>
+                      <SelectItem value="walk-in">Walk-in</SelectItem>
+                      <SelectItem value="social_media">Social Media</SelectItem>
                       <SelectItem value="other">Other</SelectItem>
                     </SelectContent>
                   </Select>
@@ -203,7 +207,6 @@ export function EditCustomerModal({ isOpen, onClose, customer }: EditCustomerMod
                 </FormItem>
               )}
             />
-            
             <FormField
               control={form.control}
               name="membershipType"
@@ -217,6 +220,7 @@ export function EditCustomerModal({ isOpen, onClose, customer }: EditCustomerMod
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
                       <SelectItem value="basic">Basic</SelectItem>
                       <SelectItem value="premium">Premium</SelectItem>
                       <SelectItem value="vip">VIP</SelectItem>
@@ -226,49 +230,72 @@ export function EditCustomerModal({ isOpen, onClose, customer }: EditCustomerMod
                 </FormItem>
               )}
             />
-            
             <FormField
               control={form.control}
               name="membershipFees"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Membership Fees (₹)</FormLabel>
+                  <FormLabel>Membership Fees</FormLabel>
                   <FormControl>
                     <Input 
                       type="number" 
+                      min="0" 
+                      step="0.01" 
                       placeholder="Enter membership fees" 
                       {...field}
-                      value={field.value || ''}
+                      value={field.value || 0}
                       onChange={(e) => {
-                        const value = e.target.value === '' ? 0 : Number(e.target.value);
-                        field.onChange(value);
+                        const value = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                        field.onChange(isNaN(value) ? 0 : value);
                       }}
-                      min={0}
                     />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            
             <FormField
               control={form.control}
-              name="birthday"
+              name="membershipDuration"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Membership Duration (months)</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      min="0" 
+                      step="1" 
+                      placeholder="Enter membership duration in months" 
+                      {...field}
+                      value={field.value || 0}
+                      onChange={(e) => {
+                        const value = e.target.value === '' ? 0 : parseInt(e.target.value);
+                        field.onChange(isNaN(value) ? 0 : value);
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="joinDate"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
-                  <FormLabel>Birthday</FormLabel>
+                  <FormLabel>Join Date</FormLabel>
                   <Popover>
                     <PopoverTrigger asChild>
                       <FormControl>
                         <Button
-                          variant="outline"
+                          variant={"outline"}
                           className={cn(
-                            'w-full pl-3 text-left font-normal',
-                            !field.value && 'text-muted-foreground'
+                            "w-full pl-3 text-left font-normal",
+                            !field.value && "text-muted-foreground"
                           )}
                         >
                           {field.value ? (
-                            format(field.value, 'PPP')
+                            format(field.value, "PPP")
                           ) : (
                             <span>Pick a date</span>
                           )}
@@ -282,7 +309,7 @@ export function EditCustomerModal({ isOpen, onClose, customer }: EditCustomerMod
                         selected={field.value}
                         onSelect={field.onChange}
                         disabled={(date) =>
-                          date > new Date() || date < new Date('1900-01-01')
+                          date > new Date() || date < new Date("1900-01-01")
                         }
                         initialFocus
                       />
@@ -292,7 +319,6 @@ export function EditCustomerModal({ isOpen, onClose, customer }: EditCustomerMod
                 </FormItem>
               )}
             />
-            
             <FormField
               control={form.control}
               name="notes"
@@ -300,23 +326,15 @@ export function EditCustomerModal({ isOpen, onClose, customer }: EditCustomerMod
                 <FormItem>
                   <FormLabel>Notes</FormLabel>
                   <FormControl>
-                    <Textarea
-                      placeholder="Additional notes about the customer"
-                      className="resize-none"
-                      {...field}
-                    />
+                    <Textarea placeholder="Enter notes" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? 'Saving...' : 'Save Changes'}
+                {isSubmitting ? "Updating..." : "Update Customer"}
               </Button>
             </DialogFooter>
           </form>

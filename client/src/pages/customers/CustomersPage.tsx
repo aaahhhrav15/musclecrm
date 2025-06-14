@@ -29,6 +29,7 @@ import { formatDate } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { FilterModal } from '@/components/customers/FilterModal';
+import { ViewCustomerModal } from '@/components/customers/ViewCustomerModal';
 
 interface FilterState {
   membershipType?: string;
@@ -111,16 +112,20 @@ const columns: ColumnDef<Customer>[] = [
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="h-8 w-8 p-0">
+              <span className="sr-only">Open menu</span>
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => setEditingCustomer(customer)}>
+            <DropdownMenuItem onClick={() => handleViewCustomer(customer)}>
+              View Details
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleEditCustomer(customer)}>
               Edit
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => handleDelete(customer.id)}
               className="text-red-600"
+              onClick={() => handleDeleteCustomer(customer.id)}
             >
               Delete
             </DropdownMenuItem>
@@ -134,11 +139,12 @@ const columns: ColumnDef<Customer>[] = [
 export function CustomersPage() {
   const { toast } = useToast();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [filters, setFilters] = useState<FilterState>({});
   const limit = 10;
   const navigate = useNavigate();
@@ -176,6 +182,20 @@ export function CustomersPage() {
   const handleFilterApply = (newFilters: FilterState) => {
     setFilters(newFilters);
     setPage(1); // Reset to first page when filters change
+  };
+
+  const handleViewCustomer = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setIsViewModalOpen(true);
+  };
+
+  const handleEditCustomer = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setIsEditModalOpen(true);
+  };
+
+  const handleDeleteCustomer = (customerId: string) => {
+    handleDelete(customerId);
   };
 
   if (isLoading) {
@@ -265,21 +285,21 @@ export function CustomersPage() {
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="h-8 w-8 p-0">
+                          <span className="sr-only">Open menu</span>
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => setSelectedCustomer(customer)}
-                        >
-                          <Pencil className="mr-2 h-4 w-4" />
+                        <DropdownMenuItem onClick={() => handleViewCustomer(customer)}>
+                          View Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleEditCustomer(customer)}>
                           Edit
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                          onClick={() => handleDelete(customer.id)}
                           className="text-red-600"
+                          onClick={() => handleDeleteCustomer(customer.id)}
                         >
-                          <Trash2 className="mr-2 h-4 w-4" />
                           Delete
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -323,11 +343,24 @@ export function CustomersPage() {
         />
 
         {selectedCustomer && (
-          <EditCustomerModal
-            isOpen={!!selectedCustomer}
-            onClose={() => setSelectedCustomer(null)}
-            customer={selectedCustomer}
-          />
+          <>
+            <EditCustomerModal
+              isOpen={isEditModalOpen}
+              onClose={() => {
+                setIsEditModalOpen(false);
+                setSelectedCustomer(null);
+              }}
+              customer={selectedCustomer}
+            />
+            <ViewCustomerModal
+              isOpen={isViewModalOpen}
+              onClose={() => {
+                setIsViewModalOpen(false);
+                setSelectedCustomer(null);
+              }}
+              customer={selectedCustomer}
+            />
+          </>
         )}
 
         <FilterModal

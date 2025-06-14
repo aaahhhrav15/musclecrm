@@ -10,6 +10,9 @@ export interface Customer {
   notes?: string;
   membershipType?: string;
   membershipFees: number;
+  membershipDuration: number;
+  joinDate: string;
+  birthday?: string;
   totalSpent: number;
   createdAt: string;
   updatedAt: string;
@@ -26,6 +29,9 @@ interface ApiCustomersResponse extends ApiResponse {
     notes?: string;
     membershipType?: string;
     membershipFees: number;
+    membershipDuration: number;
+    joinDate: string;
+    birthday?: string;
     totalSpent: number;
     createdAt: string;
     updatedAt: string;
@@ -44,6 +50,9 @@ interface ApiCustomerResponse extends ApiResponse {
     notes?: string;
     membershipType?: string;
     membershipFees: number;
+    membershipDuration: number;
+    joinDate: string;
+    birthday?: string;
     totalSpent: number;
     createdAt: string;
     updatedAt: string;
@@ -58,9 +67,11 @@ export interface CustomerFormData {
   source: 'website' | 'referral' | 'walk-in' | 'social_media' | 'other';
   membershipType: 'none' | 'basic' | 'premium' | 'vip';
   membershipFees: number;
+  membershipDuration: number;
+  joinDate: Date;
+  birthday?: Date;
   totalSpent?: number;
   notes?: string;
-  birthday?: Date;
 }
 
 export interface CustomerFilterOptions {
@@ -83,6 +94,9 @@ const mapCustomerFromApi = (apiCustomer: any): Customer => ({
   notes: apiCustomer.notes,
   membershipType: apiCustomer.membershipType,
   membershipFees: apiCustomer.membershipFees || 0,
+  membershipDuration: apiCustomer.membershipDuration || 0,
+  joinDate: apiCustomer.joinDate,
+  birthday: apiCustomer.birthday,
   totalSpent: apiCustomer.totalSpent || 0,
   createdAt: apiCustomer.createdAt,
   updatedAt: apiCustomer.updatedAt

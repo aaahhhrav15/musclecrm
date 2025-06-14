@@ -8,6 +8,8 @@ export const customerFormSchema = z.object({
   source: z.enum(['website', 'referral', 'walk-in', 'social_media', 'other']),
   membershipType: z.enum(['none', 'basic', 'premium', 'vip']),
   membershipFees: z.number().min(0, 'Membership fees must be a positive number'),
+  membershipDuration: z.number().min(0, 'Membership duration must be a positive number'),
+  joinDate: z.date(),
   notes: z.string().optional(),
   birthday: z.date().optional(),
 });

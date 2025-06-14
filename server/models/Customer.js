@@ -39,6 +39,14 @@ const customerSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  membershipDuration: {
+    type: Number,  // Duration in months
+    default: 0
+  },
+  joinDate: {
+    type: Date,
+    default: Date.now
+  },
   totalSpent: {
     type: Number,
     default: 0
