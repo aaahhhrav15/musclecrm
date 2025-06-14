@@ -46,8 +46,7 @@ const invoiceSchema = new mongoose.Schema({
   invoiceNumber: {
     type: String,
     required: true,
-    unique: true,
-    default: () => `INV-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    unique: true
   },
   amount: {
     type: Number,
@@ -86,10 +85,22 @@ invoiceSchema.pre('save', function(next) {
   next();
 });
 
-// Ensure invoice number is set before saving
-invoiceSchema.pre('save', function(next) {
+// Generate sequential invoice number
+invoiceSchema.pre('save', async function(next) {
   if (!this.invoiceNumber) {
-    this.invoiceNumber = `INV-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    try {
+      const lastInvoice = await this.constructor.findOne({}, {}, { sort: { 'invoiceNumber': -1 } });
+      let nextNumber = 1;
+      
+      if (lastInvoice && lastInvoice.invoiceNumber) {
+        const lastNumber = parseInt(lastInvoice.invoiceNumber.replace('INV', ''));
+        nextNumber = lastNumber + 1;
+      }
+      
+      this.invoiceNumber = `INV${String(nextNumber).padStart(5, '0')}`;
+    } catch (error) {
+      next(error);
+    }
   }
   next();
 });

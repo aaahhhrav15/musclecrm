@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { Download, Filter, MoreHorizontal, Plus } from 'lucide-react';
+import { Download, Filter, MoreHorizontal, Plus, Eye, Pencil } from 'lucide-react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,11 +42,18 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useQueryClient } from '@tanstack/react-query';
+import InvoiceForm from '@/components/invoices/InvoiceForm';
+import { EditInvoiceModal } from '@/components/invoices/EditInvoiceModal';
+import axios from 'axios';
+import { API_URL } from '@/lib/constants';
 
 const InvoicesPage: React.FC = () => {
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
+  const [isCreateInvoiceOpen, setIsCreateInvoiceOpen] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const queryClient = useQueryClient();
 
   // Fetch invoices
@@ -63,6 +70,58 @@ const InvoicesPage: React.FC = () => {
       }
     }
   });
+
+  const createInvoiceMutation = useMutation({
+    mutationFn: async (data: any) => {
+      console.log('Creating invoice with data:', data);
+      try {
+        const response = await axios.post(`${API_URL}/invoices`, {
+          customerId: data.customerId,
+          items: data.items,
+          amount: data.amount,
+          dueDate: data.dueDate,
+          notes: data.notes,
+          status: 'pending',
+          currency: 'INR'
+        }, { 
+          withCredentials: true,
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        console.log('Server response:', response.data);
+        if (!response.data.success) {
+          throw new Error(response.data.message || 'Failed to create invoice');
+        }
+        return response.data;
+      } catch (error: any) {
+        console.error('Error in mutation function:', error);
+        const errorMessage = error.response?.data?.message || error.message || 'Failed to create invoice';
+        throw new Error(errorMessage);
+      }
+    },
+    onSuccess: (data) => {
+      console.log('Invoice created successfully:', data);
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      toast.success('Invoice created successfully');
+      setIsCreateInvoiceOpen(false);
+    },
+    onError: (error: Error) => {
+      console.error('Invoice creation failed:', error);
+      toast.error(error.message || 'Failed to create invoice');
+    },
+  });
+
+  const handleCreateInvoice = async (data: any) => {
+    console.log('handleCreateInvoice called with data:', data);
+    try {
+      await createInvoiceMutation.mutateAsync(data);
+    } catch (error: any) {
+      console.error('Error in handleCreateInvoice:', error);
+      toast.error(error.message || 'Failed to create invoice. Please try again.');
+    }
+  };
 
   const handleDownloadInvoice = async (invoice: Invoice) => {
     try {
@@ -130,6 +189,23 @@ const InvoicesPage: React.FC = () => {
     }
   };
 
+  const handleViewInvoice = async (invoice: Invoice) => {
+    try {
+      const blob = await InvoiceService.downloadInvoice(invoice._id);
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      toast.success('Invoice opened in new tab');
+    } catch (error) {
+      console.error('Error viewing invoice:', error);
+      toast.error('Failed to view invoice');
+    }
+  };
+
+  const handleEditInvoice = async (invoice: Invoice) => {
+    setSelectedInvoice(invoice);
+    setIsEditModalOpen(true);
+  };
+
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -167,10 +243,10 @@ const InvoicesPage: React.FC = () => {
               <Filter className="w-4 h-4 mr-2" />
               Filters
             </Button>
-            <Button>
+            <Button onClick={() => setIsCreateInvoiceOpen(true)}>
               <Plus className="w-4 h-4 mr-2" />
               New Invoice
-          </Button>
+            </Button>
           </div>
         </div>
 
@@ -179,75 +255,53 @@ const InvoicesPage: React.FC = () => {
             <CardTitle>All Invoices</CardTitle>
           </CardHeader>
           <CardContent>
-        <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Customer</TableHead>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Customer</TableHead>
                     <TableHead>Invoice Number</TableHead>
                     <TableHead>Due Date</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {invoices?.map((invoice) => (
                     <TableRow key={invoice._id}>
+                      <TableCell>{invoice.customerId?.name || 'N/A'}</TableCell>
+                      <TableCell>{invoice.invoiceNumber}</TableCell>
+                      <TableCell>{format(new Date(invoice.dueDate), 'PPP')}</TableCell>
+                      <TableCell>{formatCurrency(invoice.amount)}</TableCell>
                       <TableCell>
-                        {typeof invoice.customerId === 'string' 
-                          ? 'Loading...' 
-                          : invoice.customerId?.name || 'N/A'}
-                      </TableCell>
-                      <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
-                      <TableCell>
-                        {format(new Date(invoice.dueDate), 'MMM d, yyyy')}
-                      </TableCell>
-                      <TableCell>
-                        {formatCurrency(invoice.amount, invoice.currency)}
-                      </TableCell>
-                      <TableCell>
-                        <Select
-                          defaultValue={invoice.status}
-                          onValueChange={(value) => handleStatusChange(invoice._id, value as 'pending' | 'paid' | 'cancelled')}
-                        >
-                          <SelectTrigger className="w-[130px]">
-                            <SelectValue>
-                              <Badge
-                                variant={
-                                  invoice.status === 'paid'
-                            ? 'default' 
-                                    : invoice.status === 'cancelled'
-                                    ? 'destructive'
-                                    : 'secondary'
-                                }
-                              >
-                                {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+                        <Badge className={getStatusColor(invoice.status)}>
+                          {invoice.status.toUpperCase()}
                         </Badge>
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pending">Pending</SelectItem>
-                            <SelectItem value="paid">Paid</SelectItem>
-                            <SelectItem value="cancelled">Cancelled</SelectItem>
-                          </SelectContent>
-                        </Select>
                       </TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" className="h-8 w-8 p-0">
                               <MoreHorizontal className="h-4 w-4" />
-                          </Button>
+                            </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleViewInvoice(invoice)}>
+                              <Eye className="h-4 w-4 mr-2" />
+                              View
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleEditInvoice(invoice)}>
+                              <Pencil className="h-4 w-4 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleDownloadInvoice(invoice)}>
-                              <Download className="w-4 h-4 mr-2" />
+                              <Download className="h-4 w-4 mr-2" />
                               Download
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={() => handleDeleteInvoice(invoice)}
                               className="text-red-600"
+                              onClick={() => handleDeleteInvoice(invoice)}
                             >
                               Delete
                             </DropdownMenuItem>
@@ -256,15 +310,8 @@ const InvoicesPage: React.FC = () => {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {(!invoices || invoices.length === 0) && (
-                  <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                      No invoices found
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                </TableBody>
+              </Table>
             </div>
           </CardContent>
         </Card>
@@ -283,7 +330,25 @@ const InvoicesPage: React.FC = () => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-        </div>
+
+        <InvoiceForm
+          open={isCreateInvoiceOpen}
+          onClose={() => setIsCreateInvoiceOpen(false)}
+          onSubmit={handleCreateInvoice}
+        />
+
+        <EditInvoiceModal
+          isOpen={isEditModalOpen}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setSelectedInvoice(null);
+          }}
+          invoice={selectedInvoice}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ['invoices'] });
+          }}
+        />
+      </div>
     </DashboardLayout>
   );
 };

@@ -36,6 +36,12 @@ interface InvoiceItem {
   quantity: number;
   unitPrice: number;
   amount: number;
+  taxDetails?: {
+    basePrice: number;
+    sgst: number;
+    cgst: number;
+    totalTax: number;
+  };
 }
 
 interface InvoiceFormData {
@@ -47,6 +53,9 @@ interface InvoiceFormData {
   description?: string;
   dueDate?: string;
   tax: number;
+  basePrice: number;
+  sgst: number;
+  cgst: number;
 }
 
 interface InvoiceSubmitData {
@@ -57,6 +66,12 @@ interface InvoiceSubmitData {
   notes?: string;
   status: string;
   currency: string;
+  taxDetails: {
+    basePrice: number;
+    sgst: number;
+    cgst: number;
+    totalTax: number;
+  };
 }
 
 const formSchema = z.object({
@@ -67,7 +82,10 @@ const formSchema = z.object({
   amount: z.coerce.number().min(0, 'Amount must be a positive number'),
   description: z.string().optional(),
   dueDate: z.string().optional(),
-  tax: z.coerce.number().min(0, 'Tax must be a positive number').default(0)
+  tax: z.coerce.number().min(0, 'Tax must be a positive number').default(10),
+  basePrice: z.coerce.number().min(0, 'Base price must be a positive number'),
+  sgst: z.coerce.number().min(0, 'SGST must be a positive number'),
+  cgst: z.coerce.number().min(0, 'CGST must be a positive number')
 });
 
 interface InvoiceFormProps {
@@ -146,17 +164,29 @@ export default function InvoiceForm({ open, onClose, onSubmit }: InvoiceFormProp
       amount: 0,
       description: '',
       dueDate: format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
-      tax: 0
+      tax: 10,
+      basePrice: 0,
+      sgst: 0,
+      cgst: 0
     }
   });
 
-  // Calculate amount when quantity or unit price changes
+  // Calculate base price and GST when amount changes
   useEffect(() => {
-    const quantity = form.getValues('quantity');
-    const unitPrice = form.getValues('unitPrice');
-    const amount = quantity * unitPrice;
-    form.setValue('amount', amount);
-  }, [form.watch('quantity'), form.watch('unitPrice')]);
+    const amount = form.getValues('amount');
+    const taxRate = form.getValues('tax');
+    
+    if (amount > 0 && taxRate > 0) {
+      const basePrice = (amount * 100) / (100 + taxRate);
+      const totalGst = amount - basePrice;
+      const sgst = totalGst / 2;
+      const cgst = totalGst / 2;
+
+      form.setValue('basePrice', Number(basePrice.toFixed(2)));
+      form.setValue('sgst', Number(sgst.toFixed(2)));
+      form.setValue('cgst', Number(cgst.toFixed(2)));
+    }
+  }, [form.watch('amount'), form.watch('tax')]);
 
   const handleSubmit = async (data: InvoiceFormData) => {
     console.log('Form submitted with data:', data);
@@ -165,21 +195,30 @@ export default function InvoiceForm({ open, onClose, onSubmit }: InvoiceFormProp
       const items: InvoiceItem[] = [{
         description: data.description || `${data.chargeType} charge`,
         quantity: data.quantity,
-        unitPrice: data.unitPrice,
-        amount: data.amount
+        unitPrice: data.basePrice,
+        amount: data.amount,
+        taxDetails: {
+          basePrice: data.basePrice,
+          sgst: data.sgst,
+          cgst: data.cgst,
+          totalTax: data.sgst + data.cgst
+        }
       }];
-
-      const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
-      const total = subtotal + (data.tax || 0);
 
       const invoiceData: InvoiceSubmitData = {
         customerId: data.customerId,
         items: items,
-        amount: total,
+        amount: data.amount,
         dueDate: data.dueDate ? new Date(data.dueDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         notes: data.description,
         status: 'pending',
-        currency: 'INR'
+        currency: 'INR',
+        taxDetails: {
+          basePrice: data.basePrice,
+          sgst: data.sgst,
+          cgst: data.cgst,
+          totalTax: data.sgst + data.cgst
+        }
       };
 
       console.log('Submitting invoice data:', invoiceData);
@@ -340,12 +379,12 @@ export default function InvoiceForm({ open, onClose, onSubmit }: InvoiceFormProp
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="amount">Total Amount</Label>
+              <Label htmlFor="amount">Total Amount (Inclusive of GST)</Label>
               <Input
+                id="amount"
                 type="number"
-                readOnly
+                step="0.01"
                 {...form.register('amount')}
-                placeholder="Calculated amount"
               />
             </div>
           </div>
@@ -373,20 +412,43 @@ export default function InvoiceForm({ open, onClose, onSubmit }: InvoiceFormProp
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="tax">Tax (%)</Label>
+              <Label htmlFor="tax">GST Rate (%)</Label>
+              <Input
+                id="tax"
+                type="number"
+                step="0.01"
+                {...form.register('tax')}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label>Base Price</Label>
               <Input
                 type="number"
-                id="tax"
                 step="0.01"
-                min="0"
-                {...form.register('tax', {
-                  setValueAs: (value) => value === '' ? 0 : Number(value)
-                })}
-                placeholder="Enter tax percentage"
+                {...form.register('basePrice')}
+                readOnly
               />
-              {form.formState.errors.tax && (
-                <p className="text-sm text-red-500">{form.formState.errors.tax.message}</p>
-              )}
+            </div>
+            <div className="space-y-2">
+              <Label>SGST (5%)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                {...form.register('sgst')}
+                readOnly
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>CGST (5%)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                {...form.register('cgst')}
+                readOnly
+              />
             </div>
           </div>
 

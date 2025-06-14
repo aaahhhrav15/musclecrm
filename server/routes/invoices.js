@@ -48,18 +48,45 @@ router.get('/:id', async (req, res) => {
 });
 
 // Create new invoice
-router.post('/', async (req, res) => {
+router.post('/', auth, async (req, res) => {
   try {
+    const { customerId, items, amount, dueDate, notes, status, currency } = req.body;
+    const userId = req.user._id;
+    const gymId = req.user.gymId;
+
+    // Get the last invoice number
+    const lastInvoice = await Invoice.findOne({}, {}, { sort: { 'invoiceNumber': -1 } });
+    let nextNumber = 1;
+    
+    if (lastInvoice && lastInvoice.invoiceNumber) {
+      const lastNumber = parseInt(lastInvoice.invoiceNumber.replace('INV', ''));
+      nextNumber = lastNumber + 1;
+    }
+    
+    const invoiceNumber = `INV${String(nextNumber).padStart(5, '0')}`;
+
     const invoice = new Invoice({
-      ...req.body,
-      userId: req.user._id,
-      gymId: req.gymId
+      userId,
+      gymId,
+      customerId,
+      invoiceNumber,
+      items,
+      amount,
+      currency,
+      status,
+      dueDate,
+      notes
     });
+
     await invoice.save();
-    res.status(201).json({ success: true, invoice });
+    res.status(201).json({ success: true, data: invoice });
   } catch (error) {
     console.error('Error creating invoice:', error);
-    res.status(500).json({ success: false, message: 'Error creating invoice' });
+    res.status(500).json({ 
+      success: false, 
+      message: error.message || 'Error creating invoice',
+      error: error.errors || error
+    });
   }
 });
 
@@ -405,50 +432,60 @@ router.get('/:id/pdf', auth, async (req, res) => {
     const totalsWidth = 195;
 
     const subtotal = invoice.items?.reduce((sum, item) => sum + (item.amount || 0), 0) || 0;
-    const tax = invoice.tax || 0;
-    const total = invoice.amount || subtotal + tax;
+    const total = invoice.amount || subtotal;
+    // Use invoice.tax if available, otherwise default to 10%
+    const taxRate = typeof invoice.tax === 'number' ? invoice.tax : 10;
+    const basePrice = +(total * 100 / (100 + taxRate)).toFixed(2);
+    const totalGst = +(total - basePrice).toFixed(2);
+    const sgst = +(totalGst / 2).toFixed(2);
+    const cgst = +(totalGst / 2).toFixed(2);
 
     // Totals background
-    doc.rect(totalsStartX, currentY, totalsWidth, 75)
+    doc.rect(totalsStartX, currentY, totalsWidth, 100)
        .fillColor('#f8fafc')
        .fill()
        .strokeColor('#e2e8f0')
        .lineWidth(1)
        .stroke();
 
-    // Subtotal
+    // Base Price
     doc.fillColor(colors.text)
        .fontSize(10)
        .font('Helvetica')
-       .text('Subtotal:', totalsStartX + 12, currentY + 12);
-    
-    doc.text(formatCurrency(subtotal, invoice.currency), totalsStartX + 12, currentY + 12, {
+       .text('Base Price:', totalsStartX + 12, currentY + 12);
+    doc.text(formatCurrency(basePrice, invoice.currency), totalsStartX + 12, currentY + 12, {
        width: totalsWidth - 24,
        align: 'right'
      });
 
-    // Tax
-    doc.text('Tax:', totalsStartX + 12, currentY + 28);
-    doc.text(formatCurrency(tax, invoice.currency), totalsStartX + 12, currentY + 28, {
+    // SGST
+    doc.text('SGST (5%):', totalsStartX + 12, currentY + 28);
+    doc.text(formatCurrency(sgst, invoice.currency), totalsStartX + 12, currentY + 28, {
+       width: totalsWidth - 24,
+       align: 'right'
+     });
+
+    // CGST
+    doc.text('CGST (5%):', totalsStartX + 12, currentY + 44);
+    doc.text(formatCurrency(cgst, invoice.currency), totalsStartX + 12, currentY + 44, {
        width: totalsWidth - 24,
        align: 'right'
      });
 
     // Total line
-    addLine(totalsStartX + 12, currentY + 45, totalsStartX + totalsWidth - 12, currentY + 45, colors.primary, 1);
+    addLine(totalsStartX + 12, currentY + 60, totalsStartX + totalsWidth - 12, currentY + 60, colors.primary, 1);
 
     // Total
     doc.fillColor(colors.primary)
        .fontSize(12)
        .font('Helvetica-Bold')
-       .text('TOTAL:', totalsStartX + 12, currentY + 55);
-    
-    doc.text(formatCurrency(total, invoice.currency), totalsStartX + 12, currentY + 55, {
+       .text('TOTAL:', totalsStartX + 12, currentY + 70);
+    doc.text(formatCurrency(total, invoice.currency), totalsStartX + 12, currentY + 70, {
        width: totalsWidth - 24,
        align: 'right'
      });
 
-    currentY += 90;
+    currentY += 105;
 
     // Notes Section
     if (invoice.notes && invoice.notes.trim()) {

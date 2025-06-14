@@ -63,6 +63,7 @@ import InvoiceForm from '@/components/invoices/InvoiceForm';
 import axios from 'axios';
 import { API_URL } from '@/lib/constants';
 import { EditInvoiceModal } from '@/components/invoices/EditInvoiceModal';
+import CustomerService from '@/services/CustomerService';
 
 const FinancePage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -73,6 +74,23 @@ const FinancePage: React.FC = () => {
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const queryClient = useQueryClient();
+
+  // Fetch customers
+  const { data: customersData } = useQuery({
+    queryKey: ['customers'],
+    queryFn: async () => {
+      try {
+        const response = await CustomerService.getCustomers();
+        return response;
+      } catch (error) {
+        console.error('Error fetching customers:', error);
+        toast.error('Failed to fetch customers');
+        return { customers: [], total: 0 };
+      }
+    }
+  });
+
+  const customers = customersData?.customers || [];
 
   // Fetch invoices
   const { data: invoices, isLoading, error } = useQuery({
@@ -586,6 +604,7 @@ const FinancePage: React.FC = () => {
         open={isCreateInvoiceOpen}
         onClose={() => setIsCreateInvoiceOpen(false)}
         onSubmit={handleCreateInvoice}
+        customers={customers}
       />
 
       <EditInvoiceModal

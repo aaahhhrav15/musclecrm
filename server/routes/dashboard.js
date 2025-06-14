@@ -343,13 +343,13 @@ router.get('/', auth, async (req, res) => {
         $match: {
           userId,
           dueDate: { $gte: today, $lt: tomorrow },
-          paymentStatus: { $ne: 'paid' }
+          status: { $ne: 'paid' }
         }
       },
       { 
         $group: { 
           _id: null, 
-          total: { $sum: '$remainingAmount' } 
+          total: { $sum: '$amount' } 
         } 
       }
     ]);
@@ -365,7 +365,7 @@ router.get('/', auth, async (req, res) => {
       { 
         $group: { 
           _id: null, 
-          total: { $sum: '$total' } 
+          total: { $sum: '$amount' } 
         } 
       }
     ]);
@@ -380,7 +380,7 @@ router.get('/', auth, async (req, res) => {
       { 
         $group: { 
           _id: null, 
-          total: { $sum: '$total' } 
+          total: { $sum: '$amount' } 
         } 
       }
     ]);
