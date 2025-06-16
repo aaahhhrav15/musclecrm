@@ -65,6 +65,14 @@ app.use('/waiver-forms', express.static(path.join(__dirname, 'public/waiver-form
 }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Serve static files from the uploads directory with proper permissions
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+  setHeaders: (res, path) => {
+    res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.set('Access-Control-Allow-Origin', '*');
+  }
+}));
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);

@@ -11,6 +11,10 @@ const gymSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  logo: {
+    type: String, // URL to the logo image
+    default: null
+  },
   address: {
     street: String,
     city: String,
