@@ -45,13 +45,13 @@ const formSchema = z.object({
   email: z.string().email('Invalid email address'),
   phone: z.string().optional(),
   address: z.string().optional(),
-  source: z.string().optional(),
-  notes: z.string().optional(),
-  membershipType: z.string().optional(),
-  birthday: z.date().optional(),
+  source: z.enum(['website', 'referral', 'walk-in', 'social_media', 'other']),
+  membershipType: z.enum(['none', 'basic', 'premium', 'vip']),
   membershipFees: z.number().min(0, 'Membership fees must be a positive number'),
   membershipDuration: z.number().min(0, 'Membership duration must be a positive number'),
   joinDate: z.date(),
+  notes: z.string().optional(),
+  birthday: z.date().optional(),
 });
 
 interface EditCustomerModalProps {
@@ -105,8 +105,8 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
         email: values.email,
         phone: values.phone || '',
         address: values.address || '',
-        source: values.source || 'other',
-        membershipType: values.membershipType || 'none',
+        source: values.source,
+        membershipType: values.membershipType,
         membershipFees: values.membershipFees,
         membershipDuration: values.membershipDuration,
         joinDate: values.joinDate,

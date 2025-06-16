@@ -8,6 +8,30 @@ const path = require('path');
 
 const router = express.Router();
 
+// Function to generate a unique gym code
+const generateGymCode = async () => {
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let gymCode;
+  let isUnique = false;
+
+  while (!isUnique) {
+    // Generate a 6-character alphanumeric code
+    gymCode = '';
+    for (let i = 0; i < 6; i++) {
+      const randomIndex = Math.floor(Math.random() * characters.length);
+      gymCode += characters[randomIndex];
+    }
+
+    // Check if the gym code already exists
+    const existingGym = await Gym.findOne({ gymCode });
+    if (!existingGym) {
+      isUnique = true;
+    }
+  }
+
+  return gymCode;
+};
+
 // Configure multer for logo upload
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -45,7 +69,7 @@ const generateToken = (userId) => {
 // Register a new user
 router.post('/register', upload.single('logo'), async (req, res) => {
   try {
-    const { name, email, password, industry, role, gymName } = req.body;
+    const { name, email, password, industry, role, gymName, phone } = req.body;
     const logo = req.file ? `/uploads/logos/${req.file.filename}` : undefined;
 
     // Check if user already exists
@@ -55,6 +79,7 @@ router.post('/register', upload.single('logo'), async (req, res) => {
     }
 
     let gymId;
+    let gymData;
 
     // If it's a gym user, create the gym first
     if (industry === 'gym') {
@@ -65,15 +90,28 @@ router.post('/register', upload.single('logo'), async (req, res) => {
         });
       }
 
-      const gym = new Gym({
+      // Generate a unique gym code
+      const gymCode = await generateGymCode();
+
+      const newGym = new Gym({
+        gymCode,
         name: gymName,
         logo: logo,
+        contactInfo: {
+          phone: phone,
+          email: email
+        },
         status: 'active',
         createdAt: new Date()
       });
 
-      await gym.save();
-      gymId = gym._id;
+      const savedGym = await newGym.save();
+      gymId = savedGym._id;
+      gymData = {
+        id: savedGym._id,
+        gymCode: savedGym.gymCode,
+        name: savedGym.name
+      };
     }
 
     // Create new user
@@ -109,7 +147,8 @@ router.post('/register', upload.single('logo'), async (req, res) => {
         industry: user.industry,
         role: user.role,
         gymId: user.gymId
-      }
+      },
+      gym: industry === 'gym' ? gymData : undefined
     });
   } catch (error) {
     console.error('Registration error:', error);
@@ -209,7 +248,7 @@ router.get('/profile', auth, async (req, res) => {
 // Update user profile
 router.put('/profile', auth, async (req, res) => {
   try {
-    const { name, email, industry } = req.body;
+    const { name, email, industry, phone } = req.body;
     
     // Find and update user
     const user = await User.findById(req.user._id);
@@ -217,6 +256,7 @@ router.put('/profile', auth, async (req, res) => {
     if (name) user.name = name;
     if (email) user.email = email;
     if (industry) user.industry = industry;
+    if (phone) user.phone = phone;
     
     await user.save();
     
@@ -228,6 +268,7 @@ router.put('/profile', auth, async (req, res) => {
         email: user.email,
         industry: user.industry,
         role: user.role,
+        phone: user.phone,
         membershipType: user.membershipType,
         joinDate: user.joinDate
       }

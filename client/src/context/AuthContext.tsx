@@ -14,13 +14,31 @@ interface User {
   gymId?: string;
 }
 
+interface SignupResponse {
+  success: boolean;
+  token: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    industry: string;
+    role: string;
+    gymId: string;
+  };
+  gym?: {
+    id: string;
+    gymCode: string;
+    name: string;
+  };
+}
+
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   loading: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
-  signup: (name: string, email: string, password: string, industry: string, gymName?: string) => Promise<void>;
+  signup: (name: string, email: string, password: string, industry: string, gymName?: string, phone?: string) => Promise<SignupResponse>;
   logout: () => void;
   updateUserProfile: (userData: Partial<User>) => Promise<void>;
 }
@@ -124,7 +142,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const signup = async (name: string, email: string, password: string, industry: string, gymName?: string) => {
+  const signup = async (name: string, email: string, password: string, industry: string, gymName?: string, phone?: string): Promise<SignupResponse> => {
     setLoading(true);
     
     try {
@@ -133,7 +151,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         email,
         password,
         industry,
-        gymName
+        gymName,
+        phone
       });
       
       if (response.data.success) {
@@ -154,7 +173,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           title: "Account created",
           description: "Your account has been successfully created.",
         });
+
+        return response.data;
       }
+      throw new Error('Signup failed');
     } catch (error: any) {
       console.error('Signup error:', error);
       

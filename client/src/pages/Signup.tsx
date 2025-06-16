@@ -28,6 +28,7 @@ const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters' }),
   industry: z.string().min(1, { message: 'Please select an industry' }),
+  phone: z.string().min(10, { message: 'Please enter a valid phone number' }),
   logo: z.any().optional(),
 });
 
@@ -48,6 +49,7 @@ const Signup: React.FC = () => {
       email: '',
       password: '',
       industry: '',
+      phone: '',
       logo: null,
     },
   });
@@ -75,12 +77,13 @@ const Signup: React.FC = () => {
       }
 
       // Call signup with individual parameters
-      await signup(
+      const response = await signup(
         values.gymName,
         values.email,
         values.password,
         values.industry,
-        values.gymName
+        values.gymName,
+        values.phone
       );
       
       // Set the industry and navigate
@@ -88,7 +91,7 @@ const Signup: React.FC = () => {
       
       toast({
         title: 'Account created',
-        description: 'Welcome to FlexCRM!',
+        description: `Welcome to FlexCRM! Your gym number is: ${response.gym.gymCode}`,
       });
       
       navigate('/setup');
@@ -149,6 +152,20 @@ const Signup: React.FC = () => {
                         <FormLabel>Email</FormLabel>
                         <FormControl>
                           <Input placeholder="gym@example.com" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="phone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Phone Number</FormLabel>
+                        <FormControl>
+                          <Input placeholder="+1234567890" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

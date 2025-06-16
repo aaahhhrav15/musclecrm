@@ -30,9 +30,19 @@ const retailSalesRoutes = require('./routes/retailSales');
 const app = express();
 
 // Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('MongoDB connected...'))
-  .catch(err => console.log('MongoDB connection error:', err));
+mongoose.connect(process.env.MONGODB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+})
+  .then(() => {
+    console.log('MongoDB connected successfully...');
+    console.log('Connection URI:', process.env.MONGODB_URI.replace(/\/\/[^:]+:[^@]+@/, '//<credentials>@'));
+  })
+  .catch(err => {
+    console.error('MongoDB connection error:', err);
+    console.error('Connection URI:', process.env.MONGODB_URI ? 'URI is set' : 'URI is not set');
+    process.exit(1); // Exit if we can't connect to the database
+  });
 
 // Middleware
 app.use(cors({

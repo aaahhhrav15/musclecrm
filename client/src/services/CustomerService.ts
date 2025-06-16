@@ -178,14 +178,21 @@ export const CustomerService = {
     try {
       const response = await ApiService.put<ApiCustomerResponse>(`/customers/${id}`, customerData);
       
-      if (response.success) {
-        return mapCustomerFromApi(response.customer);
-      } else {
+      if (!response.success) {
         throw new Error(response.message || 'Failed to update customer');
       }
-    } catch (error) {
+
+      return mapCustomerFromApi(response.customer);
+    } catch (error: unknown) {
       console.error('Error updating customer:', error);
-      throw error;
+      if (error instanceof Error) {
+        throw new Error(error.message || 'Failed to update customer');
+      }
+      if (typeof error === 'object' && error !== null && 'response' in error) {
+        const apiError = error as { response?: { data?: { message?: string } } };
+        throw new Error(apiError.response?.data?.message || 'Failed to update customer');
+      }
+      throw new Error('Failed to update customer');
     }
   },
   

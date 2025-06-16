@@ -83,7 +83,7 @@ const SettingsPage: React.FC = () => {
           <TabsContent value="profile" className="space-y-4 mt-6">
             <Card>
               <CardHeader>
-                <CardTitle>Personal Information</CardTitle>
+                <CardTitle>Gym Information</CardTitle>
                 <CardDescription>
                   Update your personal details and preferences.
                 </CardDescription>

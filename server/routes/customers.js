@@ -76,20 +76,56 @@ router.post('/', async (req, res) => {
 // Update a customer
 router.put('/:id', async (req, res) => {
   try {
-    const customer = await Customer.findOneAndUpdate(
-      { _id: req.params.id, gymId: req.gymId },
-      req.body,
-      { new: true }
-    );
-    
+    const {
+      name,
+      email,
+      phone,
+      address,
+      source,
+      membershipType,
+      membershipFees,
+      membershipDuration,
+      joinDate,
+      notes,
+      birthday,
+      totalSpent
+    } = req.body;
+
+    // Find the customer first
+    const customer = await Customer.findOne({
+      _id: req.params.id,
+      gymId: req.gymId
+    });
+
     if (!customer) {
       return res.status(404).json({ success: false, message: 'Customer not found' });
     }
-    
+
+    // Update the fields
+    if (name) customer.name = name;
+    if (email) customer.email = email;
+    if (phone !== undefined) customer.phone = phone;
+    if (address !== undefined) customer.address = address;
+    if (source) customer.source = source;
+    if (membershipType) customer.membershipType = membershipType;
+    if (membershipFees !== undefined) customer.membershipFees = membershipFees;
+    if (membershipDuration !== undefined) customer.membershipDuration = membershipDuration;
+    if (joinDate) customer.joinDate = joinDate;
+    if (notes !== undefined) customer.notes = notes;
+    if (birthday) customer.birthday = birthday;
+    if (totalSpent !== undefined) customer.totalSpent = totalSpent;
+
+    // Save the updated customer
+    await customer.save();
+
     res.json({ success: true, customer });
   } catch (error) {
     console.error('Error updating customer:', error);
-    res.status(500).json({ success: false, message: 'Error updating customer' });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error updating customer',
+      error: error.message 
+    });
   }
 });
 
