@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const path = require('path');
+const fs = require('fs');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -36,11 +37,9 @@ mongoose.connect(process.env.MONGODB_URI, {
 })
   .then(() => {
     console.log('MongoDB connected successfully...');
-    console.log('Connection URI:', process.env.MONGODB_URI.replace(/\/\/[^:]+:[^@]+@/, '//<credentials>@'));
   })
   .catch(err => {
-    console.error('MongoDB connection error:', err);
-    console.error('Connection URI:', process.env.MONGODB_URI ? 'URI is set' : 'URI is not set');
+    console.error('MongoDB  error:', err);
     process.exit(1); // Exit if we can't connect to the database
   });
 
@@ -65,13 +64,63 @@ app.use('/waiver-forms', express.static(path.join(__dirname, 'public/waiver-form
 }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Serve static files from the uploads directory with proper permissions
-app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
-  setHeaders: (res, path) => {
-    res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+// Serve static files from the uploads directory
+app.use('/', express.static(path.join(__dirname, 'uploads'), {
+  setHeaders: (res, filePath) => {
+    // Set CORS headers for all static files
     res.set('Access-Control-Allow-Origin', '*');
+    res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.set('Cross-Origin-Embedder-Policy', 'require-corp');
+    
+    // Set cache control headers
+    res.set('Cache-Control', 'public, max-age=31536000');
+    
+    // Set content type based on file extension
+    const ext = path.extname(filePath).toLowerCase();
+    if (ext === '.png') {
+      res.set('Content-Type', 'image/png');
+    } else if (ext === '.jpg' || ext === '.jpeg') {
+      res.set('Content-Type', 'image/jpeg');
+    } else if (ext === '.gif') {
+      res.set('Content-Type', 'image/gif');
+    } else if (ext === '.webp') {
+      res.set('Content-Type', 'image/webp');
+    }
   }
 }));
+
+// Add a specific route for serving logo files
+app.get('/uploads/logos/:filename', (req, res) => {
+  const filename = req.params.filename;
+  const filePath = path.join(__dirname, 'uploads', 'logos', filename);
+  
+  // Check if file exists
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).send('Logo not found');
+  }
+
+  // Set appropriate headers
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.set('Cross-Origin-Embedder-Policy', 'require-corp');
+  res.set('Cache-Control', 'public, max-age=31536000');
+
+  // Set content type based on file extension
+  const ext = path.extname(filename).toLowerCase();
+  if (ext === '.png') {
+    res.set('Content-Type', 'image/png');
+  } else if (ext === '.jpg' || ext === '.jpeg') {
+    res.set('Content-Type', 'image/jpeg');
+  } else if (ext === '.gif') {
+    res.set('Content-Type', 'image/gif');
+  } else if (ext === '.webp') {
+    res.set('Content-Type', 'image/webp');
+  }
+
+  // Stream the file
+  const stream = fs.createReadStream(filePath);
+  stream.pipe(res);
+});
 
 // Routes
 app.use('/api/auth', authRoutes);

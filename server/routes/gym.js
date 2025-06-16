@@ -6,35 +6,27 @@ const { gymAuth } = require('../middleware/gymAuth');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const fileService = require('../services/fileService');
 
 // Ensure uploads directory exists with proper permissions
 const uploadDir = path.join(__dirname, '..', 'uploads', 'logos');
 if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true, mode: 0o755 });
+  fs.mkdirSync(uploadDir, { recursive: true, mode: 0o777 }); // Set full permissions
 }
 
-// Configure multer for file upload
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, 'gym-' + req.gymId + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
+// Configure multer for memory storage
 const upload = multer({
-  storage: storage,
+  storage: multer.memoryStorage(),
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
+    fileSize: 5 * 1024 * 1024, // 5MB limit
   },
-  fileFilter: function (req, file, cb) {
+  fileFilter: (req, file, cb) => {
     // Accept only image files
-    if (!file.mimetype.startsWith('image/')) {
-      return cb(new Error('Only image files are allowed'));
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed!'), false);
     }
-    cb(null, true);
   }
 });
 
@@ -96,7 +88,7 @@ router.get('/info', async (req, res) => {
 
     // Add full URL for the logo if it exists
     if (gymData.logo) {
-      gymData.logo = `${process.env.API_URL || 'http://localhost:5000'}/${gymData.logo}`;
+      gymData.logo = `${process.env.API_URL || 'http://localhost:5001'}/${gymData.logo}`;
     }
 
     res.json({ success: true, gym: gymData });
@@ -138,39 +130,57 @@ router.put('/info', async (req, res) => {
 // Upload gym logo
 router.put('/logo', auth, gymAuth, upload.single('logo'), async (req, res) => {
   try {
+    console.log('Received logo upload request');
+    console.log('Gym ID from auth:', req.gymId);
+    console.log('Request file:', req.file ? {
+      originalname: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size
+    } : 'No file');
+
     if (!req.file) {
-      return res.status(400).json({ success: false, message: 'No file uploaded' });
+      console.log('No file uploaded');
+      return res.status(400).json({ message: 'No file uploaded' });
     }
 
     const gym = await Gym.findById(req.gymId);
     if (!gym) {
-      return res.status(404).json({ success: false, message: 'Gym not found' });
+      console.log('Gym not found:', req.gymId);
+      return res.status(404).json({ message: 'Gym not found' });
     }
+
+    console.log('Found gym:', gym._id);
 
     // Delete old logo if exists
     if (gym.logo) {
-      const oldLogoPath = path.join(process.cwd(), gym.logo);
-      if (fs.existsSync(oldLogoPath)) {
-        fs.unlinkSync(oldLogoPath);
-      }
+      console.log('Deleting old logo:', gym.logo);
+      await fileService.deleteFile(gym.logo);
     }
 
+    // Save new logo
+    console.log('Saving new logo...');
+    const logoPath = await fileService.saveFile(req.file);
+    console.log('Logo saved with path:', logoPath);
+    
     // Update gym with new logo path
-    const logoPath = req.file.path.replace(/\\/g, '/'); // Convert Windows path to URL format
     gym.logo = logoPath;
     await gym.save();
+    console.log('Gym updated with new logo path');
 
     // Return the full URL for the logo
-    const logoUrl = `${process.env.API_URL || 'http://localhost:5000'}/${logoPath}`;
+    const logoUrl = `${process.env.API_URL || 'http://localhost:5001'}/${logoPath}`;
+    console.log('Returning logo URL:', logoUrl);
 
-    res.json({
-      success: true,
-      logoUrl,
-      message: 'Logo uploaded successfully'
+    res.json({ 
+      message: 'Logo uploaded successfully', 
+      logo: logoUrl 
     });
   } catch (error) {
     console.error('Error uploading logo:', error);
-    res.status(500).json({ success: false, message: 'Error uploading logo' });
+    res.status(500).json({ 
+      message: 'Error uploading logo', 
+      error: error.message 
+    });
   }
 });
 
@@ -179,28 +189,19 @@ router.delete('/logo', auth, gymAuth, async (req, res) => {
   try {
     const gym = await Gym.findById(req.gymId);
     if (!gym) {
-      return res.status(404).json({ success: false, message: 'Gym not found' });
+      return res.status(404).json({ message: 'Gym not found' });
     }
 
-    // Delete logo file if exists
     if (gym.logo) {
-      const logoPath = path.join(process.cwd(), gym.logo);
-      if (fs.existsSync(logoPath)) {
-        fs.unlinkSync(logoPath);
-      }
+      await fileService.deleteFile(gym.logo);
+      gym.logo = null;
+      await gym.save();
     }
 
-    // Remove logo path from gym document
-    gym.logo = null;
-    await gym.save();
-
-    res.json({
-      success: true,
-      message: 'Logo removed successfully'
-    });
+    res.json({ message: 'Logo deleted successfully' });
   } catch (error) {
-    console.error('Error removing logo:', error);
-    res.status(500).json({ success: false, message: 'Error removing logo' });
+    console.error('Error deleting logo:', error);
+    res.status(500).json({ message: 'Error deleting logo', error: error.message });
   }
 });
 

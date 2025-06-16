@@ -69,7 +69,8 @@ const SettingsPage: React.FC = () => {
     // If the URL is already absolute, return it as is
     if (url.startsWith('http')) return url;
     // Otherwise, prepend the API URL
-    return `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/${url}`;
+    const filename = url.split('/').pop();
+    return `${process.env.REACT_APP_API_URL || 'http://localhost:5001'}/uploads/logos/${filename}`;
   };
 
   useEffect(() => {
@@ -108,20 +109,22 @@ const SettingsPage: React.FC = () => {
     if (!file) return;
 
     // Validate file type
-    if (!file.type.startsWith('image/')) {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
       toast({
-        title: "Error",
-        description: "Please upload an image file",
+        title: "Invalid File Type",
+        description: "Please upload a JPEG, PNG, GIF, or WebP image.",
         variant: "destructive",
       });
       return;
     }
 
     // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
+    const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+    if (file.size > maxSize) {
       toast({
-        title: "Error",
-        description: "Image size should be less than 5MB",
+        title: "File Too Large",
+        description: "Image size should be less than 5MB.",
         variant: "destructive",
       });
       return;
@@ -139,7 +142,6 @@ const SettingsPage: React.FC = () => {
       });
 
       if (response.data.success) {
-        // Use the full URL returned from the server
         setLogoPreview(response.data.logoUrl);
         setGymInfo(prev => prev ? { ...prev, logo: response.data.logoUrl } : null);
         toast({
@@ -147,11 +149,11 @@ const SettingsPage: React.FC = () => {
           description: "Logo updated successfully",
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading logo:', error);
       toast({
         title: "Error",
-        description: "Failed to upload logo",
+        description: error.response?.data?.message || "Failed to upload logo. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -382,7 +384,7 @@ const SettingsPage: React.FC = () => {
                                 setLogoPreview(null);
                                 toast({
                                   title: "Error",
-                                  description: "Failed to load logo image",
+                                  description: "Failed to load logo image. Please try uploading again.",
                                   variant: "destructive",
                                 });
                               }}
@@ -410,7 +412,7 @@ const SettingsPage: React.FC = () => {
                             type="file"
                             ref={fileInputRef}
                             className="hidden"
-                            accept="image/*"
+                            accept="image/jpeg,image/png,image/gif,image/webp"
                             onChange={handleLogoChange}
                           />
                           <Button
