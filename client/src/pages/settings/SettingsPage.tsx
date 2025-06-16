@@ -1,7 +1,6 @@
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Save, User, Building, CreditCard, Shield, Bell } from 'lucide-react';
+import { Save, User, Building, CreditCard, Shield, Bell, Edit2 } from 'lucide-react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,12 +21,102 @@ import {
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useForm } from 'react-hook-form';
+import { useToast } from '@/hooks/use-toast';
+import axiosInstance from '@/lib/axios';
+import { useAuth } from '@/context/AuthContext';
+
+interface GymInfo {
+  _id: string;
+  name: string;
+  gymCode: string;
+  contactInfo: {
+    email: string;
+    phone: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface GymFormData {
+  name: string;
+  contactInfo: {
+    email: string;
+    phone: string;
+  };
+}
 
 const SettingsPage: React.FC = () => {
-  const personalForm = useForm();
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const [gymInfo, setGymInfo] = useState<GymInfo | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const personalForm = useForm<GymFormData>();
   const businessForm = useForm();
   const securityForm = useForm();
   const notificationsForm = useForm();
+
+  useEffect(() => {
+    fetchGymInfo();
+  }, []);
+
+  const fetchGymInfo = async () => {
+    try {
+      const response = await axiosInstance.get('/gym/info');
+      if (response.data.success) {
+        setGymInfo(response.data.gym);
+        // Set form default values
+        personalForm.reset({
+          name: response.data.gym.name,
+          contactInfo: {
+            email: response.data.gym.contactInfo.email,
+            phone: response.data.gym.contactInfo.phone
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching gym info:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load gym information",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSaveGymInfo = async (data: GymFormData) => {
+    try {
+      const response = await axiosInstance.put('/gym/info', {
+        name: data.name,
+        contactInfo: {
+          email: data.contactInfo.email,
+          phone: data.contactInfo.phone
+        }
+      });
+      if (response.data.success) {
+        // Update the entire gym info including the new timestamps
+        setGymInfo({
+          ...response.data.gym,
+          updatedAt: new Date().toISOString() // Ensure we have the latest timestamp
+        });
+        setIsEditing(false);
+        toast({
+          title: "Success",
+          description: "Gym information updated successfully",
+        });
+      }
+    } catch (error) {
+      console.error('Error updating gym info:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update gym information",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <DashboardLayout>
@@ -82,39 +171,114 @@ const SettingsPage: React.FC = () => {
           
           <TabsContent value="profile" className="space-y-4 mt-6">
             <Card>
-              <CardHeader>
-                <CardTitle>Gym Information</CardTitle>
-                <CardDescription>
-                  Update your personal details and preferences.
-                </CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Gym Information</CardTitle>
+                  <CardDescription>
+                    View and update your gym details.
+                  </CardDescription>
+                </div>
+                {!isEditing && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsEditing(true)}
+                  >
+                    <Edit2 className="h-4 w-4 mr-2" />
+                    Edit
+                  </Button>
+                )}
               </CardHeader>
               <CardContent className="space-y-4">
-                <form onSubmit={personalForm.handleSubmit(() => {})}>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="firstName">First Name</Label>
-                      <Input id="firstName" defaultValue="John" />
+                {isLoading ? (
+                  <div className="text-center py-4">Loading...</div>
+                ) : gymInfo ? (
+                  <form onSubmit={personalForm.handleSubmit(handleSaveGymInfo)}>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="name">Gym Name</Label>
+                        <Input 
+                          id="name" 
+                          disabled={!isEditing}
+                          {...personalForm.register('name')}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="gymCode">Gym Code</Label>
+                        <Input 
+                          id="gymCode" 
+                          defaultValue={gymInfo?.gymCode}
+                          disabled={true}
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="lastName">Last Name</Label>
-                      <Input id="lastName" defaultValue="Doe" />
+                    <div className="space-y-2 mt-4">
+                      <Label htmlFor="email">Email</Label>
+                      <Input 
+                        id="email" 
+                        type="email" 
+                        disabled={!isEditing}
+                        {...personalForm.register('contactInfo.email')}
+                      />
                     </div>
+                    <div className="space-y-2 mt-4">
+                      <Label htmlFor="phone">Phone</Label>
+                      <Input 
+                        id="phone" 
+                        type="tel" 
+                        disabled={!isEditing}
+                        {...personalForm.register('contactInfo.phone')}
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                      <div className="space-y-2">
+                        <Label>Created At</Label>
+                        <Input 
+                          value={gymInfo ? new Date(gymInfo.createdAt).toLocaleString() : ''}
+                          disabled={true}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Last Updated</Label>
+                        <Input 
+                          value={gymInfo ? new Date(gymInfo.updatedAt).toLocaleString() : ''}
+                          disabled={true}
+                        />
+                      </div>
+                    </div>
+                    {isEditing && (
+                      <div className="flex gap-2 pt-4">
+                        <Button type="submit">
+                          <Save className="mr-2 h-4 w-4" />
+                          Save Changes
+                        </Button>
+                        <Button 
+                          type="button" 
+                          variant="outline"
+                          onClick={() => {
+                            setIsEditing(false);
+                            // Reset form to current gym info
+                            if (gymInfo) {
+                              personalForm.reset({
+                                name: gymInfo.name,
+                                contactInfo: {
+                                  email: gymInfo.contactInfo.email,
+                                  phone: gymInfo.contactInfo.phone
+                                }
+                              });
+                            }
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    )}
+                  </form>
+                ) : (
+                  <div className="text-center py-4 text-muted-foreground">
+                    No gym information available
                   </div>
-                  <div className="space-y-2 mt-4">
-                    <Label htmlFor="email">Email</Label>
-                    <Input id="email" type="email" defaultValue="john.doe@example.com" />
-                  </div>
-                  <div className="space-y-2 mt-4">
-                    <Label htmlFor="phone">Phone</Label>
-                    <Input id="phone" type="tel" defaultValue="555-123-4567" />
-                  </div>
-                  <div className="pt-4">
-                    <Button>
-                      <Save className="mr-2 h-4 w-4" />
-                      Save Changes
-                    </Button>
-                  </div>
-                </form>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

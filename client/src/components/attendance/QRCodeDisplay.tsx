@@ -22,7 +22,7 @@ const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({
   gymId,
   gymName,
 }) => {
-  const qrValue = `${window.location.origin}/check-in/${gymId}`;
+  const qrValue = `https://web-production-6057.up.railway.app/mark_attendance/5BFD6853`;
 
   const handleDownload = () => {
     const canvas = document.createElement('canvas');

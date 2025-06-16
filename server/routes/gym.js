@@ -66,15 +66,24 @@ router.get('/info', async (req, res) => {
 // Update gym information
 router.put('/info', async (req, res) => {
   try {
-    const gym = await Gym.findByIdAndUpdate(
-      req.gymId,
-      req.body,
-      { new: true }
-    );
+    // First find the gym
+    const gym = await Gym.findById(req.gymId);
     
     if (!gym) {
       return res.status(404).json({ success: false, message: 'Gym not found' });
     }
+
+    // Update the fields
+    if (req.body.name) gym.name = req.body.name;
+    if (req.body.contactInfo) {
+      gym.contactInfo = {
+        ...gym.contactInfo,
+        ...req.body.contactInfo
+      };
+    }
+
+    // Save the gym to trigger the pre-save middleware
+    await gym.save();
     
     res.json({ success: true, gym });
   } catch (error) {
