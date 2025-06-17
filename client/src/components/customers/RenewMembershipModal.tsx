@@ -68,6 +68,7 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isDialogOpen, setIsDialogOpen] = React.useState(isOpen);
+  const [membershipEndDate, setMembershipEndDate] = React.useState<Date | null>(null);
 
   React.useEffect(() => {
     setIsDialogOpen(isOpen);
@@ -84,6 +85,22 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
       paymentMode: 'cash',
     }
   });
+
+  // Add effect to calculate end date when start date or duration changes
+  React.useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === 'membershipStartDate' || name === 'membershipDuration') {
+        const startDate = form.getValues('membershipStartDate');
+        const duration = form.getValues('membershipDuration');
+        
+        if (startDate && duration > 0) {
+          const endDate = addMonths(startDate, duration);
+          setMembershipEndDate(endDate);
+        }
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
 
   const handleClose = () => {
     setIsDialogOpen(false);
@@ -295,6 +312,14 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
                   </FormItem>
                 )}
               />
+              {membershipEndDate && (
+                <div className="col-span-2">
+                  <p className="text-sm text-muted-foreground">Membership End Date</p>
+                  <p className="font-medium">{format(membershipEndDate, "PPP")}</p>
+                </div>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="transactionDate"

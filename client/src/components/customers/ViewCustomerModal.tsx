@@ -23,6 +23,13 @@ interface ViewCustomerModalProps {
   customer: Customer;
 }
 
+type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'outline';
+
+interface MembershipStatus {
+  status: string;
+  variant: BadgeVariant;
+}
+
 const formatDate = (date: string | Date | undefined) => {
   if (!date) return 'Not set';
   const dateObj = typeof date === 'string' ? new Date(date) : date;
@@ -55,6 +62,24 @@ const getMembershipTypeColor = (type: string) => {
   }
 };
 
+const getMembershipStatus = (endDate: Date | null): MembershipStatus => {
+  if (!endDate) return { status: 'No Membership', variant: 'secondary' };
+  
+  const today = new Date();
+  const diffTime = endDate.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) {
+    return { status: 'Membership Expired', variant: 'destructive' };
+  } else if (diffDays === 0) {
+    return { status: 'Expiring Today', variant: 'destructive' };
+  } else if (diffDays <= 10) {
+    return { status: `Expiring in ${diffDays} ${diffDays === 1 ? 'day' : 'days'}`, variant: 'secondary' };
+  } else {
+    return { status: 'Active', variant: 'default' };
+  }
+};
+
 const calculateEndDate = (startDate: string | Date | undefined, duration: number) => {
   if (!startDate || !duration) return null;
   const start = typeof startDate === 'string' ? new Date(startDate) : startDate;
@@ -74,19 +99,23 @@ export const ViewCustomerModal: React.FC<ViewCustomerModalProps> = ({
   const [isRenewModalOpen, setIsRenewModalOpen] = React.useState(false);
   const [isTransactionModalOpen, setIsTransactionModalOpen] = React.useState(false);
   const [isDialogOpen, setIsDialogOpen] = React.useState(isOpen);
+  const [membershipEndDate, setMembershipEndDate] = React.useState<Date | null>(null);
 
   React.useEffect(() => {
     setIsDialogOpen(isOpen);
   }, [isOpen]);
 
+  React.useEffect(() => {
+    const endDate = customer.membershipEndDate 
+      ? new Date(customer.membershipEndDate)
+      : calculateEndDate(customer.membershipStartDate, customer.membershipDuration);
+    setMembershipEndDate(endDate);
+  }, [customer.membershipStartDate, customer.membershipDuration, customer.membershipEndDate]);
+
   const handleClose = () => {
     setIsDialogOpen(false);
     onClose();
   };
-
-  const membershipEndDate = customer.membershipEndDate 
-    ? new Date(customer.membershipEndDate)
-    : calculateEndDate(customer.membershipStartDate, customer.membershipDuration);
 
   const isMembershipExpired = membershipEndDate ? membershipEndDate < new Date() : false;
 
@@ -148,8 +177,8 @@ export const ViewCustomerModal: React.FC<ViewCustomerModalProps> = ({
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Status</p>
-                      <Badge variant={customer.status === 'active' ? 'default' : 'destructive'}>
-                        {customer.status?.toUpperCase() || 'INACTIVE'}
+                      <Badge variant={getMembershipStatus(membershipEndDate).variant}>
+                        {getMembershipStatus(membershipEndDate).status}
                       </Badge>
                     </div>
                     <div>
