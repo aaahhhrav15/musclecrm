@@ -115,7 +115,7 @@ const ViewWorkoutPlanPage: React.FC = () => {
           <div className="flex space-x-4">
             <Button
               variant="outline"
-              onClick={() => navigate(`/dashboard/gym/workout-plans/edit/${plan._id}`)}
+              onClick={() => navigate(`/dashboard/gym/workout-plans/${plan._id}/edit`)}
             >
               Edit Plan
             </Button>

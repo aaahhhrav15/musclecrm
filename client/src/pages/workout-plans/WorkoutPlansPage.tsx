@@ -95,7 +95,7 @@ const WorkoutPlansPage: React.FC = () => {
               View Assigned Plans
             </Button>
             <Button
-              onClick={() => navigate('/dashboard/gym/workout-plans/new')}
+              onClick={() => navigate('/dashboard/gym/workout-plans/create')}
               className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md transition-colors"
             >
               Create Workout Plan
@@ -139,7 +139,7 @@ const WorkoutPlansPage: React.FC = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => navigate(`/dashboard/gym/workout-plans/edit/${plan._id}`)}
+                          onClick={() => navigate(`/dashboard/gym/workout-plans/${plan._id}/edit`)}
                         >
                           Edit
                         </Button>

@@ -125,9 +125,9 @@ const App = () => (
                     <Route path="/dashboard/gym/trainers/:id" element={<ProtectedRoute element={<ViewTrainerPage />} />} />
                     <Route path="/dashboard/gym/workout-plans" element={<ProtectedRoute element={<WorkoutPlansPage />} />} />
                     <Route path="/dashboard/gym/workout-plans/create" element={<ProtectedRoute element={<CreateWorkoutPlanPage />} />} />
+                    <Route path="/dashboard/gym/workout-plans/assigned" element={<ProtectedRoute element={<AssignedWorkoutPlansPage />} />} />
                     <Route path="/dashboard/gym/workout-plans/:id/edit" element={<ProtectedRoute element={<EditWorkoutPlanPage />} />} />
                     <Route path="/dashboard/gym/workout-plans/:id/assign" element={<ProtectedRoute element={<AssignWorkoutPlanPage />} />} />
-                    <Route path="/dashboard/gym/workout-plans/assigned" element={<ProtectedRoute element={<AssignedWorkoutPlansPage />} />} />
                     <Route path="/dashboard/gym/workout-plans/:id" element={<ProtectedRoute element={<ViewWorkoutPlanPage />} />} />
                     <Route path="/dashboard/gym/retail-sales" element={<ProtectedRoute element={<RetailSalesPage />} />} />
                     
