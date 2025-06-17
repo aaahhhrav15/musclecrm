@@ -76,6 +76,7 @@ router.post('/', async (req, res) => {
 // Update a customer
 router.put('/:id', async (req, res) => {
   try {
+    const { id } = req.params;
     const {
       name,
       email,
@@ -86,22 +87,38 @@ router.put('/:id', async (req, res) => {
       membershipFees,
       membershipDuration,
       joinDate,
+      membershipStartDate,
+      membershipEndDate,
+      transactionDate,
+      paymentMode,
       notes,
-      birthday,
-      totalSpent
+      birthday
     } = req.body;
 
-    // Find the customer first
-    const customer = await Customer.findOne({
-      _id: req.params.id,
-      gymId: req.gymId
-    });
-
-    if (!customer) {
-      return res.status(404).json({ success: false, message: 'Customer not found' });
+    // Check if email is being changed and if it already exists
+    if (email) {
+      const existingCustomer = await Customer.findOne({ 
+        email, 
+        _id: { $ne: id } // Exclude current customer
+      });
+      
+      if (existingCustomer) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email address is already in use by another customer'
+        });
+      }
     }
 
-    // Update the fields
+    const customer = await Customer.findById(id);
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        message: 'Customer not found'
+      });
+    }
+
+    // Update customer fields
     if (name) customer.name = name;
     if (email) customer.email = email;
     if (phone !== undefined) customer.phone = phone;
@@ -111,20 +128,25 @@ router.put('/:id', async (req, res) => {
     if (membershipFees !== undefined) customer.membershipFees = membershipFees;
     if (membershipDuration !== undefined) customer.membershipDuration = membershipDuration;
     if (joinDate) customer.joinDate = joinDate;
+    if (membershipStartDate) customer.membershipStartDate = membershipStartDate;
+    if (membershipEndDate !== undefined) customer.membershipEndDate = membershipEndDate;
+    if (transactionDate) customer.transactionDate = transactionDate;
+    if (paymentMode) customer.paymentMode = paymentMode;
     if (notes !== undefined) customer.notes = notes;
-    if (birthday) customer.birthday = birthday;
-    if (totalSpent !== undefined) customer.totalSpent = totalSpent;
+    if (birthday !== undefined) customer.birthday = birthday;
 
-    // Save the updated customer
     await customer.save();
 
-    res.json({ success: true, customer });
+    res.json({
+      success: true,
+      message: 'Customer updated successfully',
+      customer
+    });
   } catch (error) {
     console.error('Error updating customer:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Error updating customer',
-      error: error.message 
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to update customer'
     });
   }
 });

@@ -194,6 +194,11 @@ export function CustomersPage() {
     setIsEditModalOpen(true);
   };
 
+  const handleCustomerUpdated = (updatedCustomer: Customer) => {
+    setSelectedCustomer(updatedCustomer);
+    queryClient.invalidateQueries({ queryKey: ['customers'] });
+  };
+
   const handleDeleteCustomer = (customerId: string) => {
     handleDelete(customerId);
   };
@@ -346,19 +351,15 @@ export function CustomersPage() {
           <>
             <EditCustomerModal
               isOpen={isEditModalOpen}
-              onClose={() => {
-                setIsEditModalOpen(false);
-                setSelectedCustomer(null);
-              }}
+              onClose={() => setIsEditModalOpen(false)}
               customer={selectedCustomer}
+              onCustomerUpdated={handleCustomerUpdated}
             />
             <ViewCustomerModal
               isOpen={isViewModalOpen}
-              onClose={() => {
-                setIsViewModalOpen(false);
-                setSelectedCustomer(null);
-              }}
+              onClose={() => setIsViewModalOpen(false)}
               customer={selectedCustomer}
+              onCustomerUpdated={handleCustomerUpdated}
             />
           </>
         )}

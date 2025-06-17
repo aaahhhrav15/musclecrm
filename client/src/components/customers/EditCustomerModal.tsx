@@ -50,6 +50,10 @@ const formSchema = z.object({
   membershipFees: z.number().min(0, 'Membership fees must be a positive number'),
   membershipDuration: z.number().min(0, 'Membership duration must be a positive number'),
   joinDate: z.date(),
+  membershipStartDate: z.date(),
+  membershipEndDate: z.date().optional(),
+  transactionDate: z.date(),
+  paymentMode: z.enum(['cash', 'card', 'upi', 'bank_transfer', 'other']),
   notes: z.string().optional(),
   birthday: z.date().optional(),
 });
@@ -58,12 +62,14 @@ interface EditCustomerModalProps {
   isOpen: boolean;
   onClose: () => void;
   customer: Customer;
+  onCustomerUpdated?: (updatedCustomer: Customer) => void;
 }
 
 export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
   isOpen,
   onClose,
   customer,
+  onCustomerUpdated,
 }) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -86,6 +92,10 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
       membershipFees: customer.membershipFees || 0,
       membershipDuration: customer.membershipDuration || 0,
       joinDate: customer.joinDate ? new Date(customer.joinDate) : new Date(),
+      membershipStartDate: customer.membershipStartDate ? new Date(customer.membershipStartDate) : new Date(),
+      membershipEndDate: customer.membershipEndDate ? new Date(customer.membershipEndDate) : undefined,
+      transactionDate: customer.transactionDate ? new Date(customer.transactionDate) : new Date(),
+      paymentMode: customer.paymentMode || 'cash',
       notes: customer.notes || '',
       birthday: customer.birthday ? new Date(customer.birthday) : undefined,
     }
@@ -100,32 +110,54 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       setIsSubmitting(true);
-      const response = await CustomerService.updateCustomer(customer.id, {
+      
+      // Format dates to ISO strings
+      const formattedData = {
         name: values.name,
         email: values.email,
         phone: values.phone || '',
         address: values.address || '',
         source: values.source,
         membershipType: values.membershipType,
-        membershipFees: values.membershipFees,
-        membershipDuration: values.membershipDuration,
-        joinDate: values.joinDate,
+        membershipFees: Number(values.membershipFees),
+        membershipDuration: Number(values.membershipDuration),
+        joinDate: values.joinDate.toISOString(),
+        membershipStartDate: values.membershipStartDate.toISOString(),
+        membershipEndDate: values.membershipEndDate ? values.membershipEndDate.toISOString() : undefined,
+        transactionDate: values.transactionDate.toISOString(),
+        paymentMode: values.paymentMode,
         notes: values.notes || '',
-        birthday: values.birthday
-      });
+        birthday: values.birthday ? values.birthday.toISOString() : undefined,
+        totalSpent: Number(values.membershipFees) // Ensure totalSpent is included
+      };
 
-      if (response.success) {
+      const updatedCustomer = await CustomerService.updateCustomer(customer.id, formattedData);
+
+      if (updatedCustomer) {
         toast({
           title: "Success",
           description: "Customer updated successfully",
         });
         await queryClient.invalidateQueries({ queryKey: ['customers'] });
+        if (onCustomerUpdated) {
+          onCustomerUpdated(updatedCustomer);
+        }
         handleClose();
       }
     } catch (error) {
+      console.error('Error updating customer:', error);
+      let errorMessage = 'Failed to update customer';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'object' && error !== null && 'response' in error) {
+        const apiError = error as { response?: { data?: { message?: string } } };
+        errorMessage = apiError.response?.data?.message || errorMessage;
+      }
+      
       toast({
         title: "Error",
-        description: "Failed to update customer",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -135,7 +167,7 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
 
   return (
     <Dialog open={isDialogOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>Edit Customer</DialogTitle>
         </DialogHeader>
@@ -382,6 +414,158 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
             </div>
             <FormField
               control={form.control}
+              name="membershipStartDate"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>Membership Start Date</FormLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full pl-3 text-left font-normal",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          {field.value ? (
+                            format(field.value, "PPP")
+                          ) : (
+                            <span>Pick a date</span>
+                          )}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={field.value}
+                        onSelect={field.onChange}
+                        disabled={(date) =>
+                          date < new Date("1900-01-01")
+                        }
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="membershipEndDate"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>Membership End Date (Optional)</FormLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full pl-3 text-left font-normal",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          {field.value ? (
+                            format(field.value, "PPP")
+                          ) : (
+                            <span>Pick a date</span>
+                          )}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={field.value}
+                        onSelect={field.onChange}
+                        disabled={(date) =>
+                          date < new Date("1900-01-01")
+                        }
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="transactionDate"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Transaction Date</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant={"outline"}
+                            className={cn(
+                              "w-full pl-3 text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value ? (
+                              format(field.value, "PPP")
+                            ) : (
+                              <span>Pick a date</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={field.onChange}
+                          disabled={(date) =>
+                            date > new Date()
+                          }
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="paymentMode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Payment Mode</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select payment mode" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="cash">Cash</SelectItem>
+                        <SelectItem value="card">Card</SelectItem>
+                        <SelectItem value="upi">UPI</SelectItem>
+                        <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <FormField
+              control={form.control}
               name="notes"
               render={({ field }) => (
                 <FormItem>
@@ -395,7 +579,7 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
             />
             <DialogFooter>
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Updating..." : "Update Customer"}
+                {isSubmitting ? "Saving..." : "Save Changes"}
               </Button>
             </DialogFooter>
           </form>

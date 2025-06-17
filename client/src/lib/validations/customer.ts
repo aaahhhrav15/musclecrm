@@ -10,6 +10,10 @@ export const customerFormSchema = z.object({
   membershipFees: z.number().min(0, 'Membership fees must be a positive number'),
   membershipDuration: z.number().min(0, 'Membership duration must be a positive number'),
   joinDate: z.date(),
+  membershipStartDate: z.date(),
+  membershipEndDate: z.date().optional(),
+  transactionDate: z.date(),
+  paymentMode: z.enum(['cash', 'card', 'upi', 'bank_transfer', 'other']),
   notes: z.string().optional(),
   birthday: z.date().optional(),
 });

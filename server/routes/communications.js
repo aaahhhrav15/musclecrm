@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const nodemailer = require('nodemailer');
 const twilio = require('twilio');
-const Member = require('../models/Member');
+
 
 // Configure email transporter
 const transporter = nodemailer.createTransport({

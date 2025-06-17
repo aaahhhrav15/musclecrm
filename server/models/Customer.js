@@ -13,17 +13,23 @@ const customerSchema = new mongoose.Schema({
   },
   name: {
     type: String,
-    required: true
+    required: true,
+    trim: true
   },
   email: {
     type: String,
-    required: true
+    required: true,
+    unique: true,
+    trim: true,
+    lowercase: true
   },
   phone: {
-    type: String
+    type: String,
+    trim: true
   },
   address: {
-    type: String
+    type: String,
+    trim: true
   },
   source: {
     type: String,
@@ -32,7 +38,7 @@ const customerSchema = new mongoose.Schema({
   },
   membershipType: {
     type: String,
-    enum: ['basic', 'premium', 'vip', 'none'],
+    enum: ['none', 'basic', 'premium', 'vip'],
     default: 'none'
   },
   membershipFees: {
@@ -40,19 +46,36 @@ const customerSchema = new mongoose.Schema({
     default: 0
   },
   membershipDuration: {
-    type: Number,  // Duration in months
+    type: Number,
     default: 0
   },
   joinDate: {
     type: Date,
     default: Date.now
   },
+  membershipStartDate: {
+    type: Date,
+    default: Date.now
+  },
+  membershipEndDate: {
+    type: Date
+  },
+  transactionDate: {
+    type: Date,
+    default: Date.now
+  },
+  paymentMode: {
+    type: String,
+    enum: ['cash', 'card', 'upi', 'bank_transfer', 'other'],
+    default: 'cash'
+  },
   totalSpent: {
     type: Number,
     default: 0
   },
   notes: {
-    type: String
+    type: String,
+    trim: true
   },
   birthday: {
     type: Date
@@ -61,6 +84,8 @@ const customerSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   }
+}, {
+  timestamps: true
 });
 
 // Add indexes for common queries

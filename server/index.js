@@ -8,7 +8,7 @@ const fs = require('fs');
 
 // Import routes
 const authRoutes = require('./routes/auth');
-const membersRoutes = require('./routes/members');
+// const membersRoutes = require('./routes/members');
 const staffRoutes = require('./routes/staff');
 const attendanceRoutes = require('./routes/attendance');
 const invoicesRoutes = require('./routes/invoices');
@@ -27,6 +27,7 @@ const communicationsRoutes = require('./routes/communications');
 const gymRoutes = require('./routes/gym');
 const healthAssessmentRoutes = require('./routes/healthAssessments');
 const retailSalesRoutes = require('./routes/retailSales');
+const transactionsRoutes = require('./routes/transactions');
 
 const app = express();
 
@@ -126,7 +127,7 @@ app.get('/uploads/logos/:filename', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/gym', gymRoutes);
-app.use('/api/gym/members', membersRoutes);
+// app.use('/api/gym/members', membersRoutes);
 app.use('/api/gym/staff', staffRoutes);
 app.use('/api/gym/attendance', attendanceRoutes);
 app.use('/api/invoices', invoicesRoutes);
@@ -143,6 +144,7 @@ app.use('/api/waiver-forms', waiverFormsRoutes);
 app.use('/api/communications', communicationsRoutes);
 app.use('/api/gym/health-assessments', healthAssessmentRoutes);
 app.use('/api/gym/retail-sales', retailSalesRoutes);
+app.use('/api/transactions', transactionsRoutes);
 
 // Root route
 app.get('/', (req, res) => {

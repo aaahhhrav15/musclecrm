@@ -12,6 +12,10 @@ export interface Customer {
   membershipFees: number;
   membershipDuration: number;
   joinDate: string;
+  membershipStartDate: string;
+  membershipEndDate?: string;
+  transactionDate: string;
+  paymentMode: string;
   birthday?: string;
   totalSpent: number;
   createdAt: string;
@@ -31,6 +35,10 @@ interface ApiCustomersResponse extends ApiResponse {
     membershipFees: number;
     membershipDuration: number;
     joinDate: string;
+    membershipStartDate: string;
+    membershipEndDate?: string;
+    transactionDate: string;
+    paymentMode: string;
     birthday?: string;
     totalSpent: number;
     createdAt: string;
@@ -52,6 +60,10 @@ interface ApiCustomerResponse extends ApiResponse {
     membershipFees: number;
     membershipDuration: number;
     joinDate: string;
+    membershipStartDate: string;
+    membershipEndDate?: string;
+    transactionDate: string;
+    paymentMode: string;
     birthday?: string;
     totalSpent: number;
     createdAt: string;
@@ -69,6 +81,8 @@ export interface CustomerFormData {
   membershipFees: number;
   membershipDuration: number;
   joinDate: Date;
+  membershipStartDate: Date;
+  membershipEndDate?: Date;
   birthday?: Date;
   totalSpent?: number;
   notes?: string;
@@ -96,6 +110,10 @@ const mapCustomerFromApi = (apiCustomer: any): Customer => ({
   membershipFees: apiCustomer.membershipFees || 0,
   membershipDuration: apiCustomer.membershipDuration || 0,
   joinDate: apiCustomer.joinDate,
+  membershipStartDate: apiCustomer.membershipStartDate,
+  membershipEndDate: apiCustomer.membershipEndDate,
+  transactionDate: apiCustomer.transactionDate,
+  paymentMode: apiCustomer.paymentMode,
   birthday: apiCustomer.birthday,
   totalSpent: apiCustomer.totalSpent || 0,
   createdAt: apiCustomer.createdAt,
