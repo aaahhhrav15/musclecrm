@@ -83,6 +83,8 @@ export interface CustomerFormData {
   joinDate: Date;
   membershipStartDate: Date;
   membershipEndDate?: Date;
+  transactionDate: Date;
+  paymentMode: 'cash' | 'card' | 'upi' | 'bank_transfer' | 'other';
   birthday?: Date;
   totalSpent?: number;
   notes?: string;
@@ -179,9 +181,9 @@ export const CustomerService = {
   /**
    * Create a new customer
    */
-  createCustomer: async (customerData: CustomerFormData): Promise<ApiResponse> => {
+  createCustomer: async (customerData: CustomerFormData): Promise<ApiCustomerResponse> => {
     try {
-      const response = await ApiService.post<ApiResponse>('/customers', customerData);
+      const response = await ApiService.post<ApiCustomerResponse>('/customers', customerData);
       return response;
     } catch (error) {
       console.error('Error creating customer:', error);

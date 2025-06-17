@@ -3,8 +3,10 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { CustomerService } from '@/services/CustomerService';
+import transactionService from '@/services/transactionService';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/context/AuthContext';
 import {
   Dialog,
   DialogContent,
@@ -51,6 +53,7 @@ const formSchema = z.object({
   membershipDuration: z.number().min(0, 'Membership duration must be a positive number'),
   joinDate: z.date(),
   membershipStartDate: z.date(),
+  membershipEndDate: z.date().optional(),
   transactionDate: z.date(),
   paymentMode: z.enum(['cash', 'card', 'upi', 'bank_transfer', 'other']),
   notes: z.string().optional(),
@@ -68,6 +71,7 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
 }) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -110,6 +114,9 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       setIsSubmitting(true);
+      const endDate = new Date(values.membershipStartDate);
+      endDate.setMonth(endDate.getMonth() + values.membershipDuration);
+
       const response = await CustomerService.createCustomer({
         name: values.name,
         email: values.email,
@@ -121,6 +128,7 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
         membershipDuration: values.membershipDuration,
         joinDate: values.joinDate,
         membershipStartDate: values.membershipStartDate,
+        membershipEndDate: endDate,
         transactionDate: values.transactionDate,
         paymentMode: values.paymentMode,
         totalSpent: values.membershipFees,
@@ -128,12 +136,26 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
         birthday: values.birthday
       });
 
-      if (response.success) {
+      if (response.success && response.customer) {
+        // Create transaction record for joining fees
+        await transactionService.createTransaction({
+          userId: response.customer._id,
+          gymId: user?.gymId,
+          transactionType: 'MEMBERSHIP_JOINING',
+          transactionDate: values.transactionDate,
+          amount: values.membershipFees,
+          membershipType: values.membershipType,
+          paymentMode: values.paymentMode,
+          description: `${values.membershipType.toUpperCase()} membership joining fees for ${values.membershipDuration} months (${format(values.membershipStartDate, 'dd/MM/yyyy')} to ${format(endDate, 'dd/MM/yyyy')})`,
+          status: 'SUCCESS'
+        });
+
         toast({
           title: "Success",
           description: "Customer created successfully",
         });
-        queryClient.invalidateQueries({ queryKey: ['customers'] });
+        await queryClient.invalidateQueries({ queryKey: ['customers'] });
+        await queryClient.invalidateQueries({ queryKey: ['transactions', response.customer._id] });
         onClose();
         form.reset();
       }
