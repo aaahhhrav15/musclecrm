@@ -26,6 +26,16 @@ import axiosInstance from '@/lib/axios';
 import { useAuth } from '@/context/AuthContext';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface GymInfo {
   _id: string;
@@ -50,12 +60,13 @@ interface GymFormData {
 
 const SettingsPage: React.FC = () => {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, updateUserProfile } = useAuth();
   const [gymInfo, setGymInfo] = useState<GymInfo | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pdfRef = useRef<HTMLDivElement>(null);
 
@@ -142,8 +153,9 @@ const SettingsPage: React.FC = () => {
       });
 
       if (response.data.success) {
-        setLogoPreview(response.data.logoUrl);
-        setGymInfo(prev => prev ? { ...prev, logo: response.data.logoUrl } : null);
+        const newLogoUrl = response.data.logoUrl;
+        setLogoPreview(getImageUrl(newLogoUrl));
+        setGymInfo(prev => prev ? { ...prev, logo: newLogoUrl } : null);
         toast({
           title: "Success",
           description: "Logo updated successfully",
@@ -180,6 +192,7 @@ const SettingsPage: React.FC = () => {
         variant: "destructive",
       });
     }
+    setShowDeleteDialog(false);
   };
 
   const handleSaveGymInfo = async (data: GymFormData) => {
@@ -213,33 +226,49 @@ const SettingsPage: React.FC = () => {
     }
   };
 
-  const generatePDF = async (viewOnly: boolean = false) => {
-    if (!gymInfo || !pdfRef.current) return;
-
+  const generatePDF = async (preview: boolean = false) => {
     try {
-      const canvas = await html2canvas(pdfRef.current);
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
-      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
-      const imgX = (pdfWidth - imgWidth * ratio) / 2;
-      const imgY = 30;
+      // Show loading state
+      toast({
+        title: "Generating PDF",
+        description: "Please wait while we generate your PDF...",
+      });
 
-      pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
-      
-      if (viewOnly) {
-        pdf.output('dataurlnewwindow');
+      // Make request to backend
+      const response = await axiosInstance.get('/gym/generate-pdf', {
+        responseType: 'blob' // Important: This tells axios to expect binary data
+      });
+
+      // Create a blob URL from the response
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+
+      if (preview) {
+        // Open PDF in new window
+        window.open(url, '_blank');
       } else {
-        pdf.save(`${gymInfo.name}-info.pdf`);
+        // Create a temporary link and trigger download
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'gym-profile.pdf';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
       }
+
+      // Clean up the blob URL
+      window.URL.revokeObjectURL(url);
+
+      // Show success message
+      toast({
+        title: "Success",
+        description: preview ? "PDF preview opened in new window" : "PDF downloaded successfully",
+      });
     } catch (error) {
       console.error('Error generating PDF:', error);
       toast({
         title: "Error",
-        description: "Failed to generate PDF",
+        description: "Failed to generate PDF. Please try again.",
         variant: "destructive",
       });
     }
@@ -394,7 +423,7 @@ const SettingsPage: React.FC = () => {
                                 variant="destructive"
                                 size="sm"
                                 className="absolute -top-2 -right-2 rounded-full w-6 h-6 p-0"
-                                onClick={handleRemoveLogo}
+                                onClick={() => setShowDeleteDialog(true)}
                               >
                                 <X className="h-4 w-4" />
                               </Button>
@@ -667,6 +696,21 @@ const SettingsPage: React.FC = () => {
           </TabsContent>
         </Tabs>
       </motion.div>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Logo</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove your gym logo? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRemoveLogo}>Remove</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 };

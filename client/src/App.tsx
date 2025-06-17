@@ -106,6 +106,7 @@ const App = () => (
                     <Route path="/dashboard/invoices" element={<ProtectedRoute element={<InvoicesPage />} />} />
                     <Route path="/dashboard/notifications" element={<ProtectedRoute element={<NotificationsPage />} />} />
                     <Route path="/dashboard/settings" element={<ProtectedRoute element={<SettingsPage />} />} />
+                    <Route path="/profile" element={<ProtectedRoute element={<ProfilePage />} />} />
                     
                     {/* Gym Module Routes */}
                     <Route path="/dashboard/gym/staff" element={<ProtectedRoute element={<GymStaffPage />} />} />

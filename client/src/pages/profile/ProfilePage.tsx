@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Loader2, Save } from 'lucide-react';
+import { Loader2, Save, Upload, X } from 'lucide-react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -14,6 +14,17 @@ import { useAuth } from '@/context/AuthContext';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
 import { useToast } from '@/hooks/use-toast';
 import ProfileService, { ProfileUpdateData } from '@/services/ProfileService';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import axiosInstance from '@/lib/axios';
 
 // Form validation schema
 const profileFormSchema = z.object({
@@ -29,6 +40,10 @@ const ProfilePage: React.FC = () => {
   const { user, updateUserProfile } = useAuth();
   const [isUpdating, setIsUpdating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   
   // Use the auth hook to check authentication
@@ -111,6 +126,87 @@ const ProfilePage: React.FC = () => {
     }
   };
   
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        title: "Invalid File Type",
+        description: "Please upload a JPEG, PNG, GIF, or WebP image.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+    if (file.size > maxSize) {
+      toast({
+        title: "File Too Large",
+        description: "Image size should be less than 5MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsUploadingImage(true);
+      const formData = new FormData();
+      formData.append('profileImage', file);
+
+      const response = await axiosInstance.put('/auth/profile-image', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      if (response.data.success) {
+        setProfileImage(response.data.imageUrl);
+        // Update the user context with the new image URL
+        updateUserProfile({ profileImage: response.data.imageUrl });
+        toast({
+          title: "Success",
+          description: "Profile image updated successfully",
+        });
+      }
+    } catch (error: any) {
+      console.error('Error uploading image:', error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to upload image. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  const handleRemoveImage = async () => {
+    try {
+      const response = await axiosInstance.delete('/auth/profile-image');
+      if (response.data.success) {
+        setProfileImage(null);
+        // Update the user context to remove the image
+        updateUserProfile({ profileImage: null });
+        toast({
+          title: "Success",
+          description: "Profile image removed successfully",
+        });
+      }
+    } catch (error) {
+      console.error('Error removing image:', error);
+      toast({
+        title: "Error",
+        description: "Failed to remove profile image",
+        variant: "destructive",
+      });
+    }
+    setShowDeleteDialog(false);
+  };
+  
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -142,10 +238,44 @@ const ProfilePage: React.FC = () => {
           <Card className="md:col-span-1">
             <CardHeader className="text-center">
               <div className="flex justify-center mb-4">
-                <Avatar className="w-24 h-24">
-                  <AvatarImage src="/placeholder.svg" />
-                  <AvatarFallback className="text-lg">{user?.name?.charAt(0) || 'U'}</AvatarFallback>
-                </Avatar>
+                <div className="relative">
+                  <Avatar className="w-24 h-24">
+                    <AvatarImage src={profileImage || user?.profileImage} />
+                    <AvatarFallback className="text-lg">{user?.name?.charAt(0) || 'U'}</AvatarFallback>
+                  </Avatar>
+                  <div className="absolute bottom-0 right-0 flex gap-2">
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      className="hidden"
+                      accept="image/jpeg,image/png,image/gif,image/webp"
+                      onChange={handleImageChange}
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8 rounded-full"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploadingImage}
+                    >
+                      {isUploadingImage ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Upload className="h-4 w-4" />
+                      )}
+                    </Button>
+                    {(profileImage || user?.profileImage) && (
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="h-8 w-8 rounded-full"
+                        onClick={() => setShowDeleteDialog(true)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </div>
               <CardTitle>{user?.name}</CardTitle>
               <CardDescription>{user?.email}</CardDescription>
@@ -238,6 +368,21 @@ const ProfilePage: React.FC = () => {
           </Card>
         </div>
       </motion.div>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Profile Image</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove your profile image? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRemoveImage}>Remove</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 };

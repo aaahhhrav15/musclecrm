@@ -5,6 +5,8 @@ const Gym = require('../models/Gym');
 const auth = require('../middleware/auth');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
+const bcrypt = require('bcryptjs');
 
 const router = express.Router();
 
@@ -56,6 +58,37 @@ const upload = multer({
       return cb(null, true);
     }
     cb(new Error('Only image files are allowed!'));
+  }
+});
+
+// Configure multer for file upload
+const profileStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = path.join(__dirname, '../../uploads/profile');
+    // Create directory if it doesn't exist
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const profileUpload = multer({
+  storage: profileStorage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  },
+  fileFilter: function (req, file, cb) {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed.'));
+    }
   }
 });
 
@@ -276,6 +309,69 @@ router.put('/profile', auth, async (req, res) => {
   } catch (error) {
     console.error('Profile update error:', error);
     res.status(500).json({ success: false, message: 'Server error updating profile' });
+  }
+});
+
+// Update profile image
+router.put('/profile-image', auth, profileUpload.single('profileImage'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No image file provided' });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Delete old profile image if exists
+    if (user.profileImage) {
+      const oldImagePath = path.join(__dirname, '../../uploads/profile', path.basename(user.profileImage));
+      if (fs.existsSync(oldImagePath)) {
+        fs.unlinkSync(oldImagePath);
+      }
+    }
+
+    // Save new profile image
+    const imageUrl = `/uploads/profile/${req.file.filename}`;
+    user.profileImage = imageUrl;
+    await user.save();
+
+    res.json({
+      success: true,
+      imageUrl: imageUrl
+    });
+  } catch (error) {
+    console.error('Profile image update error:', error);
+    res.status(500).json({ success: false, message: 'Server error updating profile image' });
+  }
+});
+
+// Delete profile image
+router.delete('/profile-image', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    if (user.profileImage) {
+      const imagePath = path.join(__dirname, '../../uploads/profile', path.basename(user.profileImage));
+      if (fs.existsSync(imagePath)) {
+        fs.unlinkSync(imagePath);
+      }
+    }
+
+    user.profileImage = null;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Profile image removed successfully'
+    });
+  } catch (error) {
+    console.error('Profile image deletion error:', error);
+    res.status(500).json({ success: false, message: 'Server error removing profile image' });
   }
 });
 

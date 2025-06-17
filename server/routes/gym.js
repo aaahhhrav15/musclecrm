@@ -7,6 +7,9 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const fileService = require('../services/fileService');
+const PDFDocument = require('pdfkit');
+const QRCode = require('qrcode');
+const sharp = require('sharp');
 
 // Ensure uploads directory exists with proper permissions
 const uploadDir = path.join(__dirname, '..', 'uploads', 'logos');
@@ -205,4 +208,343 @@ router.delete('/logo', auth, gymAuth, async (req, res) => {
   }
 });
 
-module.exports = router; 
+// Generate PDF route - Visually Appealing Single Page Design
+router.get('/generate-pdf', auth, gymAuth, async (req, res) => {
+  try {
+    const gym = await Gym.findById(req.gymId);
+    if (!gym) {
+      return res.status(404).json({ message: 'Gym not found' });
+    }
+
+    const doc = new PDFDocument({
+      size: 'A4',
+      margin: 0,
+      bufferPages: true
+    });
+
+    // Set response headers
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename=gym-attendance-qr.pdf');
+
+    // Pipe the PDF to the response
+    doc.pipe(res);
+
+    // Define vibrant color palette
+    const colors = {
+      primary: '#1e293b',      // Slate 800
+      secondary: '#475569',    // Slate 600
+      accent: '#3b82f6',       // Blue 500
+      accent2: '#06b6d4',      // Cyan 500
+      light: '#f1f5f9',        // Slate 100
+      white: '#ffffff',
+      text: '#334155',         // Slate 700
+      textLight: '#64748b',    // Slate 500
+      border: '#cbd5e1',       // Slate 300
+      gradient1: '#3b82f6',    // Blue 500
+      gradient2: '#1d4ed8',    // Blue 700
+      shadow: '#0f172a20'      // Translucent dark
+    };
+
+    const pageWidth = doc.page.width;
+    const pageHeight = doc.page.height;
+
+    // === BACKGROUND DESIGN ===
+    // Main background
+    doc.rect(0, 0, pageWidth, pageHeight)
+       .fillColor(colors.light)
+       .fill();
+
+    // Decorative elements
+    // Top wave-like shape
+    doc.moveTo(0, 0)
+       .lineTo(pageWidth, 0)
+       .lineTo(pageWidth, 120)
+       .quadraticCurveTo(pageWidth/2, 80, 0, 120)
+       .closePath()
+       .fillColor(colors.gradient1)
+       .fill();
+
+    // Bottom decorative shape
+    doc.moveTo(0, pageHeight - 80)
+       .quadraticCurveTo(pageWidth/2, pageHeight - 120, pageWidth, pageHeight - 80)
+       .lineTo(pageWidth, pageHeight)
+       .lineTo(0, pageHeight)
+       .closePath()
+       .fillColor(colors.gradient2)
+       .fill();
+
+    // Floating circles for visual interest
+    doc.circle(pageWidth - 60, 60, 25)
+       .fillColor('#ffffff20')
+       .fill();
+    
+    doc.circle(50, pageHeight - 50, 20)
+       .fillColor('#ffffff15')
+       .fill();
+
+    doc.circle(pageWidth - 30, pageHeight - 30, 15)
+       .fillColor('#ffffff25')
+       .fill();
+
+    // === LOGO SECTION ===
+    let currentY = 40;
+    const logoAreaHeight = 100;
+    const logoMaxWidth = pageWidth - 80;
+    const logoMaxHeight = 80;
+    
+    let hasLogo = false;
+    let logoBuffer = null;
+    let logoDimensions = { width: 0, height: 0 };
+
+    // Process logo if available
+    if (gym.logo) {
+      try {
+        const logoFilename = gym.logo.split('/').pop();
+        const logoPath = path.join(__dirname, '..', 'uploads', 'logos', logoFilename);
+        
+        if (fs.existsSync(logoPath)) {
+          // Get original image dimensions
+          const metadata = await sharp(logoPath).metadata();
+          const originalWidth = metadata.width;
+          const originalHeight = metadata.height;
+          
+          // Calculate dimensions maintaining aspect ratio
+          const aspectRatio = originalWidth / originalHeight;
+          
+          if (aspectRatio > 1) {
+            // Landscape orientation
+            logoDimensions.width = Math.min(logoMaxWidth, originalWidth);
+            logoDimensions.height = logoDimensions.width / aspectRatio;
+            
+            if (logoDimensions.height > logoMaxHeight) {
+              logoDimensions.height = logoMaxHeight;
+              logoDimensions.width = logoDimensions.height * aspectRatio;
+            }
+          } else {
+            // Portrait or square orientation
+            logoDimensions.height = Math.min(logoMaxHeight, originalHeight);
+            logoDimensions.width = logoDimensions.height * aspectRatio;
+            
+            if (logoDimensions.width > logoMaxWidth) {
+              logoDimensions.width = logoMaxWidth;
+              logoDimensions.height = logoDimensions.width / aspectRatio;
+            }
+          }
+
+          // Process image to PNG with appropriate size
+          logoBuffer = await sharp(logoPath)
+            .png()
+            .resize(Math.round(logoDimensions.width), Math.round(logoDimensions.height), { 
+              fit: 'inside', 
+              withoutEnlargement: true 
+            })
+            .toBuffer();
+          
+          hasLogo = true;
+        }
+      } catch (error) {
+        console.error('Error processing logo:', error);
+        hasLogo = false;
+      }
+    }
+
+    // Draw logo or elegant placeholder
+    if (hasLogo && logoBuffer) {
+      const logoX = (pageWidth - logoDimensions.width) / 2;
+      const logoY = currentY + (logoAreaHeight - logoDimensions.height) / 2;
+      
+      // Logo background with soft shadow
+      doc.rect(logoX - 10, logoY - 10, logoDimensions.width + 20, logoDimensions.height + 20)
+         .fillColor(colors.shadow)
+         .fill();
+      
+      doc.rect(logoX - 8, logoY - 8, logoDimensions.width + 16, logoDimensions.height + 16)
+         .fillColor(colors.white)
+         .fill();
+      
+      doc.image(logoBuffer, logoX, logoY, { 
+        width: logoDimensions.width, 
+        height: logoDimensions.height
+      });
+    } else {
+      // Stylish placeholder
+      const placeholderSize = 70;
+      const placeholderX = (pageWidth - placeholderSize) / 2;
+      const placeholderY = currentY + (logoAreaHeight - placeholderSize) / 2;
+      
+      // Gradient background
+      doc.circle(placeholderX + placeholderSize/2, placeholderY + placeholderSize/2, placeholderSize/2)
+         .fillColor(colors.white)
+         .fill();
+      
+      doc.circle(placeholderX + placeholderSize/2, placeholderY + placeholderSize/2, placeholderSize/2 - 5)
+         .fillColor(colors.accent)
+         .fill();
+      
+      // Icon
+      doc.fillColor(colors.white)
+         .fontSize(26)
+         .font('Helvetica-Bold')
+         .text('GYM', placeholderX + placeholderSize/2 - 20, placeholderY + placeholderSize/2 - 10);
+    }
+
+    currentY += logoAreaHeight + 20;
+
+    // === GYM NAME WITH STYLE ===
+    // Background card for gym name
+    const nameCardHeight = 80;
+    const nameCardWidth = pageWidth - 60;
+    const nameCardX = 30;
+    
+    // Card shadow
+    doc.rect(nameCardX + 3, currentY + 3, nameCardWidth, nameCardHeight)
+       .fillColor(colors.shadow)
+       .fill();
+    
+    // Main card
+    doc.rect(nameCardX, currentY, nameCardWidth, nameCardHeight)
+       .fillColor(colors.white)
+       .fill();
+    
+    // Accent line
+    doc.rect(nameCardX, currentY, nameCardWidth, 4)
+       .fillColor(colors.accent)
+       .fill();
+
+    doc.fillColor(colors.primary)
+       .fontSize(24)
+       .font('Helvetica-Bold')
+       .text(gym.name, nameCardX + 20, currentY + 25, {
+         width: nameCardWidth - 40,
+         align: 'center'
+       });
+
+    doc.fillColor(colors.textLight)
+       .fontSize(14)
+       .font('Helvetica')
+       .text('Digital Attendance System', nameCardX + 20, currentY + 50, {
+         width: nameCardWidth - 40,
+         align: 'center'
+       });
+
+    currentY += nameCardHeight + 30;
+
+    // === QR CODE SECTION WITH MODERN DESIGN ===
+    const qrCodeData = `https://web-production-6057.up.railway.app/mark_attendance/${gym.gymCode}`;
+    const qrCodeBuffer = await QRCode.toBuffer(qrCodeData, {
+      errorCorrectionLevel: 'H',
+      margin: 1,
+      width: 200,
+      color: {
+        dark: colors.primary,
+        light: colors.white
+      }
+    });
+
+    const qrSize = 200;
+    const qrX = (pageWidth - qrSize) / 2;
+    
+    // Modern QR container with gradient border
+    const containerPadding = 25;
+    const containerSize = qrSize + (containerPadding * 2);
+    const containerX = (pageWidth - containerSize) / 2;
+    
+    // Outer glow
+    doc.circle(containerX + containerSize/2, currentY + containerSize/2, containerSize/2 + 15)
+       .fillColor('#3b82f620')
+       .fill();
+    
+    // Main container
+    doc.rect(containerX, currentY, containerSize, containerSize)
+       .fillColor(colors.white)
+       .fill();
+    
+    // Gradient border effect
+    doc.rect(containerX, currentY, containerSize, 3)
+       .fillColor(colors.accent)
+       .fill();
+    
+    doc.rect(containerX, currentY + containerSize - 3, containerSize, 3)
+       .fillColor(colors.accent2)
+       .fill();
+    
+    // QR Code
+    doc.image(qrCodeBuffer, qrX, currentY + containerPadding, { 
+      width: qrSize, 
+      height: qrSize
+    });
+
+    currentY += containerSize + 25;
+
+    // === STYLISH GYM CODE DISPLAY ===
+    const codeContainerWidth = 280;
+    const codeContainerX = (pageWidth - codeContainerWidth) / 2;
+    const codeContainerHeight = 55;
+    
+    // Gradient background
+    doc.rect(codeContainerX, currentY, codeContainerWidth, codeContainerHeight)
+       .fillColor(colors.primary)
+       .fill();
+    
+    // Highlight effect
+    doc.rect(codeContainerX, currentY, codeContainerWidth, 2)
+       .fillColor(colors.accent2)
+       .fill();
+
+    // Code text
+    doc.fillColor('#ffffff80')
+       .fontSize(12)
+       .font('Helvetica')
+       .text('Gym Code', codeContainerX, currentY + 12, {
+         width: codeContainerWidth,
+         align: 'center'
+       });
+
+    doc.fillColor(colors.white)
+       .fontSize(20)
+       .font('Helvetica-Bold')
+       .text(gym.gymCode, codeContainerX, currentY + 28, {
+         width: codeContainerWidth,
+         align: 'center'
+       });
+
+    currentY += codeContainerHeight + 20;
+
+    // === SCAN INSTRUCTION ===
+    doc.fillColor(colors.text)
+       .fontSize(16)
+       .font('Helvetica-Bold')
+       .text('Scan to Mark Attendance', 40, currentY, {
+         width: pageWidth - 80,
+         align: 'center'
+       });
+
+    // === FOOTER WITH MODERN TOUCH ===
+    const footerY = pageHeight - 60;
+    
+    doc.fillColor('#ffffff80')
+       .fontSize(11)
+       .font('Helvetica-Bold')
+       .text('Smart Gym Management System', 40, footerY + 10, {
+         width: pageWidth - 80,
+         align: 'center'
+       });
+
+    doc.fillColor('#ffffff60')
+       .fontSize(9)
+       .font('Helvetica')
+       .text('Streamlining fitness experiences with technology', 40, footerY + 25, {
+         width: pageWidth - 80,
+         align: 'center'
+       });
+
+    // Finalize the PDF
+    doc.end();
+    
+  } catch (error) {
+    console.error('Error generating PDF:', error);
+    res.status(500).json({ message: 'Error generating PDF' });
+  }
+});
+
+module.exports = router;

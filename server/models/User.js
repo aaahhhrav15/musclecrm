@@ -54,6 +54,14 @@ const userSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now
+  },
+  bio: {
+    type: String,
+    default: ''
+  },
+  profileImage: {
+    type: String,
+    default: null
   }
 }, {
   timestamps: true
