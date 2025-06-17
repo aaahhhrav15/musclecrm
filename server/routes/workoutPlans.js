@@ -9,7 +9,19 @@ const AssignedWorkoutPlan = require('../models/AssignedWorkoutPlan');
 router.use(auth);
 router.use(gymAuth);
 
-// Get assigned workout plans - This must come BEFORE the /:id route
+// Get all workout plans for the gym
+router.get('/', async (req, res) => {
+  try {
+    const workoutPlans = await WorkoutPlan.find({ gymId: req.gymId })
+      .sort({ createdAt: -1 });
+    res.json({ success: true, workoutPlans });
+  } catch (error) {
+    console.error('Error fetching workout plans:', error);
+    res.status(500).json({ success: false, message: 'Error fetching workout plans' });
+  }
+});
+
+// Get assigned workout plans
 router.get('/assigned', async (req, res) => {
   try {
     console.log('Fetching assigned workout plans...');
@@ -17,7 +29,7 @@ router.get('/assigned', async (req, res) => {
     const assignedPlans = await AssignedWorkoutPlan.find()
       .populate({
         path: 'planId',
-        select: 'name goal level duration',
+        select: 'name goal level duration weeks',
         model: 'WorkoutPlan'
       })
       .sort({ startDate: -1 });
@@ -45,15 +57,63 @@ router.get('/assigned', async (req, res) => {
   }
 });
 
-// Get all workout plans for the gym
-router.get('/', async (req, res) => {
+// Assign workout plan to a member
+router.post('/assign', async (req, res) => {
   try {
-    const workoutPlans = await WorkoutPlan.find({ gymId: req.gymId })
-      .sort({ createdAt: -1 });
-    res.json({ success: true, workoutPlans });
+    const { memberId, memberName, planId, startDate, notes } = req.body;
+
+    // Validate required fields
+    if (!memberId || !memberName || !planId || !startDate) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    // Check if plan exists and get its details
+    const plan = await WorkoutPlan.findById(planId);
+    if (!plan) {
+      return res.status(404).json({ message: 'Workout plan not found' });
+    }
+
+    // Create assigned workout plan with complete plan details
+    const assignedPlan = new AssignedWorkoutPlan({
+      memberId,
+      memberName,
+      planId,
+      plan: {
+        name: plan.name,
+        goal: plan.goal,
+        duration: plan.duration,
+        level: plan.level,
+        weeks: plan.weeks
+      },
+      startDate,
+      notes,
+      status: 'active',
+      gymId: req.gymId
+    });
+
+    await assignedPlan.save();
+
+    res.status(201).json({
+      message: 'Workout plan assigned successfully',
+      assignedPlan
+    });
   } catch (error) {
-    console.error('Error fetching workout plans:', error);
-    res.status(500).json({ success: false, message: 'Error fetching workout plans' });
+    console.error('Error assigning workout plan:', error);
+    res.status(500).json({ message: 'Error assigning workout plan' });
+  }
+});
+
+// Delete an assigned workout plan
+router.delete('/assigned/:id', async (req, res) => {
+  try {
+    const assignedPlan = await AssignedWorkoutPlan.findByIdAndDelete(req.params.id);
+    if (!assignedPlan) {
+      return res.status(404).json({ message: 'Assigned workout plan not found' });
+    }
+    res.json({ message: 'Assigned workout plan deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting assigned workout plan:', error);
+    res.status(500).json({ message: 'Error deleting assigned workout plan' });
   }
 });
 
@@ -127,58 +187,6 @@ router.delete('/:id', async (req, res) => {
   } catch (error) {
     console.error('Error deleting workout plan:', error);
     res.status(500).json({ success: false, message: 'Error deleting workout plan' });
-  }
-});
-
-// Assign workout plan to a member
-router.post('/assign', async (req, res) => {
-  try {
-    const { memberId, memberName, planId, startDate, notes } = req.body;
-
-    // Validate required fields
-    if (!memberId || !memberName || !planId || !startDate) {
-      return res.status(400).json({ message: 'Missing required fields' });
-    }
-
-    // Check if plan exists
-    const plan = await WorkoutPlan.findById(planId);
-    if (!plan) {
-      return res.status(404).json({ message: 'Workout plan not found' });
-    }
-
-    // Create assigned workout plan
-    const assignedPlan = new AssignedWorkoutPlan({
-      memberId,
-      memberName,
-      planId,
-      startDate,
-      notes,
-      status: 'active'
-    });
-
-    await assignedPlan.save();
-
-    res.status(201).json({
-      message: 'Workout plan assigned successfully',
-      assignedPlan
-    });
-  } catch (error) {
-    console.error('Error assigning workout plan:', error);
-    res.status(500).json({ message: 'Error assigning workout plan' });
-  }
-});
-
-// Delete an assigned workout plan
-router.delete('/assigned/:id', async (req, res) => {
-  try {
-    const assignedPlan = await AssignedWorkoutPlan.findByIdAndDelete(req.params.id);
-    if (!assignedPlan) {
-      return res.status(404).json({ message: 'Assigned workout plan not found' });
-    }
-    res.json({ message: 'Assigned workout plan deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting assigned workout plan:', error);
-    res.status(500).json({ message: 'Error deleting assigned workout plan' });
   }
 });
 

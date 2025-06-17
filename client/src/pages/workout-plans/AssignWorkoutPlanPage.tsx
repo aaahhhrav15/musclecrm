@@ -73,7 +73,7 @@ const AssignWorkoutPlanPage: React.FC = () => {
           }),
         ]);
         setCustomers(customersRes.data.customers);
-        setWorkoutPlans(plansRes.data.plans);
+        setWorkoutPlans(plansRes.data.workoutPlans);
       } catch (error) {
         console.error('Error fetching data:', error);
         toast.error('Failed to fetch data');

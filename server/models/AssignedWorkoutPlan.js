@@ -19,6 +19,25 @@ const assignedWorkoutPlanSchema = new mongoose.Schema({
     ref: 'WorkoutPlan', 
     required: true 
   },
+  plan: {
+    name: { type: String, required: true },
+    goal: { type: String, required: true },
+    duration: { type: Number, required: true },
+    level: { type: String, required: true },
+    weeks: [{
+      weekNumber: { type: Number, required: true },
+      days: [{
+        dayNumber: { type: Number, required: true },
+        exercises: [{
+          name: { type: String, required: true },
+          sets: { type: Number, required: true },
+          reps: { type: Number, required: true },
+          restTime: { type: Number, required: true },
+          notes: { type: String }
+        }]
+      }]
+    }]
+  },
   startDate: { 
     type: Date, 
     required: true 

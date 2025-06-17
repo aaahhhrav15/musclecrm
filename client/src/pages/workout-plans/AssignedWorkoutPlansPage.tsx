@@ -5,9 +5,33 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { toast } from 'sonner';
-import { Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus, Eye } from 'lucide-react';
 import axios from 'axios';
 import { API_URL } from '@/config';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+interface Exercise {
+  name: string;
+  sets: number;
+  reps: number;
+  restTime: number;
+  notes?: string;
+}
+
+interface Day {
+  dayNumber: number;
+  exercises: Exercise[];
+}
+
+interface Week {
+  weekNumber: number;
+  days: Day[];
+}
 
 interface AssignedPlan {
   _id: string;
@@ -22,6 +46,7 @@ interface AssignedPlan {
     goal: string;
     level: string;
     duration: number;
+    weeks: Week[];
   } | null;
   createdAt: string;
   updatedAt: string;
@@ -31,6 +56,8 @@ const AssignedWorkoutPlansPage: React.FC = () => {
   const [assignedPlans, setAssignedPlans] = useState<AssignedPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<AssignedPlan | null>(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const navigate = useNavigate();
 
   const fetchAssignedPlans = async () => {
@@ -67,6 +94,11 @@ const AssignedWorkoutPlansPage: React.FC = () => {
       console.error('Error deleting assigned plan:', err);
       toast.error('Failed to delete assigned plan');
     }
+  };
+
+  const handleViewPlan = (plan: AssignedPlan) => {
+    setSelectedPlan(plan);
+    setIsViewModalOpen(true);
   };
 
   const getStatusColor = (status: string) => {
@@ -152,7 +184,7 @@ const AssignedWorkoutPlansPage: React.FC = () => {
                       {plan.plan ? (
                         <Button
                           variant="link"
-                          onClick={() => navigate(`/dashboard/gym/workout-plans/${plan.plan._id}`)}
+                          onClick={() => handleViewPlan(plan)}
                         >
                           {plan.plan.name}
                         </Button>
@@ -169,14 +201,24 @@ const AssignedWorkoutPlansPage: React.FC = () => {
                     <TableCell>{plan.notes || '-'}</TableCell>
                     <TableCell>{new Date(plan.createdAt).toLocaleDateString()}</TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        onClick={() => handleDelete(plan._id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          onClick={() => handleViewPlan(plan)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => handleDelete(plan._id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -184,6 +226,91 @@ const AssignedWorkoutPlansPage: React.FC = () => {
             </Table>
           </CardContent>
         </Card>
+
+        {/* View Plan Modal */}
+        <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                {selectedPlan?.plan?.name} - {selectedPlan?.memberName}
+              </DialogTitle>
+            </DialogHeader>
+            {selectedPlan?.plan && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Goal</p>
+                    <p className="mt-1">{selectedPlan.plan.goal}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Level</p>
+                    <p className="mt-1 capitalize">{selectedPlan.plan.level}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Duration</p>
+                    <p className="mt-1">{selectedPlan.plan.duration} weeks</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Start Date</p>
+                    <p className="mt-1">{new Date(selectedPlan.startDate).toLocaleDateString()}</p>
+                  </div>
+                </div>
+
+                {selectedPlan.plan.weeks && selectedPlan.plan.weeks.length > 0 ? (
+                  selectedPlan.plan.weeks.map((week, weekIndex) => (
+                    <Card key={weekIndex} className="mb-6">
+                      <CardHeader>
+                        <CardTitle>Week {week.weekNumber}</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {week.days.map((day, dayIndex) => (
+                          <div key={dayIndex} className="mb-6 last:mb-0">
+                            <h3 className="text-lg font-semibold mb-4">Day {day.dayNumber}</h3>
+                            <div className="space-y-4">
+                              {day.exercises.map((exercise, exerciseIndex) => (
+                                <div
+                                  key={exerciseIndex}
+                                  className="grid grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg"
+                                >
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-500">Exercise</p>
+                                    <p className="mt-1">{exercise.name}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-500">Sets</p>
+                                    <p className="mt-1">{exercise.sets}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-500">Reps</p>
+                                    <p className="mt-1">{exercise.reps}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-500">Rest Time</p>
+                                    <p className="mt-1">{exercise.restTime} seconds</p>
+                                  </div>
+                                  {exercise.notes && (
+                                    <div className="col-span-4 mt-2">
+                                      <p className="text-sm font-medium text-gray-500">Notes</p>
+                                      <p className="mt-1">{exercise.notes}</p>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <div className="text-center text-gray-500 py-4">
+                    No workout schedule available for this plan.
+                  </div>
+                )}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );

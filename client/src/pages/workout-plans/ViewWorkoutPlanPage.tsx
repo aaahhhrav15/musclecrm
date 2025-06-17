@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import axios from 'axios';
 import { API_URL } from '@/config';
 import { Loader2, ArrowLeft } from 'lucide-react';
+import AssignWorkoutPlanPage from './AssignWorkoutPlanPage';
 
 interface Exercise {
   name: string;
@@ -43,6 +44,12 @@ const ViewWorkoutPlanPage: React.FC = () => {
 
   useEffect(() => {
     const fetchPlan = async () => {
+      // Only fetch if we have a valid ID and it's not 'assign'
+      if (!id || id === 'assign') {
+        setLoading(false);
+        return;
+      }
+
       try {
         const response = await axios.get(`${API_URL}/workout-plans/${id}`, {
           withCredentials: true,
@@ -66,6 +73,11 @@ const ViewWorkoutPlanPage: React.FC = () => {
 
     fetchPlan();
   }, [id, navigate]);
+
+  // If we're on the assign page, render the AssignWorkoutPlanPage component
+  if (id === 'assign') {
+    return <AssignWorkoutPlanPage />;
+  }
 
   if (loading) {
     return (
