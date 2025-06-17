@@ -11,11 +11,6 @@ const transactionSchema = new mongoose.Schema({
         ref: 'Gym',
         required: true
     },
-    transactionType: {
-        type: String,
-        enum: ['MEMBERSHIP_PURCHASE', 'MEMBERSHIP_RENEWAL', 'OTHER'],
-        required: true
-    },
     transactionDate: {
         type: Date,
         required: true,
@@ -25,10 +20,6 @@ const transactionSchema = new mongoose.Schema({
         type: Number,
         required: true
     },
-    membershipType: {
-        type: String,
-        required: true
-    },
     paymentMode: {
         type: String,
         required: true
@@ -36,11 +27,6 @@ const transactionSchema = new mongoose.Schema({
     description: {
         type: String
     },
-    status: {
-        type: String,
-        enum: ['SUCCESS', 'PENDING', 'FAILED'],
-        default: 'SUCCESS'
-    }
 }, {
     timestamps: true
 });
