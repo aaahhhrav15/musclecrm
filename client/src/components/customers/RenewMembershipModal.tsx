@@ -121,6 +121,8 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
         membershipStartDate: values.membershipStartDate,
         membershipEndDate: endDate,
         totalSpent: (customer.totalSpent || 0) + values.membershipFees,
+        transactionDate: values.transactionDate,
+        paymentMode: values.paymentMode,
       });
 
       // Create transaction record
@@ -132,7 +134,7 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
         amount: values.membershipFees,
         membershipType: values.membershipType,
         paymentMode: values.paymentMode,
-        description: `Membership renewal for ${values.membershipDuration} months`,
+        description: `${values.membershipType.toUpperCase()} membership renewal for ${values.membershipDuration} months (${format(values.membershipStartDate, 'dd/MM/yyyy')} to ${format(endDate, 'dd/MM/yyyy')})`,
         status: 'SUCCESS'
       });
 
@@ -142,6 +144,7 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
           description: "Membership renewed successfully",
         });
         await queryClient.invalidateQueries({ queryKey: ['customers'] });
+        await queryClient.invalidateQueries({ queryKey: ['transactions', customer.id] });
         if (onMembershipRenewed) {
           onMembershipRenewed(updatedCustomer);
         }
