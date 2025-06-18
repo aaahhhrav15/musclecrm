@@ -3,6 +3,7 @@ const router = express.Router();
 const NutritionPlan = require('../models/NutritionPlan');
 const auth = require('../middleware/auth');
 const { gymAuth } = require('../middleware/gymAuth');
+const nutritionPlanController = require('../controllers/nutritionPlanController');
 
 // Apply both auth and gymAuth middleware to all routes
 router.use(auth);
@@ -20,77 +21,19 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Generate nutrition plan using Gemini
+router.post('/gemini', nutritionPlanController.generateNutritionPlan);
+
 // Create a new nutrition plan
-router.post('/', async (req, res) => {
-  try {
-    const nutritionPlan = new NutritionPlan({
-      ...req.body,
-      gymId: req.gymId
-    });
-    await nutritionPlan.save();
-    res.status(201).json({ success: true, nutritionPlan });
-  } catch (error) {
-    console.error('Error creating nutrition plan:', error);
-    res.status(500).json({ success: false, message: 'Error creating nutrition plan' });
-  }
-});
+router.post('/', nutritionPlanController.createNutritionPlan);
 
 // Get a specific nutrition plan
-router.get('/:id', async (req, res) => {
-  try {
-    const nutritionPlan = await NutritionPlan.findOne({
-      _id: req.params.id,
-      gymId: req.gymId
-    });
-    
-    if (!nutritionPlan) {
-      return res.status(404).json({ success: false, message: 'Nutrition plan not found' });
-    }
-    
-    res.json({ success: true, nutritionPlan });
-  } catch (error) {
-    console.error('Error fetching nutrition plan:', error);
-    res.status(500).json({ success: false, message: 'Error fetching nutrition plan' });
-  }
-});
+router.get('/:id', nutritionPlanController.getNutritionPlan);
 
 // Update a nutrition plan
-router.put('/:id', async (req, res) => {
-  try {
-    const nutritionPlan = await NutritionPlan.findOneAndUpdate(
-      { _id: req.params.id, gymId: req.gymId },
-      req.body,
-      { new: true }
-    );
-    
-    if (!nutritionPlan) {
-      return res.status(404).json({ success: false, message: 'Nutrition plan not found' });
-    }
-    
-    res.json({ success: true, nutritionPlan });
-  } catch (error) {
-    console.error('Error updating nutrition plan:', error);
-    res.status(500).json({ success: false, message: 'Error updating nutrition plan' });
-  }
-});
+router.put('/:id', nutritionPlanController.updateNutritionPlan);
 
 // Delete a nutrition plan
-router.delete('/:id', async (req, res) => {
-  try {
-    const nutritionPlan = await NutritionPlan.findOneAndDelete({
-      _id: req.params.id,
-      gymId: req.gymId
-    });
-    
-    if (!nutritionPlan) {
-      return res.status(404).json({ success: false, message: 'Nutrition plan not found' });
-    }
-    
-    res.json({ success: true, message: 'Nutrition plan deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting nutrition plan:', error);
-    res.status(500).json({ success: false, message: 'Error deleting nutrition plan' });
-  }
-});
+router.delete('/:id', nutritionPlanController.deleteNutritionPlan);
 
 module.exports = router; 
