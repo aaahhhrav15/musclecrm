@@ -1,3 +1,4 @@
+import React from 'react';
 import { Toaster } from "./components/ui/toaster";
 import { Toaster as Sonner } from "./components/ui/sonner";
 import { TooltipProvider } from "./components/ui/tooltip";
@@ -57,10 +58,6 @@ import HealthAssessmentsPage from '@/pages/gym/HealthAssessmentsPage';
 import RetailSalesPage from './pages/gym/RetailSalesPage';
 import ExpensesPage from './pages/gym/ExpensesPage';
 
-// Profile Pages
-import ProfilePage from "./pages/profile/ProfilePage";
-import BillingPage from "./pages/profile/BillingPage";
-
 // Create a React Query client
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -107,7 +104,6 @@ const App = () => (
                     <Route path="/dashboard/invoices" element={<ProtectedRoute element={<InvoicesPage />} />} />
                     <Route path="/dashboard/notifications" element={<ProtectedRoute element={<NotificationsPage />} />} />
                     <Route path="/dashboard/settings" element={<ProtectedRoute element={<SettingsPage />} />} />
-                    <Route path="/profile" element={<ProtectedRoute element={<ProfilePage />} />} />
                     
                     {/* Gym Module Routes */}
                     <Route path="/dashboard/gym/staff" element={<ProtectedRoute element={<GymStaffPage />} />} />

@@ -102,7 +102,7 @@ const generateToken = (userId) => {
 // Register a new user
 router.post('/register', upload.single('logo'), async (req, res) => {
   try {
-    const { name, email, password, industry, role, gymName, phone } = req.body;
+    const { name, email, password, industry, role, gymName, phone, address } = req.body;
     const logo = req.file ? `/uploads/logos/${req.file.filename}` : undefined;
 
     // Check if user already exists
@@ -130,6 +130,7 @@ router.post('/register', upload.single('logo'), async (req, res) => {
         gymCode,
         name: gymName,
         logo: logo,
+        address: address,
         contactInfo: {
           phone: phone,
           email: email

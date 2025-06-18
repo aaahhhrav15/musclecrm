@@ -119,6 +119,12 @@ router.put('/info', async (req, res) => {
         ...req.body.contactInfo
       };
     }
+    if (req.body.address) {
+      gym.address = {
+        ...gym.address,
+        ...req.body.address
+      };
+    }
 
     // Save the gym to trigger the pre-save middleware
     await gym.save();

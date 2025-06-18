@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 interface Gym {
   _id: string;
   name: string;
+  logo: string | null;
   address: {
     street: string;
     city: string;

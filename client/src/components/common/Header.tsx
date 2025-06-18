@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, Menu, User, LogOut } from 'lucide-react';
@@ -22,6 +22,13 @@ const Header: React.FC<HeaderProps> = ({ transparent = false }) => {
   const { user, isAuthenticated, logout } = useAuth();
   const { gym } = useGym();
 
+  useEffect(() => {
+    if (gym) {
+      console.log('Gym data in header:', gym);
+      console.log('Logo URL:', gym.logo);
+    }
+  }, [gym]);
+
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
   };
@@ -42,7 +49,21 @@ const Header: React.FC<HeaderProps> = ({ transparent = false }) => {
         <Link to="/" className="flex items-center">
           <span className="text-xl font-bold text-primary">FlexCRM</span>
           {isAuthenticated && user?.industry === 'gym' && gym && (
-            <span className="ml-2 text-sm text-muted-foreground">- {gym.name}</span>
+            <div className="flex items-center ml-2">
+              {gym.logo && (
+                <img 
+                  src={gym.logo} 
+                  alt={`${gym.name} logo`} 
+                  className="h-8 w-8 object-contain mr-2"
+                  onError={(e) => {
+                    console.error('Error loading logo:', e);
+                    console.error('Failed URL:', e.currentTarget.src);
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+              )}
+              <span className="text-sm text-muted-foreground">- {gym.name}</span>
+            </div>
           )}
         </Link>
 
