@@ -55,6 +55,7 @@ import WaiverFormsPage from './pages/gym/WaiverFormsPage';
 import MemberCommunicationsPage from './pages/gym/MemberCommunicationsPage';
 import HealthAssessmentsPage from '@/pages/gym/HealthAssessmentsPage';
 import RetailSalesPage from './pages/gym/RetailSalesPage';
+import ExpensesPage from './pages/gym/ExpensesPage';
 
 // Profile Pages
 import ProfilePage from "./pages/profile/ProfilePage";
@@ -119,6 +120,7 @@ const App = () => (
                     <Route path="/dashboard/gym/waiver-forms" element={<ProtectedRoute element={<WaiverFormsPage />} />} />
                     <Route path="/dashboard/gym/communications" element={<ProtectedRoute element={<MemberCommunicationsPage />} />} />
                     <Route path="/dashboard/gym/health-assessments" element={<ProtectedRoute element={<HealthAssessmentsPage />} />} />
+                    <Route path="/dashboard/gym/expenses" element={<ProtectedRoute element={<ExpensesPage />} />} />
                     
                     {/* Existing Gym Routes */}
                     <Route path="/dashboard/gym/trainers" element={<ProtectedRoute element={<TrainersPage />} />} />

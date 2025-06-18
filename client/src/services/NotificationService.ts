@@ -1,5 +1,4 @@
-import axios from 'axios';
-import { API_URL } from '@/config';
+import api from './api';
 
 export interface Notification {
   _id: string;
@@ -22,12 +21,10 @@ export interface SingleNotificationResponse {
   notification: Notification;
 }
 
-export class NotificationService {
-  static async getNotifications(): Promise<NotificationResponse> {
+class NotificationService {
+  async getNotifications() {
     try {
-      const response = await axios.get(`${API_URL}/notifications`, {
-        withCredentials: true
-      });
+      const response = await api.get('/notifications');
       return response.data;
     } catch (error) {
       console.error('Error fetching notifications:', error);
@@ -35,11 +32,9 @@ export class NotificationService {
     }
   }
 
-  static async markAsRead(id: string): Promise<SingleNotificationResponse> {
+  async markAsRead(notificationId: string) {
     try {
-      const response = await axios.put(`${API_URL}/notifications/${id}/read`, {}, {
-        withCredentials: true
-      });
+      const response = await api.put(`/notifications/${notificationId}/read`);
       return response.data;
     } catch (error) {
       console.error('Error marking notification as read:', error);
@@ -47,11 +42,9 @@ export class NotificationService {
     }
   }
 
-  static async markAllAsRead(): Promise<{ success: boolean; message: string }> {
+  async markAllAsRead() {
     try {
-      const response = await axios.put(`${API_URL}/notifications/read-all`, {}, {
-        withCredentials: true
-      });
+      const response = await api.put('/notifications/read-all');
       return response.data;
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
@@ -59,11 +52,9 @@ export class NotificationService {
     }
   }
 
-  static async deleteNotification(id: string): Promise<{ success: boolean; message: string }> {
+  async deleteNotification(id: string): Promise<{ success: boolean; message: string }> {
     try {
-      const response = await axios.delete(`${API_URL}/notifications/${id}`, {
-        withCredentials: true
-      });
+      const response = await api.delete(`/notifications/${id}`);
       return response.data;
     } catch (error) {
       console.error('Error deleting notification:', error);
@@ -72,4 +63,4 @@ export class NotificationService {
   }
 }
 
-export default NotificationService;
+export default new NotificationService();

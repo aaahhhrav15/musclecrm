@@ -28,8 +28,21 @@ const gymRoutes = require('./routes/gym');
 const healthAssessmentRoutes = require('./routes/healthAssessments');
 const retailSalesRoutes = require('./routes/retailSales');
 const transactionsRoutes = require('./routes/transactions');
+const expensesRoutes = require('./routes/expenses');
 
 const app = express();
+
+// Increase payload size limit to 50MB
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// Configure CORS
+app.use(cors({
+  origin: 'http://localhost:5173', // Your frontend URL
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
+}));
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI, {
@@ -45,12 +58,6 @@ mongoose.connect(process.env.MONGODB_URI, {
   });
 
 // Middleware
-app.use(cors({
-  origin: 'http://localhost:5173',
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
-}));
 app.use(express.json());
 app.use(cookieParser());
 
@@ -130,6 +137,7 @@ app.use('/api/gym', gymRoutes);
 // app.use('/api/gym/members', membersRoutes);
 app.use('/api/gym/staff', staffRoutes);
 app.use('/api/gym/attendance', attendanceRoutes);
+app.use('/api/gym/expenses', expensesRoutes);
 app.use('/api/invoices', invoicesRoutes);
 app.use('/api/bookings', bookingsRoutes);
 app.use('/api/customers', customersRoutes);
