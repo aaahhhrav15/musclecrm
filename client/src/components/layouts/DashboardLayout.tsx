@@ -18,7 +18,6 @@ import { useGym } from '@/context/GymContext';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
 import DashboardSidebar from './DashboardSidebar';
 import { Skeleton } from '@/components/ui/skeleton';
-import NotificationBell from '@/components/notifications/NotificationBell';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -95,7 +94,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
           </div>
 
           <div className="flex items-center gap-4">
-            <NotificationBell />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 rounded-full" asChild>

@@ -7,13 +7,33 @@ const router = express.Router();
 // Get all notifications for the current user
 router.get('/', auth, async (req, res) => {
   try {
-    const notifications = await Notification.find({ userId: req.user._id })
+    const now = new Date();
+    const notifications = await Notification.find({ 
+      userId: req.user._id, 
+      $or: [
+        { expiresAt: { $exists: false } },
+        { expiresAt: { $gt: now } }
+      ]
+    })
       .sort({ createdAt: -1 })
       .limit(50);
-    
+    // Also fetch broadcast notifications (global or gym-specific)
+    const broadcastNotifications = await Notification.find({
+      broadcast: true,
+      $or: [
+        { gymId: req.user.gymId },
+        { gymId: null }
+      ],
+      $or: [
+        { expiresAt: { $exists: false } },
+        { expiresAt: { $gt: now } }
+      ]
+    }).sort({ createdAt: -1 }).limit(50);
+    // Merge and sort by createdAt
+    const allNotifications = [...notifications, ...broadcastNotifications].sort((a, b) => b.createdAt - a.createdAt);
     res.json({
       success: true,
-      notifications
+      notifications: allNotifications
     });
   } catch (error) {
     console.error('Get notifications error:', error);
@@ -79,7 +99,10 @@ router.delete('/:id', auth, async (req, res) => {
   try {
     const notification = await Notification.findOneAndDelete({
       _id: req.params.id,
-      userId: req.user._id
+      $or: [
+        { userId: req.user._id },
+        { broadcast: true }
+      ]
     });
     
     if (!notification) {
@@ -130,6 +153,60 @@ router.post('/', auth, async (req, res) => {
   } catch (error) {
     console.error('Create notification error:', error);
     res.status(500).json({ success: false, message: 'Error creating notification' });
+  }
+});
+
+// Get all notifications for a gym
+router.get('/gym', auth, async (req, res) => {
+  try {
+    const { gymId } = req.query;
+    if (!gymId) {
+      return res.status(400).json({ success: false, message: 'gymId is required' });
+    }
+    const notifications = await Notification.find({ gymId })
+      .sort({ createdAt: -1 })
+      .limit(100);
+    res.json({ success: true, notifications });
+  } catch (error) {
+    console.error('Get gym notifications error:', error);
+    res.status(500).json({ success: false, message: 'Error fetching gym notifications' });
+  }
+});
+
+// Create a notification for all members of a gym or broadcast
+router.post('/gym', auth, async (req, res) => {
+  try {
+    const { gymId, title, message, type, data, expiresAt, broadcast } = req.body;
+    if (!title || !message || !type) {
+      return res.status(400).json({ success: false, message: 'title, message, and type are required' });
+    }
+    // If broadcast, create a single broadcast notification
+    if (broadcast) {
+      const newNotification = await Notification.create({
+        gymId: gymId || null,
+        title,
+        message,
+        type: 'broadcast',
+        data: data || {},
+        expiresAt: expiresAt ? new Date(expiresAt) : undefined,
+        broadcast: true
+      });
+      return res.status(201).json({ success: true, notification: newNotification });
+    }
+    // Otherwise, create for all gym members (legacy)
+    const newNotification = await Notification.create({
+      gymId,
+      title,
+      message,
+      type,
+      data: data || {},
+      expiresAt: expiresAt ? new Date(expiresAt) : undefined,
+      broadcast: false
+    });
+    res.status(201).json({ success: true, notification: newNotification });
+  } catch (error) {
+    console.error('Create gym notification error:', error);
+    res.status(500).json({ success: false, message: 'Error creating gym notification' });
   }
 });
 

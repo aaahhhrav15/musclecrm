@@ -4,11 +4,11 @@ const notificationSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: false
   },
   type: {
     type: String,
-    enum: ['booking_created', 'customer_created', 'booking_updated', 'booking_cancelled', 'invoice_created', 'invoice_paid'],
+    enum: ['booking_created', 'customer_created', 'booking_updated', 'booking_cancelled', 'invoice_created', 'invoice_paid', 'broadcast', 'general'],
     required: true
   },
   title: {
@@ -30,6 +30,19 @@ const notificationSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now
+  },
+  gymId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Gym',
+    required: false
+  },
+  expiresAt: {
+    type: Date,
+    required: false
+  },
+  broadcast: {
+    type: Boolean,
+    default: false
   }
 });
 

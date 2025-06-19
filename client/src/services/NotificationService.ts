@@ -2,13 +2,16 @@ import api from './api';
 
 export interface Notification {
   _id: string;
-  userId: string;
-  type: 'booking_created' | 'customer_created' | 'booking_updated' | 'booking_cancelled' | 'invoice_created' | 'invoice_paid';
+  userId?: string;
+  gymId?: string;
+  type: 'booking_created' | 'customer_created' | 'booking_updated' | 'booking_cancelled' | 'invoice_created' | 'invoice_paid' | 'broadcast' | 'general' | string;
   title: string;
   message: string;
   data: Record<string, any>;
-  read: boolean;
+  read?: boolean;
   createdAt: string;
+  expiresAt?: string;
+  broadcast?: boolean;
 }
 
 export interface NotificationResponse {
@@ -58,6 +61,26 @@ class NotificationService {
       return response.data;
     } catch (error) {
       console.error('Error deleting notification:', error);
+      throw error;
+    }
+  }
+
+  async getGymNotifications(gymId: string) {
+    try {
+      const response = await api.get(`/notifications/gym`, { params: { gymId } });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching gym notifications:', error);
+      throw error;
+    }
+  }
+
+  async createGymNotification({ gymId, title, message, type, data, expiresAt, broadcast }: { gymId?: string; title: string; message: string; type: string; data?: Record<string, any>; expiresAt?: string; broadcast?: boolean }) {
+    try {
+      const response = await api.post(`/notifications/gym`, { gymId, title, message, type, data, expiresAt, broadcast });
+      return response.data;
+    } catch (error) {
+      console.error('Error creating gym notification:', error);
       throw error;
     }
   }
