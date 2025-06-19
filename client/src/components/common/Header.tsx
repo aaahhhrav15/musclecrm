@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import * as React from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, Menu, User, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -18,11 +18,13 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ transparent = false }) => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = React.useState(false);
   const { user, isAuthenticated, logout } = useAuth();
   const { gym } = useGym();
+  const location = useLocation();
+  const isHomePage = location.pathname === '/';
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (gym) {
       console.log('Gym data in header:', gym);
       console.log('Logo URL:', gym.logo);
@@ -48,7 +50,7 @@ const Header: React.FC<HeaderProps> = ({ transparent = false }) => {
       <div className="container flex items-center justify-between h-16 px-4 mx-auto sm:px-6 lg:px-8">
         <Link to="/" className="flex items-center">
           <span className="text-xl font-bold text-primary">FlexCRM</span>
-          {isAuthenticated && user?.industry === 'gym' && gym && (
+          {isAuthenticated && user?.industry === 'gym' && gym && !isHomePage && (
             <div className="flex items-center ml-2">
               {gym.logo && (
                 <img 
@@ -110,14 +112,42 @@ const Header: React.FC<HeaderProps> = ({ transparent = false }) => {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center gap-2">
-                  <User className="w-4 h-4" />
-                  <span>{user?.name}</span>
+                  {gym && gym.logo ? (
+                    <img 
+                      src={gym.logo} 
+                      alt={`${gym.name} logo`} 
+                      className="h-8 w-8 object-contain rounded-full"
+                      onError={(e) => {
+                        console.error('Error loading logo:', e);
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <User className="w-8 h-8 p-2 bg-muted rounded-full" />
+                  )}
+                  <span>{gym ? gym.name : user?.name}</span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem asChild>
-                  <Link to="/profile">Profile</Link>
-                </DropdownMenuItem>
+              <DropdownMenuContent align="end" className="w-56">
+                <div className="flex items-center gap-2 p-2 border-b">
+                  {gym && gym.logo ? (
+                    <img 
+                      src={gym.logo} 
+                      alt={`${gym.name} logo`} 
+                      className="h-8 w-8 object-contain rounded-full"
+                      onError={(e) => {
+                        console.error('Error loading logo:', e);
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <User className="w-8 h-8 p-2 bg-muted rounded-full" />
+                  )}
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium">{gym ? gym.name : user?.name}</span>
+                    <span className="text-xs text-muted-foreground">{user?.email}</span>
+                  </div>
+                </div>
                 <DropdownMenuItem asChild>
                   <Link to="/dashboard/settings">Settings</Link>
                 </DropdownMenuItem>

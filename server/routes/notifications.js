@@ -210,4 +210,45 @@ router.post('/gym', auth, async (req, res) => {
   }
 });
 
+// Update a notification
+router.put('/:id', auth, async (req, res) => {
+  try {
+    const { title, message, expiresAt } = req.body;
+    const notification = await Notification.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        $or: [
+          { userId: req.user._id },
+          { broadcast: true }
+        ]
+      },
+      {
+        title,
+        message,
+        expiresAt: expiresAt ? new Date(expiresAt) : undefined
+      },
+      { new: true }
+    );
+    
+    if (!notification) {
+      return res.status(404).json({
+        success: false,
+        message: 'Notification not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      notification,
+      message: 'Notification updated successfully'
+    });
+  } catch (error) {
+    console.error('Update notification error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating notification'
+    });
+  }
+});
+
 module.exports = router;

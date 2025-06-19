@@ -12,7 +12,7 @@ import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { useGym } from '@/context/GymContext';
 import { useAuth } from '@/context/AuthContext';
 import { Badge } from '@/components/ui/badge';
-import { Bell, Calendar, Clock, Trash2 } from 'lucide-react';
+import { Bell, Calendar, Clock, Trash2, Pencil } from 'lucide-react';
 import {
   Dialog,
   DialogTrigger,
@@ -30,8 +30,11 @@ const NotificationsPage: React.FC = () => {
   const { gym } = useGym();
   const { user } = useAuth();
   const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
-  const [form, setForm] = React.useState({ title: '', message: '', type: 'general', expiresAt: '', broadcast: true });
+  const [editDialogOpen, setEditDialogOpen] = React.useState(false);
+  const [selectedNotification, setSelectedNotification] = React.useState<Notification | null>(null);
+  const [form, setForm] = React.useState({ title: '', message: '', expiresAt: '' });
   const [creating, setCreating] = React.useState(false);
+  const [editing, setEditing] = React.useState(false);
 
   // Fetch notifications
   const { data, isLoading, refetch } = useQuery<{ notifications: Notification[] }>({
@@ -49,6 +52,21 @@ const NotificationsPage: React.FC = () => {
         queryClient.invalidateQueries({ queryKey: ['gym-notifications', gym._id] });
       }
       toast.success('Notification deleted');
+    }
+  });
+
+  // Update notification mutation
+  const updateNotificationMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { title: string; message: string; expiresAt?: string } }) =>
+      NotificationService.updateNotification(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      if (gym) {
+        queryClient.invalidateQueries({ queryKey: ['gym-notifications', gym._id] });
+      }
+      toast.success('Notification updated');
+      setEditDialogOpen(false);
+      setSelectedNotification(null);
     }
   });
 
@@ -74,6 +92,44 @@ const NotificationsPage: React.FC = () => {
     await deleteNotificationMutation.mutateAsync(notificationId);
   };
 
+  const handleEditClick = (e: React.MouseEvent, notification: Notification) => {
+    e.stopPropagation();
+    setSelectedNotification(notification);
+    
+    // Format the expiry date for datetime-local input (YYYY-MM-DDTHH:mm)
+    let formattedExpiryDate = '';
+    if (notification.expiresAt) {
+      const date = new Date(notification.expiresAt);
+      formattedExpiryDate = date.toISOString().slice(0, 16);
+    }
+
+    setForm({
+      title: notification.title,
+      message: notification.message,
+      expiresAt: formattedExpiryDate
+    });
+    setEditDialogOpen(true);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedNotification) return;
+    
+    setEditing(true);
+    try {
+      await updateNotificationMutation.mutateAsync({
+        id: selectedNotification._id,
+        data: {
+          title: form.title,
+          message: form.message,
+          expiresAt: form.expiresAt || undefined
+        }
+      });
+    } finally {
+      setEditing(false);
+    }
+  };
+
   const handleCreateNotification = async (e: React.FormEvent) => {
     e.preventDefault();
     setCreating(true);
@@ -82,12 +138,12 @@ const NotificationsPage: React.FC = () => {
         gymId: gym ? gym._id : undefined,
         title: form.title,
         message: form.message,
-        type: form.type,
+        type: 'broadcast',
         expiresAt: form.expiresAt || undefined,
-        broadcast: form.broadcast
+        broadcast: true
       });
       toast.success('Notification sent successfully');
-      setForm({ title: '', message: '', type: 'general', expiresAt: '', broadcast: true });
+      setForm({ title: '', message: '', expiresAt: '' });
       setCreateDialogOpen(false);
       refetch();
     } catch (err) {
@@ -151,19 +207,6 @@ const NotificationsPage: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Type</label>
-                    <select
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      value={form.type}
-                      onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
-                      required
-                    >
-                      <option value="general">General</option>
-                      <option value="broadcast">Broadcast</option>
-                      <option value="important">Important</option>
-                    </select>
-                  </div>
-                  <div>
                     <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Expiry (optional)</label>
                     <input
                       type="datetime-local"
@@ -171,16 +214,6 @@ const NotificationsPage: React.FC = () => {
                       value={form.expiresAt}
                       onChange={e => setForm(f => ({ ...f, expiresAt: e.target.value }))}
                     />
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="broadcast"
-                      className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                      checked={form.broadcast}
-                      onChange={e => setForm(f => ({ ...f, broadcast: e.target.checked }))}
-                    />
-                    <label htmlFor="broadcast" className="text-sm font-medium leading-none">Broadcast to all users</label>
                   </div>
                 </div>
                 <DialogFooter>
@@ -234,16 +267,25 @@ const NotificationsPage: React.FC = () => {
                                 <h4 className="font-medium">{notification.title}</h4>
                                 <p className="text-sm text-muted-foreground">{notification.message}</p>
                               </div>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteNotification(notification._id);
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4 text-muted-foreground" />
-                              </Button>
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={(e) => handleEditClick(e, notification)}
+                                >
+                                  <Pencil className="h-4 w-4 text-muted-foreground" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteNotification(notification._id);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4 text-muted-foreground" />
+                                </Button>
+                              </div>
                             </div>
                             <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                               <div className="flex items-center">
@@ -267,6 +309,51 @@ const NotificationsPage: React.FC = () => {
             </ScrollArea>
           </CardContent>
         </Card>
+
+        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Edit Notification</DialogTitle>
+              <DialogDescription>Update the notification details</DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Title</label>
+                  <input
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={form.title}
+                    onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Message</label>
+                  <textarea
+                    className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={form.message}
+                    onChange={e => setForm(f => ({ ...f, message: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Expiry (optional)</label>
+                  <input
+                    type="datetime-local"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={form.expiresAt}
+                    onChange={e => setForm(f => ({ ...f, expiresAt: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="submit" disabled={editing}>
+                  {editing ? 'Updating...' : 'Update Notification'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );

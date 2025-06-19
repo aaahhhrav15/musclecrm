@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ChevronDown, Menu, User, LogOut, Settings, CreditCard } from 'lucide-react';
@@ -99,18 +99,51 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                 <Button variant="ghost" className="relative h-8 rounded-full" asChild>
                   <div className="flex items-center space-x-2">
                     <Avatar className="w-8 h-8">
-                      <AvatarImage src="/placeholder.svg" />
+                      {gym && gym.logo ? (
+                        <AvatarImage 
+                          src={gym.logo} 
+                          alt={`${gym.name} logo`}
+                          onError={(e) => {
+                            console.error('Error loading logo:', e);
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        <AvatarImage src="/placeholder.svg" />
+                      )}
                       <AvatarFallback>
-                        {user?.name?.charAt(0) || 'U'}
+                        {(gym ? gym.name : user?.name)?.charAt(0) || 'U'}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="hidden md:inline-flex">{user?.name}</span>
+                    <span className="hidden md:inline-flex">{gym ? gym.name : user?.name}</span>
                     <ChevronDown className="w-4 h-4" />
                   </div>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuContent align="end" className="w-56">
+                <div className="flex items-center gap-2 p-2 border-b">
+                  <Avatar className="w-8 h-8">
+                    {gym && gym.logo ? (
+                      <AvatarImage 
+                        src={gym.logo} 
+                        alt={`${gym.name} logo`}
+                        onError={(e) => {
+                          console.error('Error loading logo:', e);
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
+                    ) : (
+                      <AvatarImage src="/placeholder.svg" />
+                    )}
+                    <AvatarFallback>
+                      {(gym ? gym.name : user?.name)?.charAt(0) || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium">{gym ? gym.name : user?.name}</span>
+                    <span className="text-xs text-muted-foreground">{user?.email}</span>
+                  </div>
+                </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => navigate('/dashboard/settings')}>
                   <Settings className="w-4 h-4 mr-2" />

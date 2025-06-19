@@ -84,6 +84,16 @@ class NotificationService {
       throw error;
     }
   }
+
+  async updateNotification(id: string, { title, message, expiresAt }: { title: string; message: string; expiresAt?: string }) {
+    try {
+      const response = await api.put(`/notifications/${id}`, { title, message, expiresAt });
+      return response.data;
+    } catch (error) {
+      console.error('Error updating notification:', error);
+      throw error;
+    }
+  }
 }
 
 export default new NotificationService();
