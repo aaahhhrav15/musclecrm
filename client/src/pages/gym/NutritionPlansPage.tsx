@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import axiosInstance from '@/lib/axios';
@@ -53,6 +54,8 @@ const NutritionPlansPage: React.FC = () => {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState<NutritionPlan | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [planToDelete, setPlanToDelete] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     plan_name: '',
     total_calories: '',
@@ -184,10 +187,17 @@ const NutritionPlansPage: React.FC = () => {
   };
 
   const handleDeletePlan = async (id: string) => {
+    setPlanToDelete(id);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!planToDelete) return;
+
     try {
-      const response = await axiosInstance.delete(`/nutrition-plans/${id}`);
+      const response = await axiosInstance.delete(`/nutrition-plans/${planToDelete}`);
       if (response.data.success) {
-        setPlans(plans.filter(plan => plan._id !== id));
+        setPlans(plans.filter(plan => plan._id !== planToDelete));
         toast.success('Nutrition plan deleted successfully');
       } else {
         throw new Error('Invalid response format from server');
@@ -195,6 +205,9 @@ const NutritionPlansPage: React.FC = () => {
     } catch (error) {
       console.error('Error deleting nutrition plan:', error);
       toast.error('Failed to delete nutrition plan');
+    } finally {
+      setIsDeleteDialogOpen(false);
+      setPlanToDelete(null);
     }
   };
 
@@ -782,6 +795,27 @@ const NutritionPlansPage: React.FC = () => {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the nutrition plan.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteConfirm}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </motion.div>
     </DashboardLayout>
   );

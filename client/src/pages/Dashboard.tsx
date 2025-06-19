@@ -115,28 +115,9 @@ const Dashboard: React.FC = () => {
   const [isTodayExpenseLoading, setIsTodayExpenseLoading] = useState(false);
   const [totalExpense, setTotalExpense] = useState<number>(0);
   const [isTotalExpenseLoading, setIsTotalExpenseLoading] = useState(false);
-
-  useEffect(() => {
-    const fetchMonthlyExpense = async () => {
-      if (!gym?._id) return;
-      setIsMonthlyExpenseLoading(true);
-      try {
-        const now = new Date();
-        const month = now.getMonth() + 1;
-        const year = now.getFullYear();
-        const response = await axiosInstance.get(`/gym/expenses?gymId=${gym._id}&month=${month}&year=${year}`);
-        const total = Array.isArray(response.data)
-          ? response.data.reduce((sum, expense) => sum + (expense.amount || 0), 0)
-          : 0;
-        setMonthlyExpense(total);
-      } catch (error) {
-        setMonthlyExpense(0);
-      } finally {
-        setIsMonthlyExpenseLoading(false);
-      }
-    };
-    fetchMonthlyExpense();
-  }, [gym]);
+  const [profitExpense, setProfitExpense] = useState<number>(0);
+  const [isProfitExpenseLoading, setIsProfitExpenseLoading] = useState(false);
+  const [totalGymProfit, setTotalGymProfit] = useState<number>(0);
 
   useEffect(() => {
     const fetchTodayExpense = async () => {
@@ -144,14 +125,13 @@ const Dashboard: React.FC = () => {
       setIsTodayExpenseLoading(true);
       try {
         const today = new Date();
-        const day = today.getDate();
         const month = today.getMonth() + 1;
         const year = today.getFullYear();
         // Fetch all expenses for today
         const response = await axiosInstance.get(`/gym/expenses?gymId=${gym._id}&month=${month}&year=${year}`);
         const expenses = Array.isArray(response.data) ? response.data : [];
         const todayStr = today.toISOString().slice(0, 10);
-        const total = expenses.filter(e => e.date && e.date.slice(0, 10) === todayStr)
+        const total = expenses.filter(e => e.date && e.date.slice(0, 10) === todayStr && e.category === 'gym')
           .reduce((sum, expense) => sum + (expense.amount || 0), 0);
         setTodayExpense(total);
       } catch (error) {
@@ -164,12 +144,37 @@ const Dashboard: React.FC = () => {
   }, [gym]);
 
   useEffect(() => {
+    const fetchMonthlyExpense = async () => {
+      if (!gym?._id) return;
+      setIsMonthlyExpenseLoading(true);
+      try {
+        const now = new Date();
+        const month = now.getMonth() + 1;
+        const year = now.getFullYear();
+        const response = await axiosInstance.get(`/gym/expenses?gymId=${gym._id}&month=${month}&year=${year}`);
+        const total = Array.isArray(response.data)
+          ? response.data.filter(e => e.category === 'gym').reduce((sum, expense) => sum + (expense.amount || 0), 0)
+          : 0;
+        setMonthlyExpense(total);
+      } catch (error) {
+        setMonthlyExpense(0);
+      } finally {
+        setIsMonthlyExpenseLoading(false);
+      }
+    };
+    fetchMonthlyExpense();
+  }, [gym]);
+
+  useEffect(() => {
     const fetchTotalExpense = async () => {
       if (!gym?._id) return;
       setIsTotalExpenseLoading(true);
       try {
-        const response = await axiosInstance.get(`/gym/expenses/total?gymId=${gym._id}`);
-        setTotalExpense(response.data.total || 0);
+        // Fetch all expenses for this gym
+        const response = await axiosInstance.get(`/gym/expenses?gymId=${gym._id}`);
+        const expenses = Array.isArray(response.data) ? response.data : [];
+        const total = expenses.filter(e => e.category === 'gym').reduce((sum, expense) => sum + (expense.amount || 0), 0);
+        setTotalExpense(total);
       } catch (error) {
         setTotalExpense(0);
       } finally {
@@ -178,6 +183,32 @@ const Dashboard: React.FC = () => {
     };
     fetchTotalExpense();
   }, [gym]);
+
+  useEffect(() => {
+    const fetchProfitExpense = async () => {
+      if (!gym?._id) return;
+      setIsProfitExpenseLoading(true);
+      try {
+        // Fetch all expenses for this gym
+        const response = await axiosInstance.get(`/gym/expenses?gymId=${gym._id}`);
+        const expenses = Array.isArray(response.data) ? response.data : [];
+        const total = expenses.filter(e => e.category === 'gym').reduce((sum, expense) => sum + (expense.amount || 0), 0);
+        setProfitExpense(total);
+      } catch (error) {
+        setProfitExpense(0);
+      } finally {
+        setIsProfitExpenseLoading(false);
+      }
+    };
+    fetchProfitExpense();
+  }, [gym]);
+
+  // Calculate total gym profit whenever member amount or expenses change
+  useEffect(() => {
+    const memberAmount = metrics.memberProfit.memberAmount || 0;
+    const calculatedProfit = memberAmount - profitExpense;
+    setTotalGymProfit(calculatedProfit);
+  }, [metrics.memberProfit.memberAmount, profitExpense]);
 
   return (
     <DashboardLayout>
@@ -306,15 +337,15 @@ const Dashboard: React.FC = () => {
               />
               <MetricCard 
                 title="Expenses" 
-                value={metrics.memberProfit.memberExpense} 
+                value={profitExpense} 
                 format="currency"
-                isLoading={isLoading}
+                isLoading={isProfitExpenseLoading}
               />
               <MetricCard 
-                title="Total Member Profit" 
-                value={metrics.memberProfit.totalMemberProfit} 
+                title="Total Gym Profit" 
+                value={totalGymProfit} 
                 format="currency"
-                isLoading={isLoading}
+                isLoading={isLoading || isProfitExpenseLoading}
               />
             </div>
           </section>
