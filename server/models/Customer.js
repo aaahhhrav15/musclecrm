@@ -11,6 +11,10 @@ const customerSchema = new mongoose.Schema({
     ref: 'Gym',
     required: true
   },
+  gymCode: {
+    type: String,
+    required: false
+  },
   name: {
     type: String,
     required: true,

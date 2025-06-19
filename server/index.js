@@ -31,6 +31,7 @@ const transactionsRoutes = require('./routes/transactions');
 const expensesRoutes = require('./routes/expenses');
 const leadsRouter = require('./routes/leads');
 
+
 const app = express();
 
 // Increase payload size limit to 50MB
@@ -155,6 +156,7 @@ app.use('/api/gym/health-assessments', healthAssessmentRoutes);
 app.use('/api/gym/retail-sales', retailSalesRoutes);
 app.use('/api/transactions', transactionsRoutes);
 app.use('/api/leads', leadsRouter);
+
 
 // Root route
 app.get('/', (req, res) => {

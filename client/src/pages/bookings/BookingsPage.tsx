@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import * as React from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Calendar, Filter, Plus, MoreHorizontal } from "lucide-react";
@@ -53,7 +54,6 @@ import {
 import { useNavigate } from "react-router-dom";
 
 const BookingsPage: React.FC = () => {
-  const [view, setView] = useState<"list" | "calendar">("list");
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [showBookingForm, setShowBookingForm] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
@@ -85,7 +85,6 @@ const BookingsPage: React.FC = () => {
           ),
         filters.type
       ),
-    enabled: view === "calendar",
   });
 
   const handleFilterChange = (newFilters: BookingFilters) => {
@@ -210,164 +209,139 @@ const BookingsPage: React.FC = () => {
           </div>
         </div>
 
-        <Tabs
-          value={view}
-          onValueChange={(value) => setView(value as "list" | "calendar")}
-        >
-          <TabsList>
-            <TabsTrigger value="list">List View</TabsTrigger>
-            <TabsTrigger value="calendar">Calendar View</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="list">
-            <Card>
-              <CardHeader>
-                <CardTitle>Bookings</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Service Provided</TableHead>
-                      <TableHead>Date & Time</TableHead>
-                      <TableHead>Price</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-center">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data?.bookings.map((booking) => (
-                      <TableRow key={booking._id}>
-                        <TableCell>
-                          {typeof booking.customerId === "string"
-                            ? "Loading..."
-                            : booking.customerId?.name || "N/A"}
-                        </TableCell>
-                        <TableCell className="capitalize">
-                          {booking.type.replace("_", " ")}
-                        </TableCell>
-                        <TableCell>
-                          <p>
-                            {booking.type === "class" && booking.className
-                              ? booking.className
-                              : booking.type === "personal_training" &&
-                                booking.trainerName
-                              ? booking.trainerName
-                              : booking.type === "equipment" &&
-                                booking.equipmentName
-                              ? booking.equipmentName
-                              : "N/A"}
-                          </p>
-                        </TableCell>
-                        <TableCell>
-                          {format(
-                            new Date(booking.startTime),
-                            "MMM d, yyyy h:mm a"
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {formatCurrency(booking.price, booking.currency)}
-                        </TableCell>
-                        <TableCell>
-                          <Select
-                            defaultValue={booking.status}
-                            onValueChange={(value) =>
-                              handleStatusChange(
-                                booking._id,
-                                value as
-                                  | "scheduled"
-                                  | "completed"
-                                  | "cancelled"
-                                  | "no_show"
-                              )
-                            }
-                          >
-                            <SelectTrigger className="w-[130px]">
-                              <SelectValue>
-                                <Badge
-                                  variant={
-                                    booking.status === "completed"
-                                      ? "default"
-                                      : booking.status === "cancelled"
-                                      ? "destructive"
-                                      : booking.status === "no_show"
-                                      ? "secondary"
-                                      : "outline"
-                                  }
-                                >
-                                  {booking.status.charAt(0).toUpperCase() +
-                                    booking.status.slice(1).replace("_", " ")}
-                                </Badge>
-                              </SelectValue>
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="scheduled">
-                                Scheduled
-                              </SelectItem>
-                              <SelectItem value="completed">
-                                Completed
-                              </SelectItem>
-                              <SelectItem value="cancelled">
-                                Cancelled
-                              </SelectItem>
-                              <SelectItem value="no_show">No Show</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex justify-center space-x-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                navigate(`/dashboard/bookings/${booking._id}`)
+        {/* Remove Tabs and show only the bookings list directly */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Bookings</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Service Provided</TableHead>
+                  <TableHead>Date & Time</TableHead>
+                  <TableHead>Price</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-center">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data?.bookings.map((booking) => (
+                  <TableRow key={booking._id}>
+                    <TableCell>
+                      {typeof booking.customerId === "string"
+                        ? "Loading..."
+                        : booking.customerId?.name || "N/A"}
+                    </TableCell>
+                    <TableCell className="capitalize">
+                      {booking.type.replace("_", " ")}
+                    </TableCell>
+                    <TableCell>
+                      <p>
+                        {booking.type === "class" && booking.className
+                          ? booking.className
+                          : booking.type === "personal_training" &&
+                            booking.trainerName
+                          ? booking.trainerName
+                          : booking.type === "equipment" &&
+                            booking.equipmentName
+                          ? booking.equipmentName
+                          : "N/A"}
+                      </p>
+                    </TableCell>
+                    <TableCell>
+                      {format(
+                        new Date(booking.startTime),
+                        "MMM d, yyyy h:mm a"
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {formatCurrency(booking.price, booking.currency)}
+                    </TableCell>
+                    <TableCell>
+                      <Select
+                        defaultValue={booking.status}
+                        onValueChange={(value) =>
+                          handleStatusChange(
+                            booking._id,
+                            value as
+                              | "scheduled"
+                              | "completed"
+                              | "cancelled"
+                              | "no_show"
+                          )
+                        }
+                      >
+                        <SelectTrigger className="w-[130px]">
+                          <SelectValue>
+                            <Badge
+                              variant={
+                                booking.status === "completed"
+                                  ? "default"
+                                  : booking.status === "cancelled"
+                                  ? "destructive"
+                                  : booking.status === "no_show"
+                                  ? "secondary"
+                                  : "outline"
                               }
                             >
-                              View
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedBooking(booking);
-                                setShowBookingForm(true);
-                              }}
-                            >
-                              Edit
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => handleDeleteBooking(booking._id)}
-                            >
-                              Delete
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="calendar">
-            <Card>
-              <CardHeader>
-                <CardTitle>Calendar</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <BookingCalendar
-                  bookings={calendarData?.bookings || []}
-                  onEventClick={setSelectedBooking}
-                />
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+                              {booking.status.charAt(0).toUpperCase() +
+                                booking.status.slice(1).replace("_", " ")}
+                            </Badge>
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="scheduled">
+                            Scheduled
+                          </SelectItem>
+                          <SelectItem value="completed">
+                            Completed
+                          </SelectItem>
+                          <SelectItem value="cancelled">
+                            Cancelled
+                          </SelectItem>
+                          <SelectItem value="no_show">No Show</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex justify-center space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            navigate(`/dashboard/bookings/${booking._id}`)
+                          }
+                        >
+                          View
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedBooking(booking);
+                            setShowBookingForm(true);
+                          }}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDeleteBooking(booking._id)}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
 
         {/* Filter Modal */}
         <FilterModal

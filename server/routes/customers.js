@@ -3,6 +3,7 @@ const Customer = require('../models/Customer');
 const auth = require('../middleware/auth');
 const { gymAuth } = require('../middleware/gymAuth');
 const Notification = require('../models/Notification');
+const Gym = require('../models/Gym');
 
 const router = express.Router();
 
@@ -60,13 +61,20 @@ router.get('/:id', async (req, res) => {
 // Create a new customer
 router.post('/', async (req, res) => {
   try {
+    // Fetch gymCode from the gym document
+    const gym = await Gym.findById(req.gymId);
+    const gymCode = gym ? gym.gymCode : undefined;
     const customer = new Customer({
       ...req.body,
       userId: req.user._id,
-      gymId: req.gymId
+      gymId: req.gymId,
+      gymCode,
     });
     await customer.save();
-    res.status(201).json({ success: true, customer });
+    // Exclude gymCode from the response
+    const customerObj = customer.toObject();
+    delete customerObj.gymCode;
+    res.status(201).json({ success: true, customer: customerObj });
   } catch (error) {
     console.error('Error creating customer:', error);
     res.status(500).json({ success: false, message: 'Error creating customer' });

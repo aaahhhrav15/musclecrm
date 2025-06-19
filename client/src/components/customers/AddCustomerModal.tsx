@@ -1,4 +1,4 @@
-import React from 'react';
+import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -45,7 +45,8 @@ import { DialogFooter } from '@/components/ui/dialog';
 const formSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   email: z.string().email('Invalid email address'),
-  phone: z.string().optional(),
+  phone: z.string()
+    .regex(/^\d{10}$/, 'Phone number must be exactly 10 digits'),
   address: z.string().optional(),
   source: z.enum(['website', 'referral', 'walk-in', 'social_media', 'other']),
   membershipType: z.enum(['none', 'basic', 'premium', 'vip']),
@@ -214,7 +215,7 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                   <FormItem>
                     <FormLabel>Phone</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input {...field} maxLength={10} inputMode="numeric" pattern="[0-9]*" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
