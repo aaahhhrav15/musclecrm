@@ -24,9 +24,9 @@ router.get('/', async (req, res) => {
 // Get assigned workout plans
 router.get('/assigned', async (req, res) => {
   try {
-    console.log('Fetching assigned workout plans...');
+    console.log('Fetching assigned workout plans for gymId:', req.gymId);
     
-    const assignedPlans = await AssignedWorkoutPlan.find()
+    const assignedPlans = await AssignedWorkoutPlan.find({ gymId: req.gymId })
       .populate({
         path: 'planId',
         select: 'name goal level duration weeks',
@@ -47,6 +47,7 @@ router.get('/assigned', async (req, res) => {
       updatedAt: plan.updatedAt
     }));
 
+    console.log(`Found ${transformedPlans.length} assigned plans for gym ${req.gymId}`);
     res.json({ assignedPlans: transformedPlans });
   } catch (error) {
     console.error('Detailed error in /assigned route:', error);
@@ -106,7 +107,10 @@ router.post('/assign', async (req, res) => {
 // Delete an assigned workout plan
 router.delete('/assigned/:id', async (req, res) => {
   try {
-    const assignedPlan = await AssignedWorkoutPlan.findByIdAndDelete(req.params.id);
+    const assignedPlan = await AssignedWorkoutPlan.findOneAndDelete({
+      _id: req.params.id,
+      gymId: req.gymId
+    });
     if (!assignedPlan) {
       return res.status(404).json({ message: 'Assigned workout plan not found' });
     }

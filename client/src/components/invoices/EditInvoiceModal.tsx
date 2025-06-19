@@ -50,13 +50,13 @@ export function EditInvoiceModal({ isOpen, onClose, invoice, onSuccess }: EditIn
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      customerId: invoice?.customerId?._id || '',
+      customerId: '',
       chargeType: '',
-      quantity: invoice?.items[0]?.quantity || 1,
-      unitPrice: invoice?.items[0]?.unitPrice || 0,
-      amount: invoice?.amount || 0,
-      description: invoice?.items[0]?.description || '',
-      dueDate: invoice?.dueDate ? format(new Date(invoice.dueDate), 'yyyy-MM-dd') : format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
+      quantity: 1,
+      unitPrice: 0,
+      amount: 0,
+      description: '',
+      dueDate: format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
       tax: 0
     }
   });
@@ -73,8 +73,18 @@ export function EditInvoiceModal({ isOpen, onClose, invoice, onSuccess }: EditIn
         });
         if (!response.ok) throw new Error('Failed to fetch customers');
         const data = await response.json();
-        // Ensure data is an array before setting it
-        setCustomers(Array.isArray(data) ? data : []);
+        
+        // Handle the API response structure
+        const customersArray = data.customers || data || [];
+        
+        const validCustomers = customersArray.filter(customer => 
+          customer && typeof customer === 'object' && 
+          customer._id && typeof customer._id === 'string' &&
+          customer.name && typeof customer.name === 'string'
+        );
+        
+        console.log('Fetched customers:', validCustomers);
+        setCustomers(validCustomers);
       } catch (error) {
         console.error('Error fetching customers:', error);
         toast.error('Failed to load customers');
@@ -85,6 +95,43 @@ export function EditInvoiceModal({ isOpen, onClose, invoice, onSuccess }: EditIn
       fetchCustomers();
     }
   }, [isOpen]);
+
+  // Update form values when invoice changes
+  useEffect(() => {
+    if (invoice && customers.length > 0) {
+      console.log('Current invoice:', invoice);
+      console.log('Available customers:', customers);
+      
+      // Extract charge type from description
+      const chargeType = invoice.items[0]?.description?.toLowerCase().includes('class') ? 'class_booking' :
+                        invoice.items[0]?.description?.toLowerCase().includes('personal') ? 'personal_training' :
+                        invoice.items[0]?.description?.toLowerCase().includes('membership') ? 'membership' : 'other';
+
+      // Get customer ID - handle both string and object cases
+      const customerId = typeof invoice.customerId === 'string' 
+        ? invoice.customerId 
+        : invoice.customerId?._id || '';
+
+      console.log('Setting customer ID:', customerId);
+
+      // Calculate tax percentage
+      const taxPercentage = invoice.items[0]?.taxDetails?.totalTax 
+        ? ((invoice.items[0].taxDetails.totalTax / invoice.items[0].amount) * 100)
+        : 0;
+
+      form.reset({
+        customerId: customerId,
+        chargeType: chargeType,
+        quantity: invoice.items[0]?.quantity || 1,
+        unitPrice: invoice.items[0]?.unitPrice || 0,
+        amount: invoice.amount || 0,
+        description: invoice.items[0]?.description || '',
+        dueDate: invoice.dueDate ? format(new Date(invoice.dueDate), 'yyyy-MM-dd') : format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
+        tax: taxPercentage
+      });
+      setSelectedChargeType(chargeType);
+    }
+  }, [invoice, customers, form]);
 
   // Calculate amount when quantity or unit price changes
   useEffect(() => {
@@ -146,14 +193,21 @@ export function EditInvoiceModal({ isOpen, onClose, invoice, onSuccess }: EditIn
               <Select
                 value={form.watch('customerId')}
                 onValueChange={(value) => {
-                  form.setValue('customerId', value);
+                  console.log('Selected customer value:', value);
+                  form.setValue('customerId', value, { shouldValidate: true });
                 }}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select customer" />
+                  <SelectValue placeholder="Select customer">
+                    {(() => {
+                      const currentCustomerId = form.watch('customerId');
+                      const currentCustomer = customers.find(c => c._id === currentCustomerId);
+                      return currentCustomer ? currentCustomer.name : 'Select customer';
+                    })()}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {Array.isArray(customers) && customers.length > 0 ? (
+                  {customers.length > 0 ? (
                     customers.map((customer) => (
                       <SelectItem key={customer._id} value={customer._id}>
                         {customer.name}
