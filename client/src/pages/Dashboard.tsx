@@ -10,6 +10,9 @@ import { Button } from "@/components/ui/button";
 import { useToast } from '@/hooks/use-toast';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
 import { useIndustry } from '@/context/IndustryContext';
+import { useGym } from '@/context/GymContext';
+import axiosInstance from '@/lib/axios';
+import { format } from 'date-fns';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
@@ -104,6 +107,78 @@ const Dashboard: React.FC = () => {
 
   const metrics = dashboardData || defaultMetrics;
 
+  // --- Monthly Expense Logic ---
+  const { gym } = useGym();
+  const [monthlyExpense, setMonthlyExpense] = useState<number>(0);
+  const [isMonthlyExpenseLoading, setIsMonthlyExpenseLoading] = useState(false);
+  const [todayExpense, setTodayExpense] = useState<number>(0);
+  const [isTodayExpenseLoading, setIsTodayExpenseLoading] = useState(false);
+  const [totalExpense, setTotalExpense] = useState<number>(0);
+  const [isTotalExpenseLoading, setIsTotalExpenseLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchMonthlyExpense = async () => {
+      if (!gym?._id) return;
+      setIsMonthlyExpenseLoading(true);
+      try {
+        const now = new Date();
+        const month = now.getMonth() + 1;
+        const year = now.getFullYear();
+        const response = await axiosInstance.get(`/gym/expenses?gymId=${gym._id}&month=${month}&year=${year}`);
+        const total = Array.isArray(response.data)
+          ? response.data.reduce((sum, expense) => sum + (expense.amount || 0), 0)
+          : 0;
+        setMonthlyExpense(total);
+      } catch (error) {
+        setMonthlyExpense(0);
+      } finally {
+        setIsMonthlyExpenseLoading(false);
+      }
+    };
+    fetchMonthlyExpense();
+  }, [gym]);
+
+  useEffect(() => {
+    const fetchTodayExpense = async () => {
+      if (!gym?._id) return;
+      setIsTodayExpenseLoading(true);
+      try {
+        const today = new Date();
+        const day = today.getDate();
+        const month = today.getMonth() + 1;
+        const year = today.getFullYear();
+        // Fetch all expenses for today
+        const response = await axiosInstance.get(`/gym/expenses?gymId=${gym._id}&month=${month}&year=${year}`);
+        const expenses = Array.isArray(response.data) ? response.data : [];
+        const todayStr = today.toISOString().slice(0, 10);
+        const total = expenses.filter(e => e.date && e.date.slice(0, 10) === todayStr)
+          .reduce((sum, expense) => sum + (expense.amount || 0), 0);
+        setTodayExpense(total);
+      } catch (error) {
+        setTodayExpense(0);
+      } finally {
+        setIsTodayExpenseLoading(false);
+      }
+    };
+    fetchTodayExpense();
+  }, [gym]);
+
+  useEffect(() => {
+    const fetchTotalExpense = async () => {
+      if (!gym?._id) return;
+      setIsTotalExpenseLoading(true);
+      try {
+        const response = await axiosInstance.get(`/gym/expenses/total?gymId=${gym._id}`);
+        setTotalExpense(response.data.total || 0);
+      } catch (error) {
+        setTotalExpense(0);
+      } finally {
+        setIsTotalExpenseLoading(false);
+      }
+    };
+    fetchTotalExpense();
+  }, [gym]);
+
   return (
     <DashboardLayout>
       <div className="container mx-auto p-6">
@@ -112,9 +187,9 @@ const Dashboard: React.FC = () => {
         </div>
 
         <div className="grid gap-6">
-          {/* Members Section */}
+          {/* Gym Insights Section */}
           <div>
-            <h2 className="text-xl font-semibold mb-4">Members</h2>
+            <h2 className="text-2xl font-bold mb-4">🔹Gym Insights</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <MetricCard
                 title="Total Members"
@@ -184,15 +259,25 @@ const Dashboard: React.FC = () => {
               />
               <MetricCard
                 title="Today Expense"
-                value={formatCurrency(dashboardData?.members?.todayExpense || 0)}
+                value={todayExpense}
                 icon={<DollarSign className="h-4 w-4" />}
-                isLoading={isLoading}
+                format="currency"
+                isLoading={isTodayExpenseLoading}
+              />
+              {/* Monthly Expense Card */}
+              <MetricCard
+                title={`Monthly Expense (${format(new Date(), 'MMMM yyyy')})`}
+                value={monthlyExpense}
+                icon={<DollarSign className="h-4 w-4" />}
+                format="currency"
+                isLoading={isMonthlyExpenseLoading}
               />
               <MetricCard
                 title="Total Expense"
-                value={formatCurrency(dashboardData?.members?.totalExpense || 0)}
+                value={totalExpense}
                 icon={<DollarSign className="h-4 w-4" />}
-                isLoading={isLoading}
+                format="currency"
+                isLoading={isTotalExpenseLoading}
               />
               <MetricCard
                 title="Today Enquiry"
@@ -209,9 +294,9 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Member Profit Section */}
+          {/* Profit Section */}
           <section>
-            <h2 className="text-2xl font-bold mb-4">🔹 Member Profit</h2>
+            <h2 className="text-2xl font-bold mb-4">🔹Profit</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <MetricCard 
                 title="Member Amount" 
@@ -220,7 +305,7 @@ const Dashboard: React.FC = () => {
                 isLoading={isLoading}
               />
               <MetricCard 
-                title="Member Expense" 
+                title="Expenses" 
                 value={metrics.memberProfit.memberExpense} 
                 format="currency"
                 isLoading={isLoading}

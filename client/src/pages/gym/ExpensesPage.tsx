@@ -342,12 +342,19 @@ const ExpensesPage: React.FC = () => {
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="category">Category</Label>
-                    <Input
-                      id="category"
+                    <Select
                       value={formData.category}
-                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                      onValueChange={(value) => setFormData({ ...formData, category: value })}
                       required
-                    />
+                    >
+                      <SelectTrigger id="category" className="w-full">
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Gym">Gym</SelectItem>
+                        <SelectItem value="Retail">Retail</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="date">Date</Label>
@@ -471,12 +478,19 @@ const ExpensesPage: React.FC = () => {
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="edit-category">Category</Label>
-                  <Input
-                    id="edit-category"
+                  <Select
                     value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    onValueChange={(value) => setFormData({ ...formData, category: value })}
                     required
-                  />
+                  >
+                    <SelectTrigger id="edit-category" className="w-full">
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="gym">Gym</SelectItem>
+                      <SelectItem value="retail">Retail</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="edit-date">Date</Label>

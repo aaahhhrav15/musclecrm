@@ -192,6 +192,9 @@ router.post('/', auth, async (req, res) => {
     if (!gymId) {
       return res.status(400).json({ message: 'Gym ID is required' });
     }
+    if (!['Gym', 'Retail'].includes(category)) {
+      return res.status(400).json({ message: 'Category must be either "gym" or "retail"' });
+    }
 
     // Convert receipt to Buffer if it's a base64 string
     let receiptData = null;
@@ -234,6 +237,9 @@ router.put('/:id', auth, async (req, res) => {
 
     if (!gymId) {
       return res.status(400).json({ message: 'Gym ID is required' });
+    }
+    if (!['gym', 'retail'].includes(category)) {
+      return res.status(400).json({ message: 'Category must be either "gym" or "retail"' });
     }
 
     // Convert receipt to Buffer if it's a base64 string
