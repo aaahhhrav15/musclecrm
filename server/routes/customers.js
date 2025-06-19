@@ -14,8 +14,23 @@ router.use(gymAuth);
 // Get all customers for the gym
 router.get('/', async (req, res) => {
   try {
-    const customers = await Customer.find({ gymId: req.gymId });
-    res.json({ success: true, customers });
+    const { search = '', page = 1, limit = 10 } = req.query;
+    const query = { gymId: req.gymId };
+    if (search) {
+      query.name = { $regex: search, $options: 'i' };
+    }
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    // Get total count for pagination
+    const total = await Customer.countDocuments(query);
+
+    // Get paginated customers
+    const customers = await Customer.find(query)
+      .skip(skip)
+      .limit(parseInt(limit))
+      .sort({ createdAt: -1 });
+
+    res.json({ success: true, customers, total });
   } catch (error) {
     console.error('Error fetching customers:', error);
     res.status(500).json({ success: false, message: 'Error fetching customers' });

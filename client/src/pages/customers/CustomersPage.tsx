@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import * as React from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Search, Filter, MoreVertical, Pencil, Trash2, MoreHorizontal } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -36,6 +37,20 @@ interface FilterState {
   source?: string;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
+}
+
+function handleViewCustomer(customer: Customer, setSelectedCustomer: any, setIsViewModalOpen: any) {
+  setSelectedCustomer(customer);
+  setIsViewModalOpen(true);
+}
+
+function handleEditCustomer(customer: Customer, setSelectedCustomer: any, setIsEditModalOpen: any) {
+  setSelectedCustomer(customer);
+  setIsEditModalOpen(true);
+}
+
+function handleDeleteCustomer(customerId: string, handleDelete: any) {
+  handleDelete(customerId);
 }
 
 const columns: ColumnDef<Customer>[] = [
@@ -117,15 +132,15 @@ const columns: ColumnDef<Customer>[] = [
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => handleViewCustomer(customer)}>
+            <DropdownMenuItem onClick={() => handleViewCustomer(customer, setSelectedCustomer, setIsViewModalOpen)}>
               View Details
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleEditCustomer(customer)}>
+            <DropdownMenuItem onClick={() => handleEditCustomer(customer, setSelectedCustomer, setIsEditModalOpen)}>
               Edit
             </DropdownMenuItem>
             <DropdownMenuItem
               className="text-red-600"
-              onClick={() => handleDeleteCustomer(customer.id)}
+              onClick={() => handleDeleteCustomer(customer.id, handleDelete)}
             >
               Delete
             </DropdownMenuItem>
@@ -143,16 +158,41 @@ export function CustomersPage() {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [page, setPage] = useState(1);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [filters, setFilters] = useState<FilterState>({});
-  const limit = 10;
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['customers', searchQuery, page],
-    queryFn: () => CustomerService.getCustomers({ search: searchQuery, page }),
+  // Fetch all customers once on mount
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      setIsLoading(true);
+      try {
+        const data = await CustomerService.getCustomers();
+        setCustomers(data.customers);
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: error instanceof Error ? error.message : "Failed to load customers",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchCustomers();
+  }, [toast]);
+
+  // Client-side filtering
+  const filteredCustomers = customers.filter(customer => {
+    const query = searchQuery.toLowerCase();
+    return (
+      customer.name.toLowerCase().includes(query) ||
+      customer.email.toLowerCase().includes(query) ||
+      (customer.phone && customer.phone.toLowerCase().includes(query))
+    );
   });
 
   const deleteMutation = useMutation({
@@ -181,26 +221,11 @@ export function CustomersPage() {
 
   const handleFilterApply = (newFilters: FilterState) => {
     setFilters(newFilters);
-    setPage(1); // Reset to first page when filters change
-  };
-
-  const handleViewCustomer = (customer: Customer) => {
-    setSelectedCustomer(customer);
-    setIsViewModalOpen(true);
-  };
-
-  const handleEditCustomer = (customer: Customer) => {
-    setSelectedCustomer(customer);
-    setIsEditModalOpen(true);
   };
 
   const handleCustomerUpdated = (updatedCustomer: Customer) => {
     setSelectedCustomer(updatedCustomer);
     queryClient.invalidateQueries({ queryKey: ['customers'] });
-  };
-
-  const handleDeleteCustomer = (customerId: string) => {
-    handleDelete(customerId);
   };
 
   if (isLoading) {
@@ -210,20 +235,6 @@ export function CustomersPage() {
           <div className="text-center">
             <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
             <p className="mt-4 text-lg">Loading customers...</p>
-          </div>
-        </div>
-      </DashboardLayout>
-    );
-  }
-
-  if (error) {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center text-red-600">
-            <p className="text-lg">Error loading customers</p>
-            <p className="text-sm">Please try refreshing the page</p>
-            <p className="text-xs mt-2">{error instanceof Error ? error.message : 'Unknown error'}</p>
           </div>
         </div>
       </DashboardLayout>
@@ -253,10 +264,15 @@ export function CustomersPage() {
               placeholder="Search customers..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') e.preventDefault();
+              }}
               className="pl-9"
+              type="text"
+              autoComplete="off"
             />
           </div>
-          <Button variant="outline" onClick={() => setIsFilterModalOpen(true)}>
+          <Button type="button" variant="outline" onClick={() => setIsFilterModalOpen(true)}>
             <Filter className="w-4 h-4 mr-2" />
             Filter
           </Button>
@@ -277,7 +293,7 @@ export function CustomersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data?.customers.map((customer: Customer) => (
+              {filteredCustomers.map((customer: Customer) => (
                 <TableRow key={customer.id}>
                   <TableCell className="font-medium">{customer.name}</TableCell>
                   <TableCell>{customer.email}</TableCell>
@@ -295,15 +311,15 @@ export function CustomersPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleViewCustomer(customer)}>
+                        <DropdownMenuItem onClick={() => handleViewCustomer(customer, setSelectedCustomer, setIsViewModalOpen)}>
                           View Details
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleEditCustomer(customer)}>
+                        <DropdownMenuItem onClick={() => handleEditCustomer(customer, setSelectedCustomer, setIsEditModalOpen)}>
                           Edit
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           className="text-red-600"
-                          onClick={() => handleDeleteCustomer(customer.id)}
+                          onClick={() => handleDeleteCustomer(customer.id, handleDelete)}
                         >
                           Delete
                         </DropdownMenuItem>
@@ -312,7 +328,7 @@ export function CustomersPage() {
                   </TableCell>
                 </TableRow>
               ))}
-              {(!data?.customers || data.customers.length === 0) && (
+              {(!filteredCustomers || filteredCustomers.length === 0) && (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     No customers found
@@ -322,25 +338,6 @@ export function CustomersPage() {
             </TableBody>
           </Table>
         </div>
-
-        {data && data.total > limit && (
-          <div className="flex justify-center space-x-2">
-            <Button
-              variant="outline"
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={page === 1}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setPage(p => p + 1)}
-              disabled={page * limit >= data.total}
-            >
-              Next
-            </Button>
-          </div>
-        )}
 
         <AddCustomerModal
           isOpen={isAddModalOpen}
