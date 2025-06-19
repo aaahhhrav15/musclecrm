@@ -46,6 +46,9 @@ export function EditInvoiceModal({ isOpen, onClose, invoice, onSuccess }: EditIn
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedChargeType, setSelectedChargeType] = useState('');
+  const [items, setItems] = useState([
+    { description: '', quantity: 1, unitPrice: 0, amount: 0 }
+  ]);
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -99,25 +102,15 @@ export function EditInvoiceModal({ isOpen, onClose, invoice, onSuccess }: EditIn
   // Update form values when invoice changes
   useEffect(() => {
     if (invoice && customers.length > 0) {
-      console.log('Current invoice:', invoice);
-      console.log('Available customers:', customers);
-      
       // Extract charge type from description
       const chargeType = invoice.items[0]?.description?.toLowerCase().includes('class') ? 'class_booking' :
-                        invoice.items[0]?.description?.toLowerCase().includes('personal') ? 'personal_training' :
-                        invoice.items[0]?.description?.toLowerCase().includes('membership') ? 'membership' : 'other';
+        invoice.items[0]?.description?.toLowerCase().includes('personal') ? 'personal_training' :
+        invoice.items[0]?.description?.toLowerCase().includes('membership') ? 'membership' : 'other';
 
       // Get customer ID - handle both string and object cases
-      const customerId = typeof invoice.customerId === 'string' 
-        ? invoice.customerId 
+      const customerId = typeof invoice.customerId === 'string'
+        ? invoice.customerId
         : invoice.customerId?._id || '';
-
-      console.log('Setting customer ID:', customerId);
-
-      // Calculate tax percentage
-      const taxPercentage = invoice.items[0]?.taxDetails?.totalTax 
-        ? ((invoice.items[0].taxDetails.totalTax / invoice.items[0].amount) * 100)
-        : 0;
 
       form.reset({
         customerId: customerId,
@@ -127,7 +120,6 @@ export function EditInvoiceModal({ isOpen, onClose, invoice, onSuccess }: EditIn
         amount: invoice.amount || 0,
         description: invoice.items[0]?.description || '',
         dueDate: invoice.dueDate ? format(new Date(invoice.dueDate), 'yyyy-MM-dd') : format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
-        tax: taxPercentage
       });
       setSelectedChargeType(chargeType);
     }
@@ -141,35 +133,57 @@ export function EditInvoiceModal({ isOpen, onClose, invoice, onSuccess }: EditIn
     form.setValue('amount', amount);
   }, [form.watch('quantity'), form.watch('unitPrice')]);
 
-  const handleSubmit = async (data: any) => {
+  // When invoice changes, set items from invoice.items
+  useEffect(() => {
+    if (invoice && Array.isArray(invoice.items)) {
+      setItems(invoice.items.map(item => ({
+        description: item.description || '',
+        quantity: item.quantity || 1,
+        unitPrice: item.unitPrice || 0,
+        amount: item.amount || 0
+      })));
+    }
+  }, [invoice]);
+
+  const handleItemChange = (index, field, value) => {
+    const updatedItems = [...items];
+    updatedItems[index][field] = value;
+    if (field === 'quantity' || field === 'unitPrice') {
+      const qty = Number(updatedItems[index].quantity) || 0;
+      const price = Number(updatedItems[index].unitPrice) || 0;
+      updatedItems[index].amount = qty * price;
+    }
+    setItems(updatedItems);
+  };
+
+  const handleAddItem = () => {
+    setItems([...items, { description: '', quantity: 1, unitPrice: 0, amount: 0 }]);
+  };
+
+  const handleRemoveItem = (index) => {
+    if (items.length === 1) return;
+    setItems(items.filter((_, i) => i !== index));
+  };
+
+  const totalAmount = items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+
+  const handleSubmit = async (data) => {
     if (!invoice) return;
     setLoading(true);
     try {
-      const items = [{
-        description: data.description || `${data.chargeType} charge`,
-        quantity: data.quantity,
-        unitPrice: data.unitPrice,
-        amount: data.amount
-      }];
-
-      const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
-      const total = subtotal + (data.tax || 0);
-
       await InvoiceService.updateInvoice(invoice._id, {
         customerId: data.customerId,
         items: items,
-        amount: total,
-        dueDate: new Date(data.dueDate),
+        amount: totalAmount,
+        dueDate: data.dueDate,
         notes: data.description,
         status: invoice.status,
         currency: invoice.currency
       });
-
       toast.success('Invoice updated successfully');
       onSuccess();
       onClose();
     } catch (error) {
-      console.error('Error updating invoice:', error);
       toast.error('Failed to update invoice');
     } finally {
       setLoading(false);
@@ -329,6 +343,54 @@ export function EditInvoiceModal({ isOpen, onClose, invoice, onSuccess }: EditIn
                 <p className="text-sm text-red-500">{form.formState.errors.tax.message}</p>
               )}
             </div>
+          </div>
+
+          {/* Items Table */}
+          <div className="space-y-2">
+            <Label>Invoice Items</Label>
+            {items.map((item, idx) => (
+              <div key={idx} className="grid grid-cols-4 gap-2 items-end mb-2">
+                <Input
+                  placeholder="Description"
+                  value={item.description}
+                  onChange={e => handleItemChange(idx, 'description', e.target.value)}
+                />
+                <Input
+                  type="number"
+                  min="1"
+                  placeholder="Qty"
+                  value={item.quantity}
+                  onChange={e => handleItemChange(idx, 'quantity', e.target.value)}
+                />
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="Unit Price"
+                  value={item.unitPrice}
+                  onChange={e => handleItemChange(idx, 'unitPrice', e.target.value)}
+                />
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="Amount"
+                    value={item.amount}
+                    readOnly
+                  />
+                  {items.length > 1 && (
+                    <Button type="button" variant="destructive" size="sm" onClick={() => handleRemoveItem(idx)}>-</Button>
+                  )}
+                </div>
+              </div>
+            ))}
+            <Button type="button" variant="outline" onClick={handleAddItem}>+ Add Item</Button>
+          </div>
+
+          {/* Show total */}
+          <div className="flex justify-end mt-4">
+            <div className="font-bold text-lg">Total: {totalAmount.toFixed(2)}</div>
           </div>
 
           <DialogFooter>

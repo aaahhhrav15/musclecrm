@@ -8,6 +8,7 @@ const { format } = require('date-fns');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { gymAuth } = require('../middleware/gymAuth');
+const Gym = require('../models/Gym');
 
 const router = express.Router();
 
@@ -145,13 +146,16 @@ router.get('/:id/pdf', auth, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Invoice not found' });
     }
 
+    // Fetch gym info
+    const gym = await Gym.findById(req.gymId);
+
     // Create PDF document
     const doc = new PDFDocument({
       size: 'A4',
       margins: { top: 40, bottom: 40, left: 50, right: 50 },
       info: {
         Title: `Invoice ${invoice.invoiceNumber}`,
-        Author: 'FlexCRM',
+        Author: gym?.name || 'FlexCRM',
         Subject: 'Professional Invoice'
       }
     });
@@ -199,28 +203,52 @@ router.get('/:id/pdf', auth, async (req, res) => {
     let currentY = 40;
 
     // Header Section
-    // Company Logo (Simple professional design)
-    doc.fillColor(colors.primary)
-       .rect(50, currentY, 50, 50)
-       .fill();
-    
-    doc.fillColor('white')
-       .fontSize(20)
-       .font('Helvetica-Bold')
-       .text('FC', 65, currentY + 15);
+    // Draw gym logo if available
+    if (gym && gym.logo) {
+      try {
+        const fs = require('fs');
+        const path = require('path');
+        let logoPath = gym.logo;
+        // If the logo path is relative (e.g., 'logos/filename.png'), resolve it to the uploads directory
+        if (!/^https?:\/\//.test(logoPath) && !path.isAbsolute(logoPath)) {
+          logoPath = path.join(__dirname, '../uploads', logoPath);
+        }
+        if (fs.existsSync(logoPath)) {
+          doc.image(logoPath, 50, currentY, { width: 50, height: 50 });
+        }
+      } catch (e) {
+        // Do nothing if logo fails to load
+      }
+    }
 
-    // Company Details
+    // Gym Details
     doc.fillColor(colors.text)
-       .fontSize(24)
-       .font('Helvetica-Bold')
-       .text('FLEXCRM', 120, currentY + 5);
+      .fontSize(24)
+      .font('Helvetica-Bold')
+      .text(gym?.name || 'Gym Name', 120, currentY + 5);
 
     doc.fillColor(colors.secondary)
-       .fontSize(10)
-       .font('Helvetica')
-       .text('Premium Fitness Management System', 120, currentY + 30)
-       .text('123 Fitness Street, Mumbai, Maharashtra 400001', 120, currentY + 42)
-       .text('Phone: +91 9876543210 | Email: info@flexcrm.com', 120, currentY + 54);
+      .fontSize(10)
+      .font('Helvetica');
+    let addressLine = '';
+    if (gym?.address) {
+      addressLine = [
+        gym.address.street,
+        gym.address.city,
+        gym.address.state,
+        gym.address.zipCode,
+        gym.address.country
+      ].filter(Boolean).join(', ');
+    }
+    doc.text(addressLine || 'Address not set', 120, currentY + 30);
+    let phoneLine = '';
+    if (gym?.contactInfo) {
+      phoneLine = [
+        gym.contactInfo.phone ? `Phone: ${gym.contactInfo.phone}` : '',
+        gym.contactInfo.email ? `Email: ${gym.contactInfo.email}` : ''
+      ].filter(Boolean).join(' | ');
+    }
+    doc.text(phoneLine || '', 120, currentY + 42);
 
     // Invoice Title and Number (Right side)
     doc.fillColor(colors.primary)
@@ -255,28 +283,8 @@ router.get('/:id/pdf', auth, async (req, res) => {
 
     currentY += 100;
 
-    // Status Badge - Moved up
-    const statusColors = {
-      'paid': colors.success,
-      'pending': colors.warning,
-      'cancelled': colors.danger,
-      'draft': colors.secondary
-    };
-    
-    const statusColor = statusColors[invoice.status] || colors.secondary;
-    doc.fillColor(statusColor)
-       .rect(50, currentY, 80, 22)
-       .fill();
-    
-    doc.fillColor('white')
-       .fontSize(9)
-       .font('Helvetica-Bold')
-       .text(invoice.status.toUpperCase(), 50, currentY + 7, {
-         width: 80,
-         align: 'center'
-       });
-
-    currentY += 35;
+    // (Status badge removed)
+    currentY += 0;
 
     // Bill To Section
     doc.fillColor(colors.text)
@@ -433,59 +441,26 @@ router.get('/:id/pdf', auth, async (req, res) => {
 
     const subtotal = invoice.items?.reduce((sum, item) => sum + (item.amount || 0), 0) || 0;
     const total = invoice.amount || subtotal;
-    // Use invoice.tax if available, otherwise default to 10%
-    const taxRate = typeof invoice.tax === 'number' ? invoice.tax : 10;
-    const basePrice = +(total * 100 / (100 + taxRate)).toFixed(2);
-    const totalGst = +(total - basePrice).toFixed(2);
-    const sgst = +(totalGst / 2).toFixed(2);
-    const cgst = +(totalGst / 2).toFixed(2);
 
     // Totals background
-    doc.rect(totalsStartX, currentY, totalsWidth, 100)
+    doc.rect(totalsStartX, currentY, totalsWidth, 40)
        .fillColor('#f8fafc')
        .fill()
        .strokeColor('#e2e8f0')
        .lineWidth(1)
        .stroke();
 
-    // Base Price
-    doc.fillColor(colors.text)
-       .fontSize(10)
-       .font('Helvetica')
-       .text('Base Price:', totalsStartX + 12, currentY + 12);
-    doc.text(formatCurrency(basePrice, invoice.currency), totalsStartX + 12, currentY + 12, {
-       width: totalsWidth - 24,
-       align: 'right'
-     });
-
-    // SGST
-    doc.text('SGST (5%):', totalsStartX + 12, currentY + 28);
-    doc.text(formatCurrency(sgst, invoice.currency), totalsStartX + 12, currentY + 28, {
-       width: totalsWidth - 24,
-       align: 'right'
-     });
-
-    // CGST
-    doc.text('CGST (5%):', totalsStartX + 12, currentY + 44);
-    doc.text(formatCurrency(cgst, invoice.currency), totalsStartX + 12, currentY + 44, {
-       width: totalsWidth - 24,
-       align: 'right'
-     });
-
-    // Total line
-    addLine(totalsStartX + 12, currentY + 60, totalsStartX + totalsWidth - 12, currentY + 60, colors.primary, 1);
-
-    // Total
+    // Only show total
     doc.fillColor(colors.primary)
        .fontSize(12)
        .font('Helvetica-Bold')
-       .text('TOTAL:', totalsStartX + 12, currentY + 70);
-    doc.text(formatCurrency(total, invoice.currency), totalsStartX + 12, currentY + 70, {
+       .text('TOTAL:', totalsStartX + 12, currentY + 10);
+    doc.text(formatCurrency(total, invoice.currency), totalsStartX + 12, currentY + 10, {
        width: totalsWidth - 24,
        align: 'right'
      });
 
-    currentY += 105;
+    currentY += 45;
 
     // Notes Section
     if (invoice.notes && invoice.notes.trim()) {

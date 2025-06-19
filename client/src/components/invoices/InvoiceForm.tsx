@@ -18,6 +18,7 @@ import {
 import { toast } from 'sonner';
 import { API_URL } from '@/lib/constants';
 import { useQueryClient } from '@tanstack/react-query';
+import { useGym } from '@/context/GymContext';
 
 interface Customer {
   _id: string;
@@ -31,34 +32,14 @@ interface Booking {
   startTime: string;
 }
 
-interface InvoiceItem {
+type InvoiceItem = {
   description: string;
   quantity: number;
   unitPrice: number;
   amount: number;
-  taxDetails?: {
-    basePrice: number;
-    sgst: number;
-    cgst: number;
-    totalTax: number;
-  };
-}
+};
 
-interface InvoiceFormData {
-  customerId: string;
-  chargeType: string;
-  quantity: number;
-  unitPrice: number;
-  amount: number;
-  description?: string;
-  dueDate?: string;
-  tax: number;
-  basePrice: number;
-  sgst: number;
-  cgst: number;
-}
-
-interface InvoiceSubmitData {
+type InvoiceSubmitData = {
   customerId: string;
   items: InvoiceItem[];
   amount: number;
@@ -66,26 +47,13 @@ interface InvoiceSubmitData {
   notes?: string;
   status: string;
   currency: string;
-  taxDetails: {
-    basePrice: number;
-    sgst: number;
-    cgst: number;
-    totalTax: number;
-  };
-}
+};
 
 const formSchema = z.object({
   customerId: z.string().min(1, 'Customer is required'),
   chargeType: z.string().min(1, 'Charge type is required'),
-  quantity: z.coerce.number().min(1, 'Quantity must be at least 1'),
-  unitPrice: z.coerce.number().min(0, 'Unit price must be a positive number'),
-  amount: z.coerce.number().min(0, 'Amount must be a positive number'),
   description: z.string().optional(),
   dueDate: z.string().optional(),
-  tax: z.coerce.number().min(0, 'Tax must be a positive number').default(10),
-  basePrice: z.coerce.number().min(0, 'Base price must be a positive number'),
-  sgst: z.coerce.number().min(0, 'SGST must be a positive number'),
-  cgst: z.coerce.number().min(0, 'CGST must be a positive number')
 });
 
 interface InvoiceFormProps {
@@ -99,6 +67,10 @@ export default function InvoiceForm({ open, onClose, onSubmit }: InvoiceFormProp
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [selectedChargeType, setSelectedChargeType] = useState<string>('');
+  const [items, setItems] = useState([
+    { description: '', quantity: 1, unitPrice: 0, amount: 0 }
+  ]);
+  const { gym } = useGym();
 
   // Fetch customers
   useEffect(() => {
@@ -154,80 +126,54 @@ export default function InvoiceForm({ open, onClose, onSubmit }: InvoiceFormProp
     fetchBookings();
   }, []);
 
-  const form = useForm<InvoiceFormData>({
+  const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
       customerId: '',
       chargeType: '',
-      quantity: 1,
-      unitPrice: 0,
-      amount: 0,
       description: '',
       dueDate: format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
-      tax: 10,
-      basePrice: 0,
-      sgst: 0,
-      cgst: 0
     }
   });
 
-  // Calculate base price and GST when amount changes
-  useEffect(() => {
-    const amount = form.getValues('amount');
-    const taxRate = form.getValues('tax');
-    
-    if (amount > 0 && taxRate > 0) {
-      const basePrice = (amount * 100) / (100 + taxRate);
-      const totalGst = amount - basePrice;
-      const sgst = totalGst / 2;
-      const cgst = totalGst / 2;
-
-      form.setValue('basePrice', Number(basePrice.toFixed(2)));
-      form.setValue('sgst', Number(sgst.toFixed(2)));
-      form.setValue('cgst', Number(cgst.toFixed(2)));
+  const handleItemChange = (index, field, value) => {
+    const updatedItems = [...items];
+    updatedItems[index][field] = value;
+    if (field === 'quantity' || field === 'unitPrice') {
+      const qty = Number(updatedItems[index].quantity) || 0;
+      const price = Number(updatedItems[index].unitPrice) || 0;
+      updatedItems[index].amount = qty * price;
     }
-  }, [form.watch('amount'), form.watch('tax')]);
+    setItems(updatedItems);
+  };
 
-  const handleSubmit = async (data: InvoiceFormData) => {
-    console.log('Form submitted with data:', data);
+  const handleAddItem = () => {
+    setItems([...items, { description: '', quantity: 1, unitPrice: 0, amount: 0 }]);
+  };
+
+  const handleRemoveItem = (index) => {
+    if (items.length === 1) return;
+    setItems(items.filter((_, i) => i !== index));
+  };
+
+  const totalAmount = items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+
+  const handleSubmit = async (data) => {
     setLoading(true);
     try {
-      const items: InvoiceItem[] = [{
-        description: data.description || `${data.chargeType} charge`,
-        quantity: data.quantity,
-        unitPrice: data.basePrice,
-        amount: data.amount,
-        taxDetails: {
-          basePrice: data.basePrice,
-          sgst: data.sgst,
-          cgst: data.cgst,
-          totalTax: data.sgst + data.cgst
-        }
-      }];
-
-      const invoiceData: InvoiceSubmitData = {
+      const invoiceData = {
         customerId: data.customerId,
         items: items,
-        amount: data.amount,
+        amount: totalAmount,
         dueDate: data.dueDate ? new Date(data.dueDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         notes: data.description,
         status: 'pending',
         currency: 'INR',
-        taxDetails: {
-          basePrice: data.basePrice,
-          sgst: data.sgst,
-          cgst: data.cgst,
-          totalTax: data.sgst + data.cgst
-        }
       };
-
-      console.log('Submitting invoice data:', invoiceData);
       await onSubmit(invoiceData);
-      console.log('Invoice submitted successfully');
       toast.success('Invoice created successfully');
       onClose();
     } catch (error) {
-      console.error('Error submitting form:', error);
       toast.error('Failed to create invoice. Please try again.');
     } finally {
       setLoading(false);
@@ -281,9 +227,28 @@ export default function InvoiceForm({ open, onClose, onSubmit }: InvoiceFormProp
     }
   };
 
+  // Helper to get logo URL (copied from settings)
+  const getImageUrl = (url: string | null) => {
+    if (!url) return null;
+    if (url.startsWith('http')) return url;
+    const filename = url.split('/').pop();
+    return `${import.meta.env.VITE_API_URL || 'http://localhost:5001/api'}/uploads/logos/${filename}`;
+  };
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px]">
+        {/* Gym Logo at the top */}
+        {gym?.logo && (
+          <div className="flex justify-center mb-2">
+            <img
+              src={getImageUrl(gym.logo)}
+              alt="Gym Logo"
+              className="w-24 h-24 object-contain rounded-lg border"
+              onError={e => (e.currentTarget.style.display = 'none')}
+            />
+          </div>
+        )}
         <DialogHeader>
           <DialogTitle>Create New Invoice</DialogTitle>
           <DialogDescription>
@@ -348,45 +313,52 @@ export default function InvoiceForm({ open, onClose, onSubmit }: InvoiceFormProp
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="quantity">Quantity</Label>
-              <Input
-                type="number"
-                id="quantity"
-                min="1"
-                {...form.register('quantity')}
-                placeholder="Enter quantity"
-              />
-              {form.formState.errors.quantity && (
-                <p className="text-sm text-red-500">{form.formState.errors.quantity.message}</p>
-              )}
-            </div>
+          {/* Items Table */}
+          <div className="space-y-2">
+            <Label>Invoice Items</Label>
+            {items.map((item, idx) => (
+              <div key={idx} className="grid grid-cols-4 gap-2 items-end mb-2">
+                <Input
+                  placeholder="Description"
+                  value={item.description}
+                  onChange={e => handleItemChange(idx, 'description', e.target.value)}
+                />
+                <Input
+                  type="number"
+                  min="1"
+                  placeholder="Qty"
+                  value={item.quantity}
+                  onChange={e => handleItemChange(idx, 'quantity', e.target.value)}
+                />
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="Unit Price"
+                  value={item.unitPrice}
+                  onChange={e => handleItemChange(idx, 'unitPrice', e.target.value)}
+                />
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="Amount"
+                    value={item.amount}
+                    readOnly
+                  />
+                  {items.length > 1 && (
+                    <Button type="button" variant="destructive" size="sm" onClick={() => handleRemoveItem(idx)}>-</Button>
+                  )}
+                </div>
+              </div>
+            ))}
+            <Button type="button" variant="outline" onClick={handleAddItem}>+ Add Item</Button>
+          </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="unitPrice">Unit Price</Label>
-              <Input
-                type="number"
-                id="unitPrice"
-                min="0"
-                step="0.01"
-                {...form.register('unitPrice')}
-                placeholder="Enter unit price"
-              />
-              {form.formState.errors.unitPrice && (
-                <p className="text-sm text-red-500">{form.formState.errors.unitPrice.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="amount">Total Amount (Inclusive of GST)</Label>
-              <Input
-                id="amount"
-                type="number"
-                step="0.01"
-                {...form.register('amount')}
-              />
-            </div>
+          {/* Show total */}
+          <div className="flex justify-center mt-4">
+            <div className="font-bold text-lg">Total: {totalAmount.toFixed(2)}</div>
           </div>
 
           <div className="space-y-2">
@@ -409,46 +381,6 @@ export default function InvoiceForm({ open, onClose, onSubmit }: InvoiceFormProp
               {form.formState.errors.dueDate && (
                 <p className="text-sm text-red-500">{form.formState.errors.dueDate.message}</p>
               )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="tax">GST Rate (%)</Label>
-              <Input
-                id="tax"
-                type="number"
-                step="0.01"
-                {...form.register('tax')}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>Base Price</Label>
-              <Input
-                type="number"
-                step="0.01"
-                {...form.register('basePrice')}
-                readOnly
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>SGST (5%)</Label>
-              <Input
-                type="number"
-                step="0.01"
-                {...form.register('sgst')}
-                readOnly
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>CGST (5%)</Label>
-              <Input
-                type="number"
-                step="0.01"
-                {...form.register('cgst')}
-                readOnly
-              />
             </div>
           </div>
 

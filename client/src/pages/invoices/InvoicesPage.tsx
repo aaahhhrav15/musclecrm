@@ -141,30 +141,6 @@ const InvoicesPage: React.FC = () => {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'paid':
-        return 'bg-green-500';
-      case 'pending':
-        return 'bg-yellow-500';
-      case 'cancelled':
-        return 'bg-red-500';
-      default:
-        return 'bg-gray-500';
-    }
-  };
-
-  const handleStatusChange = async (invoiceId: string, newStatus: 'pending' | 'paid' | 'cancelled') => {
-    try {
-      await InvoiceService.updateInvoice(invoiceId, { status: newStatus });
-      toast.success('Invoice status updated successfully');
-      queryClient.invalidateQueries({ queryKey: ['invoices'] });
-    } catch (error) {
-      console.error('Error updating invoice status:', error);
-      toast.error('Failed to update invoice status');
-    }
-  };
-
   const handleDeleteInvoice = async (invoice: Invoice) => {
     setInvoiceToDelete(invoice);
     setShowDeleteDialog(true);
@@ -261,9 +237,9 @@ const InvoicesPage: React.FC = () => {
                   <TableRow>
                     <TableHead>Customer</TableHead>
                     <TableHead>Invoice Number</TableHead>
+                    <TableHead>Description</TableHead>
                     <TableHead>Due Date</TableHead>
                     <TableHead>Amount</TableHead>
-                    <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -272,13 +248,9 @@ const InvoicesPage: React.FC = () => {
                     <TableRow key={invoice._id}>
                       <TableCell>{invoice.customerId?.name || 'N/A'}</TableCell>
                       <TableCell>{invoice.invoiceNumber}</TableCell>
+                      <TableCell>{Array.isArray(invoice.items) && invoice.items.length > 0 ? invoice.items.map(item => item.description).join(', ') : '-'}</TableCell>
                       <TableCell>{format(new Date(invoice.dueDate), 'PPP')}</TableCell>
                       <TableCell>{formatCurrency(invoice.amount)}</TableCell>
-                      <TableCell>
-                        <Badge className={getStatusColor(invoice.status)}>
-                          {invoice.status.toUpperCase()}
-                        </Badge>
-                      </TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
