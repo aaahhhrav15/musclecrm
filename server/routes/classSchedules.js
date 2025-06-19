@@ -101,6 +101,26 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+// Update a class schedule (partial update)
+router.patch('/:id', async (req, res) => {
+  try {
+    const classSchedule = await ClassSchedule.findOneAndUpdate(
+      { _id: req.params.id, gymId: req.gymId },
+      { $set: req.body },
+      { new: true }
+    );
+    
+    if (!classSchedule) {
+      return res.status(404).json({ success: false, message: 'Class schedule not found' });
+    }
+    
+    res.json({ success: true, classSchedule });
+  } catch (error) {
+    console.error('Error partially updating class schedule:', error);
+    res.status(500).json({ success: false, message: 'Error updating class schedule' });
+  }
+});
+
 // Delete a class schedule
 router.delete('/:id', async (req, res) => {
   try {

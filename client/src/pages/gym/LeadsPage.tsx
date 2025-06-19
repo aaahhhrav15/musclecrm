@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   TrendingUp, 
@@ -31,29 +31,98 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-
-// Mock data for leads
-const leads = [
-  { id: 1, name: 'Thomas Wilson', phone: '555-123-4567', email: 'thomas@example.com', source: 'Website', status: 'New', followUpDate: '2025-05-25', lastContact: '2025-05-20', notes: 'Interested in annual membership' },
-  { id: 2, name: 'Laura Smith', phone: '555-987-6543', email: 'laura@example.com', source: 'Referral', status: 'Contacted', followUpDate: '2025-05-26', lastContact: '2025-05-19', notes: 'Wants information about personal training' },
-  { id: 3, name: 'Alex Johnson', phone: '555-567-8901', email: 'alex@example.com', source: 'Walk-in', status: 'Meeting Scheduled', followUpDate: '2025-05-27', lastContact: '2025-05-18', notes: 'Scheduled for gym tour tomorrow' },
-  { id: 4, name: 'Emily Brown', phone: '555-234-5678', email: 'emily@example.com', source: 'Social Media', status: 'Interested', followUpDate: '2025-05-28', lastContact: '2025-05-17', notes: 'Looking for family membership options' },
-  { id: 5, name: 'Daniel Lee', phone: '555-876-5432', email: 'daniel@example.com', source: 'Google', status: 'Negotiation', followUpDate: '2025-05-29', lastContact: '2025-05-16', notes: 'Discussing corporate membership for small team' },
-  { id: 6, name: 'Sophia Garcia', phone: '555-345-6789', email: 'sophia@example.com', source: 'Promotion', status: 'Closed', followUpDate: '2025-06-01', lastContact: '2025-05-15', notes: 'Signed up for 6-month membership' },
-];
-
-// Lead statistics
-const leadStats = {
-  total: leads.length,
-  new: leads.filter(l => l.status === 'New').length,
-  contacted: leads.filter(l => l.status === 'Contacted').length,
-  interested: leads.filter(l => l.status === 'Interested').length,
-  negotiation: leads.filter(l => l.status === 'Negotiation').length,
-  closed: leads.filter(l => l.status === 'Closed').length,
-  conversion: Math.round((leads.filter(l => l.status === 'Closed').length / leads.length) * 100),
-};
+import axios from '@/lib/axios';
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
 
 const LeadsPage: React.FC = () => {
+  const [leads, setLeads] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [editingLead, setEditingLead] = useState(null);
+  const [form, setForm] = useState({ name: '', phone: '', source: '', status: 'New', followUpDate: '', notes: '' });
+  const [deleteLeadId, setDeleteLeadId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('all');
+  const [search, setSearch] = useState('');
+
+  const fetchLeads = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get('/leads');
+      setLeads(res.data);
+      setError('');
+    } catch (err) {
+      setError('Failed to fetch leads');
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchLeads();
+  }, []);
+
+  const handleOpenModal = (lead = null) => {
+    setEditingLead(lead);
+    setForm(lead ? { ...lead, followUpDate: lead.followUpDate ? lead.followUpDate.slice(0, 10) : '' } : { name: '', phone: '', source: '', status: 'New', followUpDate: '', notes: '' });
+    setShowModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setEditingLead(null);
+    setForm({ name: '', phone: '', source: '', status: 'New', followUpDate: '', notes: '' });
+  };
+
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (editingLead) {
+        await axios.put(`/leads/${editingLead._id}`, form);
+      } else {
+        await axios.post('/leads', form);
+      }
+      fetchLeads();
+      handleCloseModal();
+    } catch (err) {
+      setError('Failed to save lead');
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await axios.delete(`/leads/${id}`);
+      fetchLeads();
+      setDeleteLeadId(null);
+    } catch (err) {
+      setError('Failed to delete lead');
+    }
+  };
+
+  // Lead statistics
+  const leadStats = {
+    total: leads.length,
+    new: leads.filter(l => l.status === 'New').length,
+    contacted: leads.filter(l => l.status === 'Contacted').length,
+    interested: leads.filter(l => l.status === 'Interested').length,
+    negotiation: leads.filter(l => l.status === 'Negotiation').length,
+    closed: leads.filter(l => l.status === 'Closed').length,
+    conversion: leads.length ? Math.round((leads.filter(l => l.status === 'Closed').length / leads.length) * 100) : 0,
+  };
+
   return (
     <DashboardLayout>
       <motion.div
@@ -70,11 +139,8 @@ const LeadsPage: React.FC = () => {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button>
+            <Button onClick={() => handleOpenModal()}>
               <Plus className="mr-2 h-4 w-4" /> New Lead
-            </Button>
-            <Button variant="outline">
-              <FileText className="mr-2 h-4 w-4" /> Create Form
             </Button>
           </div>
         </div>
@@ -105,7 +171,7 @@ const LeadsPage: React.FC = () => {
             </CardHeader>
             <CardContent className="py-1">
               <div className="text-2xl font-bold">
-                {leadStats.contacted + leadStats.interested + leadStats.negotiation}
+                {leadStats.contacted + leadStats.negotiation}
               </div>
               <p className="text-xs text-muted-foreground">Actively engaged leads</p>
             </CardContent>
@@ -127,15 +193,13 @@ const LeadsPage: React.FC = () => {
             <Input
               placeholder="Search leads..."
               className="pl-8"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
             />
           </div>
-          <Button variant="outline" className="w-full sm:w-auto">
-            <Filter className="mr-2 h-4 w-4" />
-            Filters
-          </Button>
         </div>
 
-        <Tabs defaultValue="all" className="w-full">
+        <Tabs defaultValue="all" className="w-full" onValueChange={setActiveTab}>
           <TabsList className="grid grid-cols-6 mb-4">
             <TabsTrigger value="all">All</TabsTrigger>
             <TabsTrigger value="new">New</TabsTrigger>
@@ -145,96 +209,137 @@ const LeadsPage: React.FC = () => {
             <TabsTrigger value="closed">Closed</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="all" className="border rounded-md">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead className="hidden md:table-cell">Contact</TableHead>
-                  <TableHead className="hidden md:table-cell">Source</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Follow-up</TableHead>
-                  <TableHead className="w-[140px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {leads.map(lead => (
-                  <TableRow key={lead.id}>
-                    <TableCell className="font-medium">{lead.name}</TableCell>
-                    <TableCell className="hidden md:table-cell">{lead.phone}</TableCell>
-                    <TableCell className="hidden md:table-cell">{lead.source}</TableCell>
-                    <TableCell>
-                      <Badge variant={
-                        lead.status === 'New' ? 'secondary' :
-                        lead.status === 'Contacted' ? 'default' :
-                        lead.status === 'Meeting Scheduled' ? 'outline' :
-                        lead.status === 'Interested' ? 'default' :
-                        lead.status === 'Negotiation' ? 'destructive' : 'secondary'
-                      }>
-                        {lead.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{lead.followUpDate}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button size="icon" variant="ghost">
-                          <PhoneCall className="h-4 w-4" />
-                        </Button>
-                        <Button size="icon" variant="ghost">
-                          <MessageSquare className="h-4 w-4" />
-                        </Button>
-                        <Button size="icon" variant="ghost">
-                          <Calendar className="h-4 w-4" />
-                        </Button>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button size="icon" variant="ghost">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem>View Details</DropdownMenuItem>
-                            <DropdownMenuItem>Edit Lead</DropdownMenuItem>
-                            <DropdownMenuItem>Set Follow-up</DropdownMenuItem>
-                            <DropdownMenuItem>Change Status</DropdownMenuItem>
-                            <DropdownMenuItem>Mark as Closed</DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </TableCell>
+          <TabsContent value={activeTab} className="border rounded-md">
+            {loading ? (
+              <div className="p-8 text-center">Loading...</div>
+            ) : error ? (
+              <div className="p-8 text-center text-red-500">{error}</div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead className="hidden md:table-cell">Phone</TableHead>
+                    <TableHead className="hidden md:table-cell">Source</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Follow-up</TableHead>
+                    <TableHead className="hidden md:table-cell">Notes</TableHead>
+                    <TableHead className="w-[60px]">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TabsContent>
-          <TabsContent value="new">
-            {/* Similar table for new leads */}
-            <div className="p-8 text-center text-muted-foreground">
-              Filter for new leads will be shown here.
-            </div>
-          </TabsContent>
-          <TabsContent value="contacted">
-            <div className="p-8 text-center text-muted-foreground">
-              Filter for contacted leads will be shown here.
-            </div>
-          </TabsContent>
-          <TabsContent value="meeting">
-            <div className="p-8 text-center text-muted-foreground">
-              Filter for leads with scheduled meetings will be shown here.
-            </div>
-          </TabsContent>
-          <TabsContent value="negotiation">
-            <div className="p-8 text-center text-muted-foreground">
-              Filter for leads in negotiation phase will be shown here.
-            </div>
-          </TabsContent>
-          <TabsContent value="closed">
-            <div className="p-8 text-center text-muted-foreground">
-              Filter for closed leads will be shown here.
-            </div>
+                </TableHeader>
+                <TableBody>
+                  {leads
+                    .filter(lead => {
+                      if (activeTab === 'all') return true;
+                      if (activeTab === 'new') return lead.status === 'New';
+                      if (activeTab === 'contacted') return lead.status === 'Contacted';
+                      if (activeTab === 'meeting') return lead.status === 'Meeting Scheduled';
+                      if (activeTab === 'negotiation') return lead.status === 'Negotiation';
+                      if (activeTab === 'closed') return lead.status === 'Closed';
+                      return true;
+                    })
+                    .filter(lead => lead.name.toLowerCase().includes(search.toLowerCase()))
+                    .map(lead => (
+                      <TableRow key={lead._id}>
+                        <TableCell className="font-medium">{lead.name}</TableCell>
+                        <TableCell className="hidden md:table-cell">{lead.phone}</TableCell>
+                        <TableCell className="hidden md:table-cell">{lead.source}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              lead.status === 'New' ? 'secondary'
+                              : lead.status === 'Contacted' ? 'default'
+                              : lead.status === 'Meeting Scheduled' ? 'outline'
+                              : lead.status === 'Negotiation' ? 'destructive'
+                              : lead.status === 'Closed' ? 'default'
+                              : 'secondary'
+                            }
+                            className={lead.status === 'Closed' ? 'bg-green-600 text-white' : ''}
+                          >
+                            {lead.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{lead.followUpDate ? lead.followUpDate.slice(0, 10) : ''}</TableCell>
+                        <TableCell className="hidden md:table-cell">{lead.notes}</TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button size="icon" variant="ghost">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleOpenModal(lead)}>Edit</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setDeleteLeadId(lead._id)}>Delete</DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                </TableBody>
+              </Table>
+            )}
           </TabsContent>
         </Tabs>
       </motion.div>
+      {/* Modal for add/edit lead */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <form onSubmit={handleSubmit} className="bg-white p-6 rounded shadow w-full max-w-md space-y-4">
+            <h2 className="text-lg font-bold mb-2">{editingLead ? 'Edit Lead' : 'Add Lead'}</h2>
+            <div>
+              <label className="block mb-1">Name</label>
+              <Input name="name" value={form.name} onChange={handleChange} required />
+            </div>
+            <div>
+              <label className="block mb-1">Phone</label>
+              <Input name="phone" value={form.phone} onChange={handleChange} required />
+            </div>
+            <div>
+              <label className="block mb-1">Source</label>
+              <Input name="source" value={form.source} onChange={handleChange} />
+            </div>
+            <div>
+              <label className="block mb-1">Status</label>
+              <select name="status" value={form.status} onChange={handleChange} className="w-full border rounded px-2 py-1">
+                <option value="New">New</option>
+                <option value="Contacted">Contacted</option>
+                <option value="Meeting Scheduled">Meeting Scheduled</option>
+                <option value="Negotiation">Negotiation</option>
+                <option value="Closed">Closed</option>
+              </select>
+            </div>
+            <div>
+              <label className="block mb-1">Follow-up Date</label>
+              <Input type="date" name="followUpDate" value={form.followUpDate} onChange={handleChange} />
+            </div>
+            <div>
+              <label className="block mb-1">Notes</label>
+              <Input name="notes" value={form.notes} onChange={handleChange} />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button type="button" variant="outline" onClick={handleCloseModal}>Cancel</Button>
+              <Button type="submit">{editingLead ? 'Update' : 'Add'}</Button>
+            </div>
+          </form>
+        </div>
+      )}
+      {deleteLeadId && (
+        <AlertDialog open={!!deleteLeadId} onOpenChange={open => !open && setDeleteLeadId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Lead?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete this lead? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setDeleteLeadId(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={() => handleDelete(deleteLeadId)}>Delete</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </DashboardLayout>
   );
 };

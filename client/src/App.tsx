@@ -128,7 +128,7 @@ const App = () => (
                     <Route path="/dashboard/gym/workout-plans/:id/assign" element={<ProtectedRoute element={<AssignWorkoutPlanPage />} />} />
                     <Route path="/dashboard/gym/workout-plans/:id" element={<ProtectedRoute element={<ViewWorkoutPlanPage />} />} />
                     <Route path="/dashboard/gym/retail-sales" element={<ProtectedRoute element={<RetailSalesPage />} />} />
-                    
+                    <Route path="/dashboard/gym/leads" element={<ProtectedRoute element={<GymLeadsPage />} />} />
                     {/* Booking Routes */}
                     <Route path="/dashboard/bookings/:id" element={<ProtectedRoute element={<ViewBookingPage />} />} />
                     

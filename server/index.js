@@ -29,6 +29,7 @@ const healthAssessmentRoutes = require('./routes/healthAssessments');
 const retailSalesRoutes = require('./routes/retailSales');
 const transactionsRoutes = require('./routes/transactions');
 const expensesRoutes = require('./routes/expenses');
+const leadsRouter = require('./routes/leads');
 
 const app = express();
 
@@ -40,7 +41,7 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cors({
   origin: 'http://localhost:5173', // Your frontend URL
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
 }));
 
@@ -153,6 +154,7 @@ app.use('/api/communications', communicationsRoutes);
 app.use('/api/gym/health-assessments', healthAssessmentRoutes);
 app.use('/api/gym/retail-sales', retailSalesRoutes);
 app.use('/api/transactions', transactionsRoutes);
+app.use('/api/leads', leadsRouter);
 
 // Root route
 app.get('/', (req, res) => {
