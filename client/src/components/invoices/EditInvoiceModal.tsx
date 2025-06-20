@@ -172,12 +172,10 @@ export function EditInvoiceModal({ isOpen, onClose, invoice, onSuccess }: EditIn
     setLoading(true);
     try {
       await InvoiceService.updateInvoice(invoice._id, {
-        customerId: data.customerId,
         items: items,
         amount: totalAmount,
         dueDate: data.dueDate,
         notes: data.description,
-        status: invoice.status,
         currency: invoice.currency
       });
       toast.success('Invoice updated successfully');

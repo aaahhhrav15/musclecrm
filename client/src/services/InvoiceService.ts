@@ -15,7 +15,6 @@ export interface Invoice {
   bookingId?: string | { _id: string; type: string; startTime: string; endTime: string };
   amount: number;
   currency: string;
-  status: 'pending' | 'paid' | 'cancelled';
   dueDate: string;
   items: InvoiceItem[];
   notes?: string;
@@ -38,7 +37,6 @@ export interface UpdateInvoiceData {
   dueDate?: string;
   items?: InvoiceItem[];
   notes?: string;
-  status?: 'pending' | 'paid' | 'cancelled';
 }
 
 export interface CreateInvoiceResponse {

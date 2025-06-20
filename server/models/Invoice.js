@@ -59,11 +59,6 @@ const invoiceSchema = new mongoose.Schema({
     required: true,
     default: 'INR'
   },
-  status: {
-    type: String,
-    enum: ['pending', 'paid', 'cancelled'],
-    default: 'pending'
-  },
   dueDate: {
     type: Date,
     required: true
@@ -133,6 +128,5 @@ invoiceSchema.index({ userId: 1, createdAt: -1 });
 invoiceSchema.index({ gymId: 1 });
 invoiceSchema.index({ bookingId: 1 });
 invoiceSchema.index({ customerId: 1 });
-invoiceSchema.index({ status: 1 });
 
 module.exports = mongoose.models.Invoice || mongoose.model('Invoice', invoiceSchema);

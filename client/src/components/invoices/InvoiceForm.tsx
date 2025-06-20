@@ -45,7 +45,6 @@ type InvoiceSubmitData = {
   amount: number;
   dueDate: Date;
   notes?: string;
-  status: string;
   currency: string;
   paymentMode: string;
 };
@@ -170,7 +169,6 @@ export default function InvoiceForm({ open, onClose, onSubmit }: InvoiceFormProp
         amount: totalAmount,
         dueDate: data.dueDate ? new Date(data.dueDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         notes: data.description,
-        status: 'paid',
         currency: 'INR',
         paymentMode: data.paymentMode,
       };
