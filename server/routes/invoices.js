@@ -351,32 +351,6 @@ router.get('/:id/pdf', auth, async (req, res) => {
       });
     }
 
-    // // Booking Details (if exists)
-    // if (invoice.bookingId) {
-    //   doc.fillColor(colors.text)
-    //      .fontSize(12)
-    //      .font('Helvetica-Bold')
-    //      .text('SERVICE DETAILS:', 310, currentY);
-
-    //   doc.rect(310, currentY + 15, 235, 85)
-    //      .fillColor('#fafafa')
-    //      .fill()
-    //      .strokeColor('#e2e8f0')
-    //      .lineWidth(1)
-    //      .stroke();
-
-    //   doc.fillColor(colors.text)
-    //      .fontSize(11)
-    //      .font('Helvetica-Bold')
-    //      .text(`Service: ${invoice.bookingId.type || 'N/A'}`, 320, currentY + 25);
-
-    //   doc.fillColor(colors.secondary)
-    //      .fontSize(9)
-    //      .font('Helvetica')
-    //      .text(`Start Date: ${formatDate(invoice.bookingId.startTime)}`, 320, currentY + 42)
-    //      .text(`End Date: ${formatDate(invoice.bookingId.endTime)}`, 320, currentY + 55);
-    // }
-
     currentY += 115;
 
     // Items Table
