@@ -47,7 +47,7 @@ const formSchema = z.object({
   membershipDuration: z.number().min(1, 'Membership duration must be at least 1 month'),
   membershipStartDate: z.date(),
   transactionDate: z.date(),
-  paymentMode: z.string().min(1, 'Payment mode is required'),
+  paymentMode: z.enum(['cash', 'card', 'upi', 'bank_transfer', 'other']),
 });
 
 interface RenewMembershipModalProps {
@@ -82,7 +82,7 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
       membershipDuration: customer.membershipDuration || 1,
       membershipStartDate: new Date(),
       transactionDate: new Date(),
-      paymentMode: 'cash',
+      paymentMode: 'cash' as const,
     }
   });
 
@@ -113,8 +113,7 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
       setIsSubmitting(true);
       const endDate = addMonths(values.membershipStartDate, values.membershipDuration);
       
-      // Update customer membership
-      const updatedCustomer = await CustomerService.updateCustomer(customer.id, {
+      const updateData = {
         membershipType: values.membershipType,
         membershipFees: values.membershipFees,
         membershipDuration: values.membershipDuration,
@@ -123,7 +122,17 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
         totalSpent: (customer.totalSpent || 0) + values.membershipFees,
         transactionDate: values.transactionDate,
         paymentMode: values.paymentMode,
+      };
+
+      console.log('Renewal data being sent:', updateData);
+      console.log('Current customer data:', {
+        membershipType: customer.membershipType,
+        membershipFees: customer.membershipFees,
+        membershipDuration: customer.membershipDuration
       });
+      
+      // Update customer membership
+      const response = await CustomerService.updateCustomer(customer.id, updateData);
 
       // Create transaction record
       await transactionService.createTransaction({
@@ -138,15 +147,25 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
         status: 'SUCCESS'
       });
 
-      if (updatedCustomer) {
-        toast({
-          title: "Success",
-          description: "Membership renewed successfully",
-        });
+      if (response) {
+        // Show success message with invoice information if created
+        if (response.invoice) {
+          toast({
+            title: "Success",
+            description: `Membership renewed successfully! Invoice ${response.invoice.invoiceNumber} has been automatically generated for renewal fees.`,
+          });
+        } else {
+          toast({
+            title: "Success",
+            description: "Membership renewed successfully",
+          });
+        }
+
         await queryClient.invalidateQueries({ queryKey: ['customers'] });
         await queryClient.invalidateQueries({ queryKey: ['transactions', customer.id] });
+        await queryClient.invalidateQueries({ queryKey: ['invoices'] });
         if (onMembershipRenewed) {
-          onMembershipRenewed(updatedCustomer);
+          onMembershipRenewed(response);
         }
         handleClose();
       }

@@ -41,6 +41,25 @@ export interface UpdateInvoiceData {
   status?: 'pending' | 'paid' | 'cancelled';
 }
 
+export interface CreateInvoiceResponse {
+  success: boolean;
+  data: Invoice;
+  transaction?: {
+    _id: string;
+    userId: string;
+    gymId: string;
+    transactionType: string;
+    transactionDate: string;
+    amount: number;
+    membershipType: string;
+    paymentMode: string;
+    description: string;
+    status: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+}
+
 export class InvoiceService {
   static async getInvoices(): Promise<Invoice[]> {
     try {
@@ -66,7 +85,7 @@ export class InvoiceService {
     }
   }
 
-  static async createInvoice(data: CreateInvoiceData): Promise<Invoice> {
+  static async createInvoice(data: CreateInvoiceData): Promise<CreateInvoiceResponse> {
     try {
       const response = await axios.post(`${API_URL}/invoices`, data, {
         withCredentials: true
@@ -74,7 +93,7 @@ export class InvoiceService {
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to create invoice');
       }
-      return response.data.invoice;
+      return response.data;
     } catch (error) {
       console.error('Error creating invoice:', error);
       throw error;

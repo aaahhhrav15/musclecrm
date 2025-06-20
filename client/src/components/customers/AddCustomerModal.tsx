@@ -151,12 +151,22 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
           status: 'SUCCESS'
         });
 
-        toast({
-          title: "Success",
-          description: "Customer created successfully",
-        });
+        // Show success message with invoice information if created
+        if (response.invoice) {
+          toast({
+            title: "Success",
+            description: `Customer created successfully! Invoice ${response.invoice.invoiceNumber} has been automatically generated for membership fees.`,
+          });
+        } else {
+          toast({
+            title: "Success",
+            description: "Customer created successfully",
+          });
+        }
+
         await queryClient.invalidateQueries({ queryKey: ['customers'] });
         await queryClient.invalidateQueries({ queryKey: ['transactions', response.customer._id] });
+        await queryClient.invalidateQueries({ queryKey: ['invoices'] });
         onClose();
         form.reset();
       }

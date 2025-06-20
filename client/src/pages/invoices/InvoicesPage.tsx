@@ -81,8 +81,9 @@ const InvoicesPage: React.FC = () => {
           amount: data.amount,
           dueDate: data.dueDate,
           notes: data.notes,
-          status: 'pending',
-          currency: 'INR'
+          status: 'paid',
+          currency: 'INR',
+          paymentMode: data.paymentMode,
         }, { 
           withCredentials: true,
           headers: {
@@ -103,8 +104,17 @@ const InvoicesPage: React.FC = () => {
     },
     onSuccess: (data) => {
       console.log('Invoice created successfully:', data);
+      
+      // Show success message with transaction information if created
+      if (data.transaction) {
+        toast.success(`Invoice created successfully! Transaction record has been automatically generated for tracking.`);
+      } else {
+        toast.success('Invoice created successfully');
+      }
+      
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      toast.success('Invoice created successfully');
+      // Also invalidate transactions query to refresh transaction history
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
       setIsCreateInvoiceOpen(false);
     },
     onError: (error: Error) => {

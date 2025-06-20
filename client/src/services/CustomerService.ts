@@ -69,6 +69,24 @@ interface ApiCustomerResponse extends ApiResponse {
     createdAt: string;
     updatedAt: string;
   };
+  invoice?: {
+    _id: string;
+    invoiceNumber: string;
+    customerId: string;
+    amount: number;
+    currency: string;
+    status: string;
+    dueDate: string;
+    items: Array<{
+      description: string;
+      quantity: number;
+      unitPrice: number;
+      amount: number;
+    }>;
+    notes?: string;
+    createdAt: string;
+    updatedAt: string;
+  };
 }
 
 export interface CustomerFormData {
@@ -100,7 +118,29 @@ export interface CustomerFilterOptions {
   sortOrder?: 'asc' | 'desc';
 }
 
-const mapCustomerFromApi = (apiCustomer: any): Customer => ({
+interface ApiCustomerData {
+  _id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  address?: string;
+  source?: string;
+  notes?: string;
+  membershipType?: string;
+  membershipFees: number;
+  membershipDuration: number;
+  joinDate: string;
+  membershipStartDate: string;
+  membershipEndDate?: string;
+  transactionDate: string;
+  paymentMode: string;
+  birthday?: string;
+  totalSpent: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const mapCustomerFromApi = (apiCustomer: ApiCustomerData): Customer => ({
   id: apiCustomer._id,
   name: apiCustomer.name,
   email: apiCustomer.email,
@@ -194,15 +234,10 @@ export const CustomerService = {
   /**
    * Update an existing customer
    */
-  updateCustomer: async (id: string, customerData: Partial<CustomerFormData>): Promise<Customer> => {
+  updateCustomer: async (id: string, customerData: Partial<CustomerFormData>): Promise<ApiCustomerResponse> => {
     try {
       const response = await ApiService.put<ApiCustomerResponse>(`/customers/${id}`, customerData);
-      
-      if (!response.success) {
-        throw new Error(response.message || 'Failed to update customer');
-      }
-
-      return mapCustomerFromApi(response.customer);
+      return response;
     } catch (error: unknown) {
       console.error('Error updating customer:', error);
       if (error instanceof Error) {

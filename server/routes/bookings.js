@@ -5,6 +5,7 @@ const { gymAuth } = require('../middleware/gymAuth');
 const Booking = require('../models/Booking');
 const Customer = require('../models/Customer');
 const Invoice = require('../models/Invoice');
+const Transaction = require('../models/Transaction');
 const Notification = require('../models/Notification');
 const { addDays } = require('date-fns');
 
@@ -122,7 +123,58 @@ router.post('/', async (req, res) => {
     });
     console.log('Created booking object:', booking);
     await booking.save();
-    res.status(201).json({ success: true, booking });
+
+    // Create a corresponding invoice
+    const invoice = new Invoice({
+      userId: req.user._id,
+      gymId: req.gymId,
+      customerId: booking.customerId,
+      amount: booking.price,
+      dueDate: new Date(),
+      status: 'paid', // Assuming booking payment is made upfront
+      items: [{
+        description: `Booking for ${booking.type}`,
+        quantity: 1,
+        unitPrice: booking.price,
+        amount: booking.price,
+      }],
+    });
+    console.log('About to save invoice', invoice);
+    await invoice.save();
+
+    // Map payment mode
+    let transactionPaymentMode = 'other';
+    switch (booking.paymentMode) {
+      case 'Cash':
+        transactionPaymentMode = 'cash';
+        break;
+      case 'Credit Card':
+      case 'Debit Card':
+        transactionPaymentMode = 'card';
+        break;
+      case 'UPI':
+        transactionPaymentMode = 'upi';
+        break;
+      case 'Online':
+        transactionPaymentMode = 'other';
+        break;
+    }
+
+    // Create a corresponding transaction
+    const transaction = new Transaction({
+      userId: booking.customerId,
+      gymId: req.gymId,
+      invoiceId: invoice._id,
+      transactionType: 'INVOICE_PAYMENT',
+      transactionDate: new Date(),
+      amount: booking.price,
+      paymentMode: transactionPaymentMode,
+      description: `Payment for booking ID: ${booking._id}`,
+      status: 'SUCCESS',
+    });
+    await transaction.save();
+
+    res.status(201).json({ success: true, booking, invoice, transaction });
   } catch (error) {
     console.error('Error creating booking:', error);
     console.error('Error details:', {
@@ -144,9 +196,16 @@ router.post('/', async (req, res) => {
 // Update a booking
 router.put('/:id', async (req, res) => {
   try {
+    const { paymentMode, ...restOfBody } = req.body;
+    const updatedData = { ...restOfBody };
+
+    if (paymentMode) {
+      updatedData.paymentMode = paymentMode;
+    }
+
     const booking = await Booking.findOneAndUpdate(
       { _id: req.params.id, gymId: req.gymId },
-      req.body,
+      updatedData,
       { new: true }
     );
     

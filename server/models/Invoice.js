@@ -46,7 +46,8 @@ const invoiceSchema = new mongoose.Schema({
   invoiceNumber: {
     type: String,
     required: true,
-    unique: true
+    unique: true,
+    default: ''
   },
   amount: {
     type: Number,
@@ -87,19 +88,41 @@ invoiceSchema.pre('save', function(next) {
 
 // Generate sequential invoice number
 invoiceSchema.pre('save', async function(next) {
+  console.log('Pre-save hook running for invoice');
   if (!this.invoiceNumber) {
     try {
-      const lastInvoice = await this.constructor.findOne({}, {}, { sort: { 'invoiceNumber': -1 } });
+      // Find the last invoice by creation date
+      const lastInvoice = await this.constructor.findOne({}, {}, { sort: { createdAt: -1 } });
       let nextNumber = 1;
-      
       if (lastInvoice && lastInvoice.invoiceNumber) {
-        const lastNumber = parseInt(lastInvoice.invoiceNumber.replace('INV', ''));
-        nextNumber = lastNumber + 1;
+        const match = lastInvoice.invoiceNumber.match(/INV(\d+)/);
+        if (match) {
+          nextNumber = parseInt(match[1], 10) + 1;
+        }
       }
-      
       this.invoiceNumber = `INV${String(nextNumber).padStart(5, '0')}`;
     } catch (error) {
-      next(error);
+      return next(error);
+    }
+  }
+  next();
+});
+
+// Add a pre-validate hook as a backup to pre-save
+invoiceSchema.pre('validate', async function(next) {
+  if (!this.invoiceNumber) {
+    try {
+      const lastInvoice = await this.constructor.findOne({}, {}, { sort: { createdAt: -1 } });
+      let nextNumber = 1;
+      if (lastInvoice && lastInvoice.invoiceNumber) {
+        const match = lastInvoice.invoiceNumber.match(/INV(\d+)/);
+        if (match) {
+          nextNumber = parseInt(match[1], 10) + 1;
+        }
+      }
+      this.invoiceNumber = `INV${String(nextNumber).padStart(5, '0')}`;
+    } catch (error) {
+      return next(error);
     }
   }
   next();
@@ -112,4 +135,4 @@ invoiceSchema.index({ bookingId: 1 });
 invoiceSchema.index({ customerId: 1 });
 invoiceSchema.index({ status: 1 });
 
-module.exports = mongoose.model('Invoice', invoiceSchema);
+module.exports = mongoose.models.Invoice || mongoose.model('Invoice', invoiceSchema);

@@ -93,6 +93,11 @@ const bookingSchema = new mongoose.Schema({
   updatedAt: {
     type: Date,
     default: Date.now
+  },
+  paymentMode: {
+    type: String,
+    enum: ['Cash', 'Credit Card', 'Debit Card', 'Online', 'UPI'],
+    required: true
   }
 }, {
   timestamps: true

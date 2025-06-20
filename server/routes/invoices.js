@@ -1,6 +1,7 @@
 const express = require('express');
 const Invoice = require('../models/Invoice');
 const Customer = require('../models/Customer');
+const Transaction = require('../models/Transaction');
 const auth = require('../middleware/auth');
 const Booking = require('../models/Booking');
 const PDFDocument = require('pdfkit');
@@ -51,7 +52,7 @@ router.get('/:id', async (req, res) => {
 // Create new invoice
 router.post('/', auth, async (req, res) => {
   try {
-    const { customerId, items, amount, dueDate, notes, status, currency } = req.body;
+    const { customerId, items, amount, dueDate, notes, currency, paymentMode } = req.body;
     const userId = req.user._id;
     const gymId = req.user.gymId;
 
@@ -74,13 +75,46 @@ router.post('/', auth, async (req, res) => {
       items,
       amount,
       currency,
-      status,
+      status: 'paid', // Mark as 'paid' since payment mode is provided
       dueDate,
       notes
     });
 
     await invoice.save();
-    res.status(201).json({ success: true, data: invoice });
+
+    // Automatically create transaction record for the invoice
+    let transaction = null;
+    try {
+      // Get customer details for transaction
+      const customer = await Customer.findById(customerId);
+      
+      // Create transaction description from invoice items
+      const itemDescriptions = items.map(item => `${item.description} (${item.quantity}x${item.unitPrice})`).join(', ');
+      
+      transaction = new Transaction({
+        userId: customerId, // customerId is the user/customer ID
+        gymId: gymId,
+        transactionType: 'INVOICE_PAYMENT',
+        transactionDate: new Date(),
+        amount: amount,
+        membershipType: customer?.membershipType || 'none',
+        paymentMode: paymentMode, // Use the provided payment mode
+        description: `Payment for Invoice ${invoiceNumber}: ${itemDescriptions}`,
+        status: 'SUCCESS' // Mark transaction as successful
+      });
+
+      await transaction.save();
+      console.log('Transaction created for invoice:', invoiceNumber);
+    } catch (transactionError) {
+      console.error('Failed to create transaction for invoice:', transactionError);
+      // Don't fail the entire operation if transaction creation fails
+    }
+
+    res.status(201).json({ 
+      success: true, 
+      data: invoice,
+      transaction: transaction ? transaction.toObject() : null
+    });
   } catch (error) {
     console.error('Error creating invoice:', error);
     res.status(500).json({ 
@@ -317,31 +351,31 @@ router.get('/:id/pdf', auth, async (req, res) => {
       });
     }
 
-    // Booking Details (if exists)
-    if (invoice.bookingId) {
-      doc.fillColor(colors.text)
-         .fontSize(12)
-         .font('Helvetica-Bold')
-         .text('SERVICE DETAILS:', 310, currentY);
+    // // Booking Details (if exists)
+    // if (invoice.bookingId) {
+    //   doc.fillColor(colors.text)
+    //      .fontSize(12)
+    //      .font('Helvetica-Bold')
+    //      .text('SERVICE DETAILS:', 310, currentY);
 
-      doc.rect(310, currentY + 15, 235, 85)
-         .fillColor('#fafafa')
-         .fill()
-         .strokeColor('#e2e8f0')
-         .lineWidth(1)
-         .stroke();
+    //   doc.rect(310, currentY + 15, 235, 85)
+    //      .fillColor('#fafafa')
+    //      .fill()
+    //      .strokeColor('#e2e8f0')
+    //      .lineWidth(1)
+    //      .stroke();
 
-      doc.fillColor(colors.text)
-         .fontSize(11)
-         .font('Helvetica-Bold')
-         .text(`Service: ${invoice.bookingId.type || 'N/A'}`, 320, currentY + 25);
+    //   doc.fillColor(colors.text)
+    //      .fontSize(11)
+    //      .font('Helvetica-Bold')
+    //      .text(`Service: ${invoice.bookingId.type || 'N/A'}`, 320, currentY + 25);
 
-      doc.fillColor(colors.secondary)
-         .fontSize(9)
-         .font('Helvetica')
-         .text(`Start Date: ${formatDate(invoice.bookingId.startTime)}`, 320, currentY + 42)
-         .text(`End Date: ${formatDate(invoice.bookingId.endTime)}`, 320, currentY + 55);
-    }
+    //   doc.fillColor(colors.secondary)
+    //      .fontSize(9)
+    //      .font('Helvetica')
+    //      .text(`Start Date: ${formatDate(invoice.bookingId.startTime)}`, 320, currentY + 42)
+    //      .text(`End Date: ${formatDate(invoice.bookingId.endTime)}`, 320, currentY + 55);
+    // }
 
     currentY += 115;
 
@@ -495,7 +529,7 @@ router.get('/:id/pdf', auth, async (req, res) => {
        .text('PAYMENT TERMS:', 50, currentY);
 
     const paymentTerms = [
-      '• Payment is due within 30 days of invoice date',
+      '• Payment is due within 7 days of invoice date',
       '• Late payments may incur additional charges',
       '• Please reference invoice number when making payment'
     ];

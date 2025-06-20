@@ -54,6 +54,9 @@ const formSchema = z.object({
   equipmentId: z.string().optional(),
   price: z.number().min(0, 'Price must be greater than or equal to 0'),
   currency: z.string().default('INR'),
+  paymentMode: z.enum(['Cash', 'Credit Card', 'Debit Card', 'Online', 'UPI'], {
+    required_error: 'Please select a payment mode',
+  }),
 }).superRefine((data, ctx) => {
   // Validate required fields based on booking type
   if (data.type === 'class' && !data.classId) {
@@ -103,6 +106,7 @@ const apiDataSchema = z.object({
   className: z.string().optional(),
   trainerName: z.string().optional(),
   equipmentName: z.string().optional(),
+  paymentMode: z.enum(['Cash', 'Credit Card', 'Debit Card', 'Online', 'UPI']),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -215,6 +219,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
         equipmentId: typeof booking.equipmentId === 'string' ? booking.equipmentId : booking.equipmentId?._id || '',
         price: booking.price,
         currency: booking.currency || 'INR',
+        paymentMode: booking.paymentMode || ('Cash' as const),
       }
     : {
         type: 'class' as const,
@@ -228,6 +233,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
         equipmentId: '',
         price: 0,
         currency: 'INR',
+        paymentMode: 'Cash' as const,
       };
 
   const form = useForm<FormData>({
@@ -254,6 +260,9 @@ const BookingForm: React.FC<BookingFormProps> = ({
       // Set the price from the class
       if (selectedClass.price) {
         form.setValue('price', selectedClass.price);
+        if (selectedClass.currency) {
+          form.setValue('currency', selectedClass.currency);
+        }
       }
     }
   }, [selectedClass, form]);
@@ -267,10 +276,12 @@ const BookingForm: React.FC<BookingFormProps> = ({
         endTime: values.endTime.toISOString(),
         price: values.price,
         currency: values.currency,
+        paymentMode: values.paymentMode,
       };
 
       // Add service names based on type
       if (apiData.type === 'class') {
+        const selectedClass = classes.find(c => c._id === values.classId);
         if (selectedClass) {
           // For new class bookings or when changing class
           apiData.classId = selectedClass._id;
@@ -297,7 +308,8 @@ const BookingForm: React.FC<BookingFormProps> = ({
 
       const result = await onSubmit(apiData);
       if (result && result.success) {
-        queryClient.invalidateQueries(['bookings']);
+        queryClient.invalidateQueries({ queryKey: ['bookings'] });
+        queryClient.invalidateQueries({ queryKey: ['calendar'] });
         onClose();
       }
       // Let the parent component handle success/error messages
@@ -541,31 +553,80 @@ const BookingForm: React.FC<BookingFormProps> = ({
               )}
             />
 
-            {/* Price */}
-            <FormField
-              control={form.control}
-              name="price"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Price</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      {...field}
-                      onChange={(e) => {
-                        const value = e.target.value === '' ? 0 : parseFloat(e.target.value);
-                        field.onChange(value);
-                      }}
-                      value={field.value || ''}
-                      readOnly={bookingType === 'class' && selectedClass !== undefined}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* Price and Currency */}
+            <div className="grid grid-cols-3 gap-4">
+              <div className="col-span-1">
+                <FormField
+                  control={form.control}
+                  name="price"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Price</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          {...field}
+                          onChange={(e) => {
+                            const value = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                            field.onChange(value);
+                          }}
+                          value={field.value || ''}
+                          readOnly={bookingType === 'class' && selectedClass !== undefined}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <div className="col-span-1">
+                <FormField
+                  control={form.control}
+                  name="currency"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Currency</FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field}
+                          value={field.value || 'INR'}
+                          readOnly={bookingType === 'class' && selectedClass !== undefined}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <div className="col-span-1">
+                <FormField
+                  control={form.control}
+                  name="paymentMode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Payment Mode</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a payment mode" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Cash">Cash</SelectItem>
+                          <SelectItem value="Credit Card">Credit Card</SelectItem>
+                          <SelectItem value="Debit Card">Debit Card</SelectItem>
+                          <SelectItem value="Online">Online</SelectItem>
+                          <SelectItem value="UPI">UPI</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
 
             {/* Notes */}
             <FormField

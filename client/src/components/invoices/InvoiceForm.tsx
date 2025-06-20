@@ -47,6 +47,7 @@ type InvoiceSubmitData = {
   notes?: string;
   status: string;
   currency: string;
+  paymentMode: string;
 };
 
 const formSchema = z.object({
@@ -54,6 +55,7 @@ const formSchema = z.object({
   chargeType: z.string().min(1, 'Charge type is required'),
   description: z.string().optional(),
   dueDate: z.string().optional(),
+  paymentMode: z.string().min(1, "Payment mode is required"),
 });
 
 interface InvoiceFormProps {
@@ -133,6 +135,7 @@ export default function InvoiceForm({ open, onClose, onSubmit }: InvoiceFormProp
       chargeType: '',
       description: '',
       dueDate: format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
+      paymentMode: '',
     }
   });
 
@@ -167,8 +170,9 @@ export default function InvoiceForm({ open, onClose, onSubmit }: InvoiceFormProp
         amount: totalAmount,
         dueDate: data.dueDate ? new Date(data.dueDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         notes: data.description,
-        status: 'pending',
+        status: 'paid',
         currency: 'INR',
+        paymentMode: data.paymentMode,
       };
       await onSubmit(invoiceData);
       toast.success('Invoice created successfully');
@@ -311,6 +315,30 @@ export default function InvoiceForm({ open, onClose, onSubmit }: InvoiceFormProp
                 <p className="text-sm text-red-500">{form.formState.errors.chargeType.message}</p>
               )}
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="paymentMode">Payment Mode</Label>
+            <Select
+              value={form.watch('paymentMode')}
+              onValueChange={(value) => {
+                form.setValue('paymentMode', value);
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select payment mode" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cash">Cash</SelectItem>
+                <SelectItem value="card">Card</SelectItem>
+                <SelectItem value="upi">UPI</SelectItem>
+                <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+            {form.formState.errors.paymentMode && (
+              <p className="text-sm text-red-500">{form.formState.errors.paymentMode.message}</p>
+            )}
           </div>
 
           {/* Items Table */}
