@@ -2,7 +2,13 @@ const Lead = require('../models/Lead');
 
 exports.getLeads = async (req, res) => {
   try {
-    const leads = await Lead.find().sort({ createdAt: -1 });
+    const gymId = req.user.gymId;
+    
+    if (!gymId) {
+      return res.status(400).json({ error: 'Gym ID not found' });
+    }
+    
+    const leads = await Lead.find({ gymId }).sort({ createdAt: -1 });
     res.json(leads);
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
@@ -11,7 +17,13 @@ exports.getLeads = async (req, res) => {
 
 exports.getLead = async (req, res) => {
   try {
-    const lead = await Lead.findById(req.params.id);
+    const gymId = req.user.gymId;
+    
+    if (!gymId) {
+      return res.status(400).json({ error: 'Gym ID not found' });
+    }
+    
+    const lead = await Lead.findOne({ _id: req.params.id, gymId });
     if (!lead) return res.status(404).json({ error: 'Lead not found' });
     res.json(lead);
   } catch (err) {
@@ -22,7 +34,21 @@ exports.getLead = async (req, res) => {
 exports.createLead = async (req, res) => {
   try {
     const { name, phone, source, status, followUpDate, notes } = req.body;
-    const lead = new Lead({ name, phone, source, status, followUpDate, notes });
+    const gymId = req.user.gymId;
+    
+    if (!gymId) {
+      return res.status(400).json({ error: 'Gym ID not found' });
+    }
+    
+    const lead = new Lead({ 
+      name, 
+      phone, 
+      source, 
+      status, 
+      followUpDate, 
+      notes,
+      gymId
+    });
     await lead.save();
     res.status(201).json(lead);
   } catch (err) {
@@ -32,8 +58,14 @@ exports.createLead = async (req, res) => {
 
 exports.updateLead = async (req, res) => {
   try {
-    const lead = await Lead.findByIdAndUpdate(
-      req.params.id,
+    const gymId = req.user.gymId;
+    
+    if (!gymId) {
+      return res.status(400).json({ error: 'Gym ID not found' });
+    }
+    
+    const lead = await Lead.findOneAndUpdate(
+      { _id: req.params.id, gymId },
       { ...req.body, updatedAt: Date.now() },
       { new: true }
     );
@@ -46,7 +78,13 @@ exports.updateLead = async (req, res) => {
 
 exports.deleteLead = async (req, res) => {
   try {
-    const lead = await Lead.findByIdAndDelete(req.params.id);
+    const gymId = req.user.gymId;
+    
+    if (!gymId) {
+      return res.status(400).json({ error: 'Gym ID not found' });
+    }
+    
+    const lead = await Lead.findOneAndDelete({ _id: req.params.id, gymId });
     if (!lead) return res.status(404).json({ error: 'Lead not found' });
     res.json({ message: 'Lead deleted' });
   } catch (err) {

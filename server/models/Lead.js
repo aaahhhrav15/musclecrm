@@ -1,6 +1,11 @@
 const mongoose = require("mongoose");
 
 const LeadSchema = new mongoose.Schema({
+  gymId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Gym',
+    required: true
+  },
   name: {
     type: String,
     required: true
@@ -31,5 +36,10 @@ const LeadSchema = new mongoose.Schema({
     default: Date.now
   }
 });
+
+// Add indexes for common queries
+LeadSchema.index({ gymId: 1 });
+LeadSchema.index({ createdAt: 1 });
+LeadSchema.index({ followUpDate: 1 });
 
 module.exports = mongoose.model("Lead", LeadSchema);

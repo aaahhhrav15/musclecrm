@@ -7,6 +7,7 @@ const Booking = require('../models/Booking');
 const Invoice = require('../models/Invoice');
 const Gym = require('../models/Gym');
 const GymStaff = require('../models/GymStaff');
+const Lead = require('../models/Lead');
 
 // Get dashboard overview data
 router.get('/overview', auth, async (req, res) => {
@@ -185,6 +186,7 @@ router.get('/overview', auth, async (req, res) => {
 router.get('/', auth, async (req, res) => {
   try {
     const userId = req.user._id;
+    const gymId = req.user.gymId;
     if (!userId) {
       console.error('No user ID found in request');
       return res.status(401).json({ success: false, message: 'User not authenticated' });
@@ -385,14 +387,14 @@ router.get('/', auth, async (req, res) => {
       }
     ]);
 
-    const todayEnquiry = await Customer.countDocuments({
-      userId,
+    const todayEnquiry = await Lead.countDocuments({
+      gymId,
       createdAt: { $gte: today, $lt: tomorrow }
     });
 
-    const todayFollowUps = await Customer.countDocuments({
-      userId,
-      lastFollowUp: { $gte: today, $lt: tomorrow }
+    const todayFollowUps = await Lead.countDocuments({
+      gymId,
+      followUpDate: { $gte: today, $lt: tomorrow }
     });
 
     // Member Profit Section
