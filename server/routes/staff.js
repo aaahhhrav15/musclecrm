@@ -90,6 +90,7 @@ router.post('/', auth, async (req, res) => {
         name,
         email,
         phone,
+        dateOfBirth,
         specialization: 'Personal Training',
         experience: experience !== undefined ? experience : 0,
         status: status === 'Active' ? 'active' : 'inactive',
@@ -148,6 +149,7 @@ router.put('/:id', auth, async (req, res) => {
         name,
         email,
         phone,
+        dateOfBirth,
         specialization: 'Personal Training',
         experience: experience !== undefined ? experience : 0,
         status: status === 'Active' ? 'active' : 'inactive',
@@ -165,6 +167,7 @@ router.put('/:id', auth, async (req, res) => {
         name,
         email,
         phone,
+        dateOfBirth,
         experience: experience !== undefined ? experience : 0,
         status: status === 'Active' ? 'active' : 'inactive'
       });
