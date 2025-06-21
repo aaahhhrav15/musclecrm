@@ -5,7 +5,7 @@ import axios from 'axios';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/utils';
-import { Users, UserCheck, UserX, CalendarClock, Plus, UserPlus, UserMinus, Calendar, DollarSign, ShoppingCart, TrendingUp, Cake, Gift } from 'lucide-react';
+import { Users, UserCheck, UserX, CalendarClock, Plus, UserPlus, UserMinus, Calendar, DollarSign, ShoppingCart, TrendingUp, Cake, Gift, BarChart3, Target, AlertCircle, Activity } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { useToast } from '@/hooks/use-toast';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
@@ -13,34 +13,66 @@ import { useIndustry } from '@/context/IndustryContext';
 import { useGym } from '@/context/GymContext';
 import axiosInstance from '@/lib/axios';
 import { format } from 'date-fns';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
 interface MetricCardProps {
   title: string;
-  value: number;
+  value: number | string;
   icon?: React.ReactNode;
   format?: 'number' | 'currency';
   isLoading?: boolean;
+  gradientFrom?: string;
+  gradientTo?: string;
+  iconColor?: string;
+  delay?: number;
 }
 
-const MetricCard: React.FC<MetricCardProps> = ({ title, value, icon, format = 'number', isLoading }) => {
+const MetricCard: React.FC<MetricCardProps> = ({ 
+  title, 
+  value, 
+  icon, 
+  format = 'number', 
+  isLoading,
+  gradientFrom = 'blue-500',
+  gradientTo = 'blue-600',
+  iconColor = 'blue-600',
+  delay = 0
+}) => {
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        {icon}
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <div className="h-8 w-24 animate-pulse bg-muted rounded" />
-        ) : (
-          <div className="text-2xl font-bold">
-            {format === 'currency' ? formatCurrency(value) : value.toLocaleString()}
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay }}
+    >
+      <Card className="relative overflow-hidden border-0 shadow-lg">
+        <div className={`absolute inset-0 bg-gradient-to-br from-${gradientFrom}/10 to-${gradientTo}/5`} />
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+          <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+          <div className={`h-10 w-10 rounded-full bg-${gradientFrom}/10 flex items-center justify-center`}>
+            {React.cloneElement(icon as React.ReactElement, { 
+              className: `h-5 w-5 text-${iconColor}` 
+            })}
           </div>
-        )}
-      </CardContent>
-    </Card>
+        </CardHeader>
+        <CardContent className="space-y-1">
+          {isLoading ? (
+            <Skeleton className="h-8 w-24" />
+          ) : (
+            <div className="text-2xl font-bold">
+              {format === 'currency' 
+                ? formatCurrency(typeof value === 'string' ? parseFloat(value) : value) 
+                : typeof value === 'string' ? value : value.toLocaleString()}
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground flex items-center">
+            <Activity className="h-3 w-3 mr-1" />
+            Real-time data
+          </p>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 };
 
@@ -210,262 +242,464 @@ const Dashboard: React.FC = () => {
     setTotalGymProfit(calculatedProfit);
   }, [metrics.memberProfit.memberAmount, profitExpense]);
 
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-6">
+          <Skeleton className="h-16 w-full" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[...Array(8)].map((_, i) => (
+              <Skeleton key={i} className="h-32 w-full" />
+            ))}
+          </div>
+          <Skeleton className="h-[300px] w-full" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
-      <div className="container mx-auto p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">Dashboard</h1>
-        </div>
-
-        <div className="grid gap-6">
-          {/* Gym Insights Section */}
-          <div>
-            <h2 className="text-2xl font-bold mb-4">🔹Gym Insights</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <MetricCard
-                title="Total Members"
-                value={dashboardData?.members?.totalMembers || 0}
-                icon={<Users className="h-4 w-4" />}
-                isLoading={isLoading}
-              />
-              <MetricCard
-                title="Active Members"
-                value={dashboardData?.members?.activeMembers || 0}
-                icon={<UserPlus className="h-4 w-4" />}
-                isLoading={isLoading}
-              />
-              <MetricCard
-                title="Inactive Members"
-                value={dashboardData?.members?.inactiveMembers || 0}
-                icon={<UserMinus className="h-4 w-4" />}
-                isLoading={isLoading}
-              />
-              <MetricCard
-                title="Today's Expiring"
-                value={dashboardData?.members?.todayExpiry || 0}
-                icon={<Calendar className="h-4 w-4" />}
-                isLoading={isLoading}
-              />
-              <MetricCard
-                title="Today Enrolled"
-                value={dashboardData?.members?.todayEnrolled || 0}
-                icon={<UserPlus className="h-4 w-4" />}
-                isLoading={isLoading}
-              />
-              <MetricCard
-                title="Total Member Amount"
-                value={formatCurrency(dashboardData?.members?.totalMemberAmount || 0)}
-                icon={<DollarSign className="h-4 w-4" />}
-                isLoading={isLoading}
-              />
-              <MetricCard
-                title="Today Employee's Birthdays"
-                value={dashboardData?.members?.todayEmployeeBirthdays || 0}
-                icon={<Cake className="h-4 w-4" />}
-                isLoading={isLoading}
-              />
-              <MetricCard
-                title="Today Member's Birthdays"
-                value={dashboardData?.members?.todayMemberBirthdays || 0}
-                icon={<Gift className="h-4 w-4" />}
-                isLoading={isLoading}
-              />
-              <MetricCard
-                title="Today Invoices"
-                value={dashboardData?.members?.todayInvoices || 0}
-                icon={<DollarSign className="h-4 w-4" />}
-                isLoading={isLoading}
-              />
-              <MetricCard
-                title="Total Invoices"
-                value={dashboardData?.members?.totalInvoices || 0}
-                icon={<DollarSign className="h-4 w-4" />}
-                isLoading={isLoading}
-              />
-              <MetricCard
-                title="Today Due Amount"
-                value={formatCurrency(dashboardData?.members?.todayDueAmount || 0)}
-                icon={<DollarSign className="h-4 w-4" />}
-                isLoading={isLoading}
-              />
-              <MetricCard
-                title="Today Expense"
-                value={todayExpense}
-                icon={<DollarSign className="h-4 w-4" />}
-                format="currency"
-                isLoading={isTodayExpenseLoading}
-              />
-              {/* Monthly Expense Card */}
-              <MetricCard
-                title={`Monthly Expense (${format(new Date(), 'MMMM yyyy')})`}
-                value={monthlyExpense}
-                icon={<DollarSign className="h-4 w-4" />}
-                format="currency"
-                isLoading={isMonthlyExpenseLoading}
-              />
-              <MetricCard
-                title="Total Expense"
-                value={totalExpense}
-                icon={<DollarSign className="h-4 w-4" />}
-                format="currency"
-                isLoading={isTotalExpenseLoading}
-              />
-              <MetricCard
-                title="Today Enquiry"
-                value={dashboardData?.members?.todayEnquiry || 0}
-                icon={<Users className="h-4 w-4" />}
-                isLoading={isLoading}
-              />
-              <MetricCard
-                title="Today Follow-Ups"
-                value={dashboardData?.members?.todayFollowUps || 0}
-                icon={<Users className="h-4 w-4" />}
-                isLoading={isLoading}
-              />
-            </div>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="space-y-8"
+      >
+        {/* Header Section */}
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 pb-4 border-b">
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+              Dashboard Overview
+            </h1>
+            <p className="text-muted-foreground text-lg">
+              Real-time insights into your gym's performance and analytics.
+            </p>
           </div>
-
-          {/* Profit Section */}
-          <section>
-            <h2 className="text-2xl font-bold mb-4">🔹Profit</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <MetricCard 
-                title="Member Amount" 
-                value={metrics.memberProfit.memberAmount} 
-                format="currency"
-                isLoading={isLoading}
-              />
-              <MetricCard 
-                title="Expenses" 
-                value={profitExpense} 
-                format="currency"
-                isLoading={isProfitExpenseLoading}
-              />
-              <MetricCard 
-                title="Total Gym Profit" 
-                value={totalGymProfit} 
-                format="currency"
-                isLoading={isLoading || isProfitExpenseLoading}
-              />
-            </div>
-          </section>
-
-          {/* POS Section */}
-          <section>
-            <h2 className="text-2xl font-bold mb-4">🔹 POS</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              <MetricCard 
-                title="Today Purchase" 
-                value={metrics.pos.todayPurchase} 
-                format="currency"
-                isLoading={isLoading}
-              />
-              <MetricCard 
-                title="Total Purchase" 
-                value={metrics.pos.totalPurchase} 
-                format="currency"
-                isLoading={isLoading}
-              />
-              <MetricCard 
-                title="Total Stock Value" 
-                value={metrics.pos.totalStockValue} 
-                format="currency"
-                isLoading={isLoading}
-              />
-              <MetricCard 
-                title="Low Stock Value" 
-                value={metrics.pos.lowStockValue} 
-                format="currency"
-                isLoading={isLoading}
-              />
-              <MetricCard 
-                title="Total Clearing Amount" 
-                value={metrics.pos.totalClearingAmount} 
-                format="currency"
-                isLoading={isLoading}
-              />
-              <MetricCard 
-                title="Today Sell" 
-                value={metrics.pos.todaySell} 
-                format="currency"
-                isLoading={isLoading}
-              />
-              <MetricCard 
-                title="Total Sell" 
-                value={metrics.pos.totalSell} 
-                format="currency"
-                isLoading={isLoading}
-              />
-              <MetricCard 
-                title="Total Sell Purchase Value" 
-                value={metrics.pos.totalSellPurchaseValue} 
-                format="currency"
-                isLoading={isLoading}
-              />
-              <MetricCard 
-                title="Today Sell Invoice" 
-                value={metrics.pos.todaySellInvoice} 
-                isLoading={isLoading}
-              />
-              <MetricCard 
-                title="Total Sell Invoice" 
-                value={metrics.pos.totalSellInvoice} 
-                isLoading={isLoading}
-              />
-              <MetricCard 
-                title="Sell Due Amount" 
-                value={metrics.pos.sellDueAmount} 
-                format="currency"
-                isLoading={isLoading}
-              />
-              <MetricCard 
-                title="Total Pos Expense" 
-                value={metrics.pos.totalPosExpense} 
-                format="currency"
-                isLoading={isLoading}
-              />
-              <MetricCard 
-                title="Today Pos Expense" 
-                value={metrics.pos.todayPosExpense} 
-                format="currency"
-                isLoading={isLoading}
-              />
-            </div>
-          </section>
-
-          {/* POS Profit Section */}
-          <section>
-            <h2 className="text-2xl font-bold mb-4">🔹 POS Profit</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <MetricCard 
-                title="POS Profit" 
-                value={metrics.posProfit.posProfit} 
-                format="currency"
-                isLoading={isLoading}
-              />
-              <MetricCard 
-                title="POS Expense" 
-                value={metrics.posProfit.posExpense} 
-                format="currency"
-                isLoading={isLoading}
-              />
-            </div>
-          </section>
-
-          {/* Overall Profit Section */}
-          <section>
-            <h2 className="text-2xl font-bold mb-4">🔹 Overall Profit</h2>
-            <div className="grid grid-cols-1 gap-4">
-              <MetricCard 
-                title="Total Profit" 
-                value={metrics.overallProfit.totalProfit} 
-                format="currency"
-                isLoading={isLoading}
-              />
-            </div>
-          </section>
         </div>
-      </div>
+
+        {/* Gym Insights Section */}
+        <div className="space-y-6">
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-1 bg-gradient-to-b from-blue-500 to-blue-600 rounded-full" />
+            <h2 className="text-2xl font-bold">Gym Insights</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <MetricCard
+              title="Total Members"
+              value={dashboardData?.members?.totalMembers || 0}
+              icon={<Users />}
+              isLoading={isLoading}
+              gradientFrom="blue-500"
+              gradientTo="blue-600"
+              iconColor="blue-600"
+              delay={0.1}
+            />
+            <MetricCard
+              title="Active Members"
+              value={dashboardData?.members?.activeMembers || 0}
+              icon={<UserPlus />}
+              isLoading={isLoading}
+              gradientFrom="green-500"
+              gradientTo="green-600"
+              iconColor="green-600"
+              delay={0.15}
+            />
+            <MetricCard
+              title="Inactive Members"
+              value={dashboardData?.members?.inactiveMembers || 0}
+              icon={<UserMinus />}
+              isLoading={isLoading}
+              gradientFrom="red-500"
+              gradientTo="red-600"
+              iconColor="red-600"
+              delay={0.2}
+            />
+            <MetricCard
+              title="Today's Expiring"
+              value={dashboardData?.members?.todayExpiry || 0}
+              icon={<AlertCircle />}
+              isLoading={isLoading}
+              gradientFrom="orange-500"
+              gradientTo="orange-600"
+              iconColor="orange-600"
+              delay={0.25}
+            />
+            <MetricCard
+              title="Today Enrolled"
+              value={dashboardData?.members?.todayEnrolled || 0}
+              icon={<UserPlus />}
+              isLoading={isLoading}
+              gradientFrom="emerald-500"
+              gradientTo="emerald-600"
+              iconColor="emerald-600"
+              delay={0.3}
+            />
+            <MetricCard
+              title="Total Member Amount"
+              value={dashboardData?.members?.totalMemberAmount || 0}
+              icon={<DollarSign />}
+              format="currency"
+              isLoading={isLoading}
+              gradientFrom="purple-500"
+              gradientTo="purple-600"
+              iconColor="purple-600"
+              delay={0.35}
+            />
+            <MetricCard
+              title="Employee Birthdays"
+              value={dashboardData?.members?.todayEmployeeBirthdays || 0}
+              icon={<Cake />}
+              isLoading={isLoading}
+              gradientFrom="pink-500"
+              gradientTo="pink-600"
+              iconColor="pink-600"
+              delay={0.4}
+            />
+            <MetricCard
+              title="Member Birthdays"
+              value={dashboardData?.members?.todayMemberBirthdays || 0}
+              icon={<Gift />}
+              isLoading={isLoading}
+              gradientFrom="indigo-500"
+              gradientTo="indigo-600"
+              iconColor="indigo-600"
+              delay={0.45}
+            />
+            <MetricCard
+              title="Today Invoices"
+              value={dashboardData?.members?.todayInvoices || 0}
+              icon={<BarChart3 />}
+              isLoading={isLoading}
+              gradientFrom="cyan-500"
+              gradientTo="cyan-600"
+              iconColor="cyan-600"
+              delay={0.5}
+            />
+            <MetricCard
+              title="Total Invoices"
+              value={dashboardData?.members?.totalInvoices || 0}
+              icon={<BarChart3 />}
+              isLoading={isLoading}
+              gradientFrom="teal-500"
+              gradientTo="teal-600"
+              iconColor="teal-600"
+              delay={0.55}
+            />
+            <MetricCard
+              title="Today Due Amount"
+              value={dashboardData?.members?.todayDueAmount || 0}
+              icon={<AlertCircle />}
+              format="currency"
+              isLoading={isLoading}
+              gradientFrom="amber-500"
+              gradientTo="amber-600"
+              iconColor="amber-600"
+              delay={0.6}
+            />
+            <MetricCard
+              title="Today Expense"
+              value={todayExpense}
+              icon={<DollarSign />}
+              format="currency"
+              isLoading={isTodayExpenseLoading}
+              gradientFrom="slate-500"
+              gradientTo="slate-600"
+              iconColor="slate-600"
+              delay={0.65}
+            />
+            <MetricCard
+              title={`Monthly Expense (${format(new Date(), 'MMMM yyyy')})`}
+              value={monthlyExpense}
+              icon={<Calendar />}
+              format="currency"
+              isLoading={isMonthlyExpenseLoading}
+              gradientFrom="violet-500"
+              gradientTo="violet-600"
+              iconColor="violet-600"
+              delay={0.7}
+            />
+            <MetricCard
+              title="Total Expense"
+              value={totalExpense}
+              icon={<TrendingUp />}
+              format="currency"
+              isLoading={isTotalExpenseLoading}
+              gradientFrom="rose-500"
+              gradientTo="rose-600"
+              iconColor="rose-600"
+              delay={0.75}
+            />
+            <MetricCard
+              title="Today Enquiry"
+              value={dashboardData?.members?.todayEnquiry || 0}
+              icon={<Users />}
+              isLoading={isLoading}
+              gradientFrom="lime-500"
+              gradientTo="lime-600"
+              iconColor="lime-600"
+              delay={0.8}
+            />
+            <MetricCard
+              title="Today Follow-Ups"
+              value={dashboardData?.members?.todayFollowUps || 0}
+              icon={<Target />}
+              isLoading={isLoading}
+              gradientFrom="sky-500"
+              gradientTo="sky-600"
+              iconColor="sky-600"
+              delay={0.85}
+            />
+          </div>
+        </div>
+
+        {/* Profit Section */}
+        <div className="space-y-6">
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-1 bg-gradient-to-b from-green-500 to-green-600 rounded-full" />
+            <h2 className="text-2xl font-bold">Profit Analysis</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <MetricCard 
+              title="Member Amount" 
+              value={metrics.memberProfit.memberAmount} 
+              format="currency"
+              icon={<DollarSign />}
+              isLoading={isLoading}
+              gradientFrom="emerald-500"
+              gradientTo="emerald-600"
+              iconColor="emerald-600"
+              delay={0.1}
+            />
+            <MetricCard 
+              title="Total Expenses" 
+              value={profitExpense} 
+              format="currency"
+              icon={<TrendingUp />}
+              isLoading={isProfitExpenseLoading}
+              gradientFrom="red-500"
+              gradientTo="red-600"
+              iconColor="red-600"
+              delay={0.2}
+            />
+            <MetricCard 
+              title="Total Gym Profit" 
+              value={totalGymProfit} 
+              format="currency"
+              icon={<Target />}
+              isLoading={isLoading || isProfitExpenseLoading}
+              gradientFrom="green-500"
+              gradientTo="green-600"
+              iconColor="green-600"
+              delay={0.3}
+            />
+          </div>
+        </div>
+
+        {/* POS Section */}
+        <div className="space-y-6">
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-1 bg-gradient-to-b from-purple-500 to-purple-600 rounded-full" />
+            <h2 className="text-2xl font-bold">Point of Sale</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <MetricCard 
+              title="Today Purchase" 
+              value={metrics.pos.todayPurchase} 
+              format="currency"
+              icon={<ShoppingCart />}
+              isLoading={isLoading}
+              gradientFrom="blue-500"
+              gradientTo="blue-600"
+              iconColor="blue-600"
+              delay={0.1}
+            />
+            <MetricCard 
+              title="Total Purchase" 
+              value={metrics.pos.totalPurchase} 
+              format="currency"
+              icon={<ShoppingCart />}
+              isLoading={isLoading}
+              gradientFrom="indigo-500"
+              gradientTo="indigo-600"
+              iconColor="indigo-600"
+              delay={0.15}
+            />
+            <MetricCard 
+              title="Total Stock Value" 
+              value={metrics.pos.totalStockValue} 
+              format="currency"
+              icon={<BarChart3 />}
+              isLoading={isLoading}
+              gradientFrom="green-500"
+              gradientTo="green-600"
+              iconColor="green-600"
+              delay={0.2}
+            />
+            <MetricCard 
+              title="Low Stock Value" 
+              value={metrics.pos.lowStockValue} 
+              format="currency"
+              icon={<AlertCircle />}
+              isLoading={isLoading}
+              gradientFrom="orange-500"
+              gradientTo="orange-600"
+              iconColor="orange-600"
+              delay={0.25}
+            />
+            <MetricCard 
+              title="Total Clearing Amount" 
+              value={metrics.pos.totalClearingAmount} 
+              format="currency"
+              icon={<DollarSign />}
+              isLoading={isLoading}
+              gradientFrom="purple-500"
+              gradientTo="purple-600"
+              iconColor="purple-600"
+              delay={0.3}
+            />
+            <MetricCard 
+              title="Today Sell" 
+              value={metrics.pos.todaySell} 
+              format="currency"
+              icon={<TrendingUp />}
+              isLoading={isLoading}
+              gradientFrom="emerald-500"
+              gradientTo="emerald-600"
+              iconColor="emerald-600"
+              delay={0.35}
+            />
+            <MetricCard 
+              title="Total Sell" 
+              value={metrics.pos.totalSell} 
+              format="currency"
+              icon={<TrendingUp />}
+              isLoading={isLoading}
+              gradientFrom="teal-500"
+              gradientTo="teal-600"
+              iconColor="teal-600"
+              delay={0.4}
+            />
+            <MetricCard 
+              title="Total Sell Purchase Value" 
+              value={metrics.pos.totalSellPurchaseValue} 
+              format="currency"
+              icon={<BarChart3 />}
+              isLoading={isLoading}
+              gradientFrom="cyan-500"
+              gradientTo="cyan-600"
+              iconColor="cyan-600"
+              delay={0.45}
+            />
+            <MetricCard 
+              title="Today Sell Invoice" 
+              value={metrics.pos.todaySellInvoice} 
+              icon={<BarChart3 />}
+              isLoading={isLoading}
+              gradientFrom="pink-500"
+              gradientTo="pink-600"
+              iconColor="pink-600"
+              delay={0.5}
+            />
+            <MetricCard 
+              title="Total Sell Invoice" 
+              value={metrics.pos.totalSellInvoice} 
+              icon={<BarChart3 />}
+              isLoading={isLoading}
+              gradientFrom="rose-500"
+              gradientTo="rose-600"
+              iconColor="rose-600"
+              delay={0.55}
+            />
+            <MetricCard 
+              title="Sell Due Amount" 
+              value={metrics.pos.sellDueAmount} 
+              format="currency"
+              icon={<AlertCircle />}
+              isLoading={isLoading}
+              gradientFrom="amber-500"
+              gradientTo="amber-600"
+              iconColor="amber-600"
+              delay={0.6}
+            />
+            <MetricCard 
+              title="Total POS Expense" 
+              value={metrics.pos.totalPosExpense} 
+              format="currency"
+              icon={<DollarSign />}
+              isLoading={isLoading}
+              gradientFrom="slate-500"
+              gradientTo="slate-600"
+              iconColor="slate-600"
+              delay={0.65}
+            />
+            <MetricCard 
+              title="Today POS Expense" 
+              value={metrics.pos.todayPosExpense} 
+              format="currency"
+              icon={<DollarSign />}
+              isLoading={isLoading}
+              gradientFrom="gray-500"
+              gradientTo="gray-600"
+              iconColor="gray-600"
+              delay={0.7}
+            />
+          </div>
+        </div>
+
+        {/* POS Profit Section */}
+        <div className="space-y-6">
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-1 bg-gradient-to-b from-orange-500 to-orange-600 rounded-full" />
+            <h2 className="text-2xl font-bold">POS Profit Analysis</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <MetricCard 
+              title="POS Profit" 
+              value={metrics.posProfit.posProfit} 
+              format="currency"
+              icon={<TrendingUp />}
+              isLoading={isLoading}
+              gradientFrom="green-500"
+              gradientTo="green-600"
+              iconColor="green-600"
+              delay={0.1}
+            />
+            <MetricCard 
+              title="POS Expense" 
+              value={metrics.posProfit.posExpense} 
+              format="currency"
+              icon={<DollarSign />}
+              isLoading={isLoading}
+              gradientFrom="red-500"
+              gradientTo="red-600"
+              iconColor="red-600"
+              delay={0.2}
+            />
+          </div>
+        </div>
+
+        {/* Overall Profit Section */}
+        <div className="space-y-6">
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-1 bg-gradient-to-b from-emerald-500 to-emerald-600 rounded-full" />
+            <h2 className="text-2xl font-bold">Overall Performance</h2>
+          </div>
+          <div className="grid grid-cols-1 gap-6">
+            <MetricCard 
+              title="Total Business Profit" 
+              value={metrics.overallProfit.totalProfit} 
+              format="currency"
+              icon={<Target />}
+              isLoading={isLoading}
+              gradientFrom="emerald-500"
+              gradientTo="emerald-600"
+              iconColor="emerald-600"
+              delay={0.1}
+            />
+          </div>
+        </div>
+      </motion.div>
     </DashboardLayout>
   );
 };
