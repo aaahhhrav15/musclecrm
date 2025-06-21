@@ -6,8 +6,8 @@ const auth = async (req, res, next) => {
     // Get token from cookies or authorization header
     const token = req.cookies.token || req.header('Authorization')?.replace('Bearer ', '');
     
-    if (!token) {
-      return res.status(401).json({ success: false, message: 'Authentication required' });
+    if (!token || token === 'null' || token === 'undefined') {
+      return res.status(401).json({ success: false, message: 'Authentication token is missing or malformed' });
     }
 
     // Verify token
@@ -26,7 +26,10 @@ const auth = async (req, res, next) => {
     next();
   } catch (error) {
     console.error('Auth middleware error:', error);
-    res.status(401).json({ success: false, message: 'Authentication failed' });
+    if (error instanceof jwt.JsonWebTokenError) {
+      return res.status(401).json({ success: false, message: 'Invalid token' });
+    }
+    res.status(500).json({ success: false, message: 'Internal server error during authentication' });
   }
 };
 

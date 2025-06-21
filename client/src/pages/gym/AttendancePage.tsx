@@ -1,19 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import * as React from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { 
   QrCode, 
-  Fingerprint, 
   Clock, 
-  Calendar, 
+  Calendar as CalendarIcon, 
   Search, 
-  Filter, 
-  Download, 
-  CheckCircle, 
-  XCircle,
-  ArrowUpDown,
   Users,
   User,
-  Loader2
+  Zap,
+  Loader2,
+  BarChart
 } from 'lucide-react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -37,33 +34,25 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import axios from 'axios';
-import QRCodeDisplay from '@/components/attendance/QRCodeDisplay';
+import { ApiService } from '@/services/ApiService';
 import { format } from 'date-fns';
-import { Calendar as CalendarIcon } from '@/components/ui/calendar';
+import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/context/AuthContext';
+import QRCodeDisplay from '@/components/attendance/QRCodeDisplay';
 
-// Define attendance type
+// Updated attendance type to match new backend schema
 interface AttendanceRecord {
   _id: string;
-  memberId?: {
+  userId: {
     _id: string;
     name: string;
     email: string;
     membershipType: string;
+    profileImage?: string;
   };
-  staffId?: {
-    _id: string;
-    name: string;
-    email: string;
-    role: string;
-  };
-  checkInTime: string;
-  checkOutTime?: string;
-  duration?: string;
-  status: 'Checked In' | 'Checked Out';
-  type: 'Member' | 'Staff';
+  timestamp: string;
 }
 
 // Define stats type
@@ -71,12 +60,31 @@ interface AttendanceStats {
   totalToday: number;
   currentlyIn: number;
   membersToday: number;
-  staffToday: number;
+  sevenDayAverage: string;
+  periodLabel: string;
+}
+
+// Add these interfaces at the top of the file:
+interface AttendanceApiResponse {
+  success: boolean;
+  data: AttendanceRecord[];
+  stats: AttendanceStats;
+}
+
+interface AttendanceHistoryApiResponse {
+  success: boolean;
+  data: AttendanceRecord[];
+  pagination: {
+    total: number;
+    page: number;
+    pages: number;
+  };
 }
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
 const AttendancePage: React.FC = () => {
+  const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState('today');
   const [isLoading, setIsLoading] = useState(true);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
@@ -84,11 +92,11 @@ const AttendancePage: React.FC = () => {
     totalToday: 0,
     currentlyIn: 0,
     membersToday: 0,
-    staffToday: 0
+    sevenDayAverage: 'N/A',
+    periodLabel: 'Today'
   });
   const [searchQuery, setSearchQuery] = useState('');
   const { toast } = useToast();
-  const [showQRCode, setShowQRCode] = useState(false);
   const [view, setView] = useState<'today' | 'history'>('today');
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [historyPage, setHistoryPage] = useState(1);
@@ -96,53 +104,49 @@ const AttendancePage: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const gymId = "your-gym-id"; // This should come from your auth context or API
-  const gymName = "Your Gym Name"; // This should come from your auth context or API
+  const [showQRCode, setShowQRCode] = useState(false);
+  
+  const gymId = useMemo(() => user?.gymId, [user]);
+  const gymName = "Your Gym Name"; // This should come from your gym context or API
 
+  const fetchAttendance = React.useCallback(async () => {
+    if (!gymId) return;
+    setIsLoading(true);
+    try {
+      const response: AttendanceApiResponse = await ApiService.get('/attendance', { date: selectedDate });
+      if (response.success) {
+        setAttendanceRecords(response.data);
+        setStats(response.stats);
+      }
+    } catch (error) {
+      console.error('Error fetching attendance:', error);
+      toast({
+        title: "Failed to load attendance",
+        description: "There was a problem loading attendance records.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [gymId, selectedDate, toast]);
+  
   // Load attendance records from backend
   useEffect(() => {
-    const fetchAttendance = async () => {
-      setIsLoading(true);
-      try {
-        const response = await axios.get(`${API_URL}/gym/attendance`, {
-          params: { date: selectedDate }
-        });
-        
-        if (response.data.success) {
-          setAttendanceRecords(response.data.data);
-          setStats(response.data.stats);
-        }
-      } catch (error) {
-        console.error('Error fetching attendance:', error);
-        toast({
-          title: "Failed to load attendance",
-          description: "There was a problem loading attendance records.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchAttendance();
-  }, [selectedDate, toast]);
+  }, [fetchAttendance]);
 
   // Load attendance history
-  const fetchHistory = async (page: number) => {
+  const fetchHistory = React.useCallback(async (page: number) => {
+    if(!gymId) return;
     setIsLoadingHistory(true);
     try {
-      const response = await axios.get(`${API_URL}/gym/attendance/history`, {
-        params: {
-          page,
-          limit: 10,
-          startDate: date ? format(date, 'yyyy-MM-dd') : undefined,
-          endDate: date ? format(date, 'yyyy-MM-dd') : undefined
-        }
+      const response: AttendanceHistoryApiResponse = await ApiService.get('/attendance/history', {
+        page,
+        limit: 10
       });
-
-      if (response.data.success) {
-        setHistoryData(response.data.data);
-        setTotalPages(response.data.pagination.pages);
+      if (response.success) {
+        setHistoryData(response.data);
+        setTotalPages(response.pagination.pages);
       }
     } catch (error) {
       console.error('Error fetching history:', error);
@@ -154,41 +158,68 @@ const AttendancePage: React.FC = () => {
     } finally {
       setIsLoadingHistory(false);
     }
-  };
+  }, [gymId, toast]);
 
   useEffect(() => {
     if (view === 'history') {
       fetchHistory(historyPage);
     }
-  }, [view, historyPage, date]);
+  }, [view, historyPage, fetchHistory]);
 
-  // Handle QR check-in
   const handleQrCheckIn = () => {
     setShowQRCode(true);
   };
+  
+  const peakHour = useMemo(() => {
+    if (attendanceRecords.length === 0) return 'N/A';
 
-  const handleQRScanSuccess = () => {
-    // Refresh attendance data
-    fetchAttendance();
-  };
+    const hours = attendanceRecords.map(record => new Date(record.timestamp).getHours());
+    const hourCounts = hours.reduce((acc, hour) => {
+      acc[hour] = (acc[hour] || 0) + 1;
+      return acc;
+    }, {} as Record<number, number>);
 
-  // Handle biometric check-in
-  const handleBiometricCheckIn = async () => {
-    toast({
-      title: "Biometric Check-in",
-      description: "Biometric check-in functionality will be connected to the backend.",
-    });
+    const peak = Object.keys(hourCounts).reduce((a, b) => hourCounts[parseInt(a)] > hourCounts[parseInt(b)] ? a : b);
+    const peakHourNumber = parseInt(peak);
+    const nextHour = peakHourNumber + 1;
     
-    // This would typically integrate with a biometric device and then call your backend API
-    // Example backend call:
-    // await axios.post(`${API_URL}/attendance/biometric-checkin`, { biometricId: scannedId });
-  };
+    const formatHour = (h: number) => {
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        const hour12 = h % 12 || 12;
+        return `${hour12} ${ampm}`;
+    };
+
+    return `${formatHour(peakHourNumber)} - ${formatHour(nextHour)}`;
+  }, [attendanceRecords]);
 
   // Filter records based on search
   const filteredAttendance = attendanceRecords.filter(record => {
-    const name = record.memberId?.name || record.staffId?.name || '';
+    const name = record.userId?.name || '';
     return name.toLowerCase().includes(searchQuery.toLowerCase());
   });
+
+  const filteredHistory = historyData.filter(record => {
+    const name = record.userId?.name || '';
+    return name.toLowerCase().includes(searchQuery.toLowerCase());
+  });
+
+  const renderAttendanceRow = (record: AttendanceRecord) => (
+    <TableRow key={record._id}>
+      <TableCell>
+        <div className="font-medium">{record.userId?.name || 'Unknown User'}</div>
+        <div className="text-sm text-muted-foreground">{record.userId?.email || ''}</div>
+      </TableCell>
+      <TableCell>
+        {format(new Date(record.timestamp), 'PP')}
+      </TableCell>
+      <TableCell>
+        {format(new Date(record.timestamp), 'p')}
+      </TableCell>
+      <TableCell>
+        <Badge variant="secondary">Present</Badge>
+      </TableCell>
+    </TableRow>
+  );
 
   return (
     <DashboardLayout>
@@ -201,28 +232,27 @@ const AttendancePage: React.FC = () => {
         {/* Header Section */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Attendance System</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Member Attendance</h1>
             <p className="text-muted-foreground">
-              Track and manage gym attendance for members and staff.
+              Track and manage member check-ins.
             </p>
           </div>
           <div className="flex gap-2">
-            <Button onClick={() => setShowQRCode(true)}>
-              <QrCode className="mr-2 h-4 w-4" /> QR Code
-            </Button>
-            <Button variant="outline" onClick={handleBiometricCheckIn}>
-              <Fingerprint className="mr-2 h-4 w-4" /> Biometric
+            <Button onClick={handleQrCheckIn}>
+              <QrCode className="mr-2 h-4 w-4" /> Scan Member QR Code
             </Button>
           </div>
         </div>
 
         {/* QR Code Display Modal */}
-        <QRCodeDisplay
-          isOpen={showQRCode}
-          onClose={() => setShowQRCode(false)}
-          gymId={gymId}
-          gymName={gymName}
-        />
+        {showQRCode && gymId && (
+          <QRCodeDisplay
+            isOpen={showQRCode}
+            onClose={() => setShowQRCode(false)}
+            gymId={gymId}
+            gymName={gymName}
+          />
+        )}
 
         {/* Main Content */}
         <div className="space-y-6">
@@ -239,228 +269,175 @@ const AttendancePage: React.FC = () => {
           {view === 'today' ? (
             <>
               {/* Today's Attendance Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Check-ins</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalToday}</div>
-              <p className="text-xs text-muted-foreground">Today</p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Currently In</CardTitle>
-              <CheckCircle className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.currentlyIn}</div>
-              <p className="text-xs text-muted-foreground">Active now</p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Members</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.membersToday}</div>
-              <p className="text-xs text-muted-foreground">Member check-ins</p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Staff</CardTitle>
-              <User className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.staffToday}</div>
-              <p className="text-xs text-muted-foreground">Staff check-ins</p>
-            </CardContent>
-          </Card>
-        </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Check-ins</CardTitle>
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{stats.totalToday}</div>
+                    <p className="text-xs text-muted-foreground">{stats.periodLabel}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Unique Members</CardTitle>
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{stats.membersToday}</div>
+                     <p className="text-xs text-muted-foreground">Checked in {stats.periodLabel.toLowerCase()}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">7-Day Average</CardTitle>
+                    <BarChart className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{stats.sevenDayAverage}</div>
+                    <p className="text-xs text-muted-foreground">Avg. check-ins per day</p>
+                  </CardContent>
+                </Card>
+              </div>
 
-              {/* Today's Attendance Table */}
-              <div className="border rounded-md">
-            {isLoading ? (
-              <div className="flex justify-center items-center p-8">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <span className="ml-2">Loading attendance records...</span>
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Check-in Time</TableHead>
-                    <TableHead>Check-out Time</TableHead>
-                    <TableHead className="hidden md:table-cell">Duration</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                      {attendanceRecords.length > 0 ? (
-                        attendanceRecords.map(record => (
-                      <TableRow key={record._id}>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Avatar className="h-8 w-8">
-                                  <AvatarImage src="/placeholder.svg" alt={record.memberId?.name || ''} />
-                              <AvatarFallback>
-                                    {(record.memberId?.name?.[0] || '').toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                                <span className="font-medium">{record.memberId?.name}</span>
-                          </div>
-                        </TableCell>
-                            <TableCell>{record.memberId ? 'Member' : 'Staff'}</TableCell>
-                            <TableCell>{format(new Date(record.checkInTime), 'PPp')}</TableCell>
-                        <TableCell>
-                              {record.checkOutTime ? format(new Date(record.checkOutTime), 'PPp') : '-'}
-                            </TableCell>
-                            <TableCell className="hidden md:table-cell">
-                              {record.checkOutTime
-                                ? formatDuration(new Date(record.checkOutTime).getTime() - new Date(record.checkInTime).getTime())
-                                : '-'}
-                        </TableCell>
-                        <TableCell>
-                              <Badge variant={record.checkOutTime ? 'secondary' : 'default'}>
-                                {record.checkOutTime ? 'Checked Out' : 'Checked In'}
-                          </Badge>
-                        </TableCell>
+              {/* Attendance List */}
+              <Card>
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <CardTitle>{stats.periodLabel}'s Records</CardTitle>
+                    <div className="flex gap-2">
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input 
+                          placeholder="Search by name..." 
+                          className="pl-8"
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                      </div>
+                      <Select value={selectedDate} onValueChange={setSelectedDate}>
+                        <SelectTrigger className="w-[180px]">
+                          <SelectValue placeholder="Filter by date" />
+                        </SelectTrigger>
+                        <SelectContent>
+
+                          <SelectItem value="today">Today</SelectItem>
+                          <SelectItem value="yesterday">Yesterday</SelectItem>
+                          <SelectItem value="thisWeek">This Week</SelectItem>
+                          <SelectItem value="lastWeek">Last Week</SelectItem>
+                          <SelectItem value="thisMonth">This Month</SelectItem>
+                          <SelectItem value="prevMonth">Previous Month</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Time</TableHead>
+                        <TableHead>Status</TableHead>
                       </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={6} className="h-24 text-center">
-                        No attendance records found
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            )}
-              </div>
+                    </TableHeader>
+                    <TableBody>
+                      {isLoading ? (
+                        <TableRow>
+                          <TableCell colSpan={4} className="text-center">
+                            <Loader2 className="mx-auto h-8 w-8 animate-spin" />
+                          </TableCell>
+                        </TableRow>
+                      ) : filteredAttendance.length > 0 ? (
+                        filteredAttendance.map(renderAttendanceRow)
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={4} className="text-center">No attendance records found.</TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
             </>
           ) : (
-            <>
-              {/* History Section */}
-              <div className="space-y-4">
-                {/* Date Filter */}
-                <div className="flex justify-end px-4">
-                  <Input
-                    type="date"
-                    className="w-[240px]"
-                    value={date ? format(date, 'yyyy-MM-dd') : ''}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      if (value) {
-                        setDate(new Date(value));
-                      }
-                    }}
-                  />
-                </div>
-
-                {/* History Table */}
-                <div className="border rounded-md">
-                  {isLoadingHistory ? (
-                    <div className="flex justify-center items-center p-8">
-                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                      <span className="ml-2">Loading history...</span>
+            // History View
+            <Card>
+               <CardHeader>
+                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <CardTitle>Attendance History</CardTitle>
+                    <div className="relative flex-grow sm:flex-grow-0">
+                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input 
+                        placeholder="Search by name..." 
+                        className="pl-8"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                      />
                     </div>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Check-in Time</TableHead>
-                          <TableHead>Check-out Time</TableHead>
-                          <TableHead>Duration</TableHead>
-                          <TableHead>Status</TableHead>
+                 </div>
+               </CardHeader>
+               <CardContent>
+                <Table>
+                   <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Time</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {isLoadingHistory ? (
+                         <TableRow>
+                          <TableCell colSpan={4} className="text-center">
+                            <Loader2 className="mx-auto h-8 w-8 animate-spin" />
+                          </TableCell>
                         </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {historyData.length > 0 ? (
-                          historyData.map(record => (
-                            <TableRow key={record._id}>
-                              <TableCell>
-                                <div className="flex items-center gap-2">
-                                  <Avatar className="h-8 w-8">
-                                    <AvatarImage src="/placeholder.svg" alt={record.memberId?.name || ''} />
-                                    <AvatarFallback>
-                                      {(record.memberId?.name?.[0] || '').toUpperCase()}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <span className="font-medium">{record.memberId?.name}</span>
-                                </div>
-                              </TableCell>
-                              <TableCell>{format(new Date(record.checkInTime), 'PPp')}</TableCell>
-                              <TableCell>
-                                {record.checkOutTime ? format(new Date(record.checkOutTime), 'PPp') : '-'}
-                              </TableCell>
-                              <TableCell>
-                                {record.checkOutTime
-                                  ? formatDuration(new Date(record.checkOutTime).getTime() - new Date(record.checkInTime).getTime())
-                                  : '-'}
-                              </TableCell>
-                              <TableCell>
-                                <Badge variant={record.checkOutTime ? 'secondary' : 'default'}>
-                                  {record.checkOutTime ? 'Checked Out' : 'Checked In'}
-                                </Badge>
-                              </TableCell>
-                            </TableRow>
-                          ))
-                        ) : (
-                          <TableRow>
-                            <TableCell colSpan={5} className="h-24 text-center">
-                              No attendance records found
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
-                  )}
-            </div>
-
-                {/* Pagination */}
-                {totalPages > 1 && (
-                  <div className="flex justify-center gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => setHistoryPage(p => Math.max(1, p - 1))}
-                      disabled={historyPage === 1}
-                    >
-                      Previous
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => setHistoryPage(p => Math.min(totalPages, p + 1))}
-                      disabled={historyPage === totalPages}
-                    >
-                      Next
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </>
+                      ) : filteredHistory.length > 0 ? (
+                        filteredHistory.map(renderAttendanceRow)
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={4} className="text-center">No history found for this date.</TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                </Table>
+               </CardContent>
+               {totalPages > 1 && (
+                 <div className="p-4 flex justify-end">
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setHistoryPage(p => Math.max(1, p - 1))}
+                        disabled={historyPage === 1}
+                      >
+                        Previous
+                      </Button>
+                      <span>
+                        Page {historyPage} of {totalPages}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setHistoryPage(p => Math.min(totalPages, p + 1))}
+                        disabled={historyPage === totalPages}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                 </div>
+               )}
+            </Card>
           )}
-            </div>
+        </div>
       </motion.div>
     </DashboardLayout>
   );
-};
-
-// Helper function to format duration
-const formatDuration = (ms: number) => {
-  const hours = Math.floor(ms / (1000 * 60 * 60));
-  const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
-  return `${hours}h ${minutes}m`;
 };
 
 export default AttendancePage;

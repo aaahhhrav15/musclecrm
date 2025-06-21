@@ -69,6 +69,7 @@ import CustomerService from '@/services/CustomerService';
 import { Calendar } from '@/components/ui/calendar';
 import { addMonths, startOfMonth, endOfMonth, isSameDay, isSameMonth, isWithinInterval } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import * as Papa from 'papaparse';
 
 const FinancePage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -308,6 +309,40 @@ const FinancePage: React.FC = () => {
     }
   };
 
+  const handleExport = () => {
+    if (!filteredInvoices || filteredInvoices.length === 0) {
+      toast.info("No data to export.");
+      return;
+    }
+
+    const dataToExport = filteredInvoices.map(invoice => {
+      const customer = typeof invoice.customerId === 'object' 
+        ? invoice.customerId 
+        : customers.find(c => c._id === invoice.customerId);
+
+      return {
+        "Invoice Number": invoice.invoiceNumber,
+        "Customer Name": customer?.name || 'N/A',
+        "Customer Email": customer?.email || 'N/A',
+        "Phone Number": customer?.phone || 'N/A',
+        "Date": format(new Date(invoice.createdAt), 'yyyy-MM-dd'),
+        "Cost": invoice.amount,
+        "Description": invoice.items.map(item => item.description).join(', '),
+      };
+    });
+
+    const csv = Papa.unparse(dataToExport);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `invoices-export-${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Data exported successfully!");
+  };
+
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -359,7 +394,7 @@ const FinancePage: React.FC = () => {
             <Button onClick={() => setIsCreateInvoiceOpen(true)} size="lg" className="shadow-sm">
               <PlusCircle className="mr-2 h-5 w-5" /> Create Invoice
             </Button>
-            <Button variant="outline" size="lg" className="shadow-sm">
+            <Button variant="outline" size="lg" className="shadow-sm" onClick={handleExport}>
               <Download className="mr-2 h-5 w-5" /> Export Data
             </Button>
           </div>

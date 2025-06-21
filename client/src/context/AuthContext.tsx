@@ -107,7 +107,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
       
       if (response.data.success) {
-        const userData = response.data.user;
+        const { user: userData, token } = response.data;
+        
+        localStorage.setItem('token', token);
         
         setUser({
           id: userData._id,
@@ -195,7 +197,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = async () => {
     try {
       await axiosInstance.post('/auth/logout');
-      
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      localStorage.removeItem('token');
       setUser(null);
       setIsAuthenticated(false);
       setSelectedIndustry(null);
@@ -203,14 +208,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       toast({
         title: "Logged out",
         description: "You have been successfully logged out.",
-      });
-    } catch (error) {
-      console.error('Logout error:', error);
-      
-      toast({
-        title: "Logout error",
-        description: "There was a problem logging out.",
-        variant: "destructive",
       });
     }
   };

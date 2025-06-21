@@ -138,7 +138,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/gym', gymRoutes);
 // app.use('/api/gym/members', membersRoutes);
 app.use('/api/gym/staff', staffRoutes);
-app.use('/api/gym/attendance', attendanceRoutes);
+app.use('/api/attendance', attendanceRoutes);
 app.use('/api/gym/expenses', expensesRoutes);
 app.use('/api/invoices', invoicesRoutes);
 app.use('/api/bookings', bookingsRoutes);

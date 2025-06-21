@@ -1,152 +1,147 @@
 const express = require('express');
 const GymAttendance = require('../models/GymAttendance');
-const GymMember = require('../models/GymMember');
+const Customer = require('../models/Customer');
+const { startOfDay, endOfDay, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths } = require('date-fns');
+const mongoose = require('mongoose');
 const auth = require('../middleware/auth');
-const { startOfDay, endOfDay, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } = require('date-fns');
 
 const router = express.Router();
 
 // Get attendance records with date filter
 router.get('/', auth, async (req, res) => {
   try {
-    if (!req.user.gymId) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'No gym associated with this account' 
-      });
-    }
-
     const { date } = req.query;
-    let dateFilter = {};
+    const gymId = req.gym._id;
+    console.log('Attendance request received:', { gymId, date });
+    
+    let startDate, endDate;
+    const now = new Date();
 
-    // Handle different date filters
-    if (date) {
-      const today = new Date();
-      switch (date) {
-        case 'today':
-          dateFilter = {
-            checkInTime: {
-              $gte: startOfDay(today),
-              $lte: endOfDay(today)
-            }
-          };
-          break;
-        case 'yesterday':
-          const yesterday = subDays(today, 1);
-          dateFilter = {
-            checkInTime: {
-              $gte: startOfDay(yesterday),
-              $lte: endOfDay(yesterday)
-            }
-          };
-          break;
-        case 'thisWeek':
-          dateFilter = {
-            checkInTime: {
-              $gte: startOfWeek(today),
-              $lte: endOfWeek(today)
-            }
-          };
-          break;
-        case 'lastWeek':
-          const lastWeek = subDays(today, 7);
-          dateFilter = {
-            checkInTime: {
-              $gte: startOfWeek(lastWeek),
-              $lte: endOfWeek(lastWeek)
-            }
-          };
-          break;
-        case 'thisMonth':
-          dateFilter = {
-            checkInTime: {
-              $gte: startOfMonth(today),
-              $lte: endOfMonth(today)
-            }
-          };
-          break;
-        default:
-          // If a specific date is provided
-          const specificDate = new Date(date);
-          if (!isNaN(specificDate.getTime())) {
-            dateFilter = {
-              checkInTime: {
-                $gte: startOfDay(specificDate),
-                $lte: endOfDay(specificDate)
-              }
-            };
-          }
-      }
+    switch (date) {
+      case 'today':
+        startDate = startOfDay(now);
+        endDate = endOfDay(now);
+        break;
+      case 'yesterday':
+        startDate = startOfDay(subDays(now, 1));
+        endDate = endOfDay(subDays(now, 1));
+        break;
+      case 'thisWeek':
+        startDate = startOfWeek(now);
+        endDate = endOfWeek(now);
+        break;
+      case 'lastWeek':
+        startDate = startOfWeek(subWeeks(now, 1));
+        endDate = endOfWeek(subWeeks(now, 1));
+        break;
+      case 'thisMonth':
+        startDate = startOfMonth(now);
+        endDate = endOfMonth(now);
+        break;
+      case 'prevMonth':
+        startDate = startOfMonth(subMonths(now, 1));
+        endDate = endOfMonth(subMonths(now, 1));
+        break;
+      default:
+        startDate = startOfDay(now);
+        endDate = endOfDay(now);
     }
-
+    
+    console.log('Date range:', { startDate, endDate });
+    
     const attendance = await GymAttendance.find({
-      gymId: req.user.gymId,
-      ...dateFilter
+      gymId,
+      timestamp: { $gte: startDate, $lt: endDate }
     })
-      .populate('memberId', 'name membershipType')
-      .sort({ checkInTime: -1 });
+      .populate('userId', 'name email')
+      .sort({ timestamp: -1 });
       
-    // Calculate stats
+    console.log('Found attendance records:', attendance.length);
+    
+    // Calculate 7-day average
+    const sevenDaysAgo = startOfDay(subDays(new Date(), 6));
+    const weeklyAttendance = await GymAttendance.aggregate([
+        { $match: { gymId: new mongoose.Types.ObjectId(gymId), timestamp: { $gte: sevenDaysAgo } } },
+        { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$timestamp" } }, count: { $sum: 1 } } },
+        { $group: { _id: null, total: { $sum: "$count" }, days: { $sum: 1 } } }
+    ]);
+
+    const sevenDayAvg = weeklyAttendance.length > 0 ? (weeklyAttendance[0].total / 7).toFixed(1) : '0.0';
+
     const stats = {
       totalToday: attendance.length,
-      currentlyIn: attendance.filter(a => !a.checkOutTime).length,
-      membersToday: attendance.filter(a => a.memberId).length,
-      staffToday: attendance.filter(a => a.staffId).length
+      currentlyIn: 0,
+      membersToday: attendance.filter(a => a.userId).length,
+      sevenDayAverage: sevenDayAvg
     };
+    
+    // Update stats labels based on selected date range
+    let periodLabel = 'Today';
+    switch (date) {
+      case 'yesterday':
+        periodLabel = 'Yesterday';
+        break;
+      case 'thisWeek':
+        periodLabel = 'This Week';
+        break;
+      case 'lastWeek':
+        periodLabel = 'Last Week';
+        break;
+      case 'thisMonth':
+        periodLabel = 'This Month';
+        break;
+      case 'prevMonth':
+        periodLabel = 'Previous Month';
+        break;
+      default:
+        periodLabel = 'Today';
+    }
+    
+    console.log('Stats:', stats);
+    console.log('Period label:', periodLabel);
       
     res.json({ 
       success: true, 
       data: attendance,
-      stats 
+      stats: {
+        ...stats,
+        periodLabel
+      }
     });
   } catch (error) {
-    console.error('Get attendance error:', error);
-    res.status(500).json({ success: false, message: 'Error fetching attendance records' });
+    console.error('Attendance error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch attendance records',
+      error: error.message 
+    });
   }
 });
 
 // Get attendance history with pagination
 router.get('/history', auth, async (req, res) => {
   try {
-    if (!req.user.gymId) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'No gym associated with this account' 
-      });
-    }
-
-    const { page = 1, limit = 10, startDate, endDate, memberId } = req.query;
+    const { page = 1, limit = 10 } = req.query;
+    const gymId = req.gym._id;
+    
     const skip = (parseInt(page) - 1) * parseInt(limit);
-
-    let query = { gymId: req.user.gymId };
-
-    // Add date range filter if provided
-    if (startDate || endDate) {
-      query.checkInTime = {};
-      if (startDate) query.checkInTime.$gte = new Date(startDate);
-      if (endDate) query.checkInTime.$lte = new Date(endDate);
-    }
-
-    // Add member filter if provided
-    if (memberId) {
-      query.memberId = memberId;
-    }
-
-    const attendance = await GymAttendance.find(query)
-      .populate('memberId', 'name membershipType')
-      .sort({ checkInTime: -1 })
+    
+    const attendance = await GymAttendance.find({ gymId })
+      .populate('userId', 'name email')
+      .sort({ timestamp: -1 })
       .skip(skip)
       .limit(parseInt(limit));
-
-    const total = await GymAttendance.countDocuments(query);
-
+      
+    const total = await GymAttendance.countDocuments({ gymId });
+    const pages = Math.ceil(total / parseInt(limit));
+    
     res.json({
       success: true,
       data: attendance,
       pagination: {
         total,
         page: parseInt(page),
-        pages: Math.ceil(total / parseInt(limit))
+        pages
       }
     });
   } catch (error) {
@@ -155,137 +150,33 @@ router.get('/history', auth, async (req, res) => {
   }
 });
 
-// Check-in a member
-router.post('/check-in', auth, async (req, res) => {
+// Check-in a customer
+router.post('/check-in', async (req, res) => {
   try {
-    if (!req.user.gymId) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'No gym associated with this account' 
-      });
-    }
+    const { userId, gymId } = req.body;
 
-    const { memberId, notes } = req.body;
-    
-    // Verify the member exists and belongs to the user
-    const member = await GymMember.findOne({
-      _id: memberId,
-      gymId: req.user.gymId
-    });
-    
-    if (!member) {
-      return res.status(404).json({ success: false, message: 'Member not found' });
+    if (!userId || !gymId) {
+      return res.status(400).json({ success: false, message: 'User ID and Gym ID are required' });
     }
     
-    // Check if the member already has an open check-in
-    const existingAttendance = await GymAttendance.findOne({
-      memberId,
-      gymId: req.user.gymId,
-      checkOutTime: { $exists: false }
-    });
-    
-    if (existingAttendance) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Member already checked in',
-        data: existingAttendance
-      });
+    const customer = await Customer.findById(userId);
+    if (!customer) {
+      return res.status(404).json({ success: false, message: 'Customer not found' });
     }
     
-    // Create new attendance record
     const newAttendance = await GymAttendance.create({
-      gymId: req.user.gymId,
-      memberId,
-      notes
+      gymId: new mongoose.Types.ObjectId(gymId),
+      userId: new mongoose.Types.ObjectId(userId),
+      timestamp: new Date()
     });
     
-    // Populate member details
     const populatedAttendance = await GymAttendance.findById(newAttendance._id)
-      .populate('memberId', 'name membershipType');
+      .populate('userId', 'name email');
     
     res.status(201).json({ success: true, data: populatedAttendance });
   } catch (error) {
     console.error('Check-in error:', error);
-    res.status(500).json({ success: false, message: 'Error checking in member' });
-  }
-});
-
-// Check-out a member
-router.put('/check-out/:id', auth, async (req, res) => {
-  try {
-    if (!req.user.gymId) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'No gym associated with this account' 
-      });
-    }
-
-    const { notes } = req.body;
-    
-    // Find attendance record
-    const attendance = await GymAttendance.findOne({
-      _id: req.params.id,
-      gymId: req.user.gymId,
-      checkOutTime: { $exists: false }
-    });
-    
-    if (!attendance) {
-      return res.status(404).json({ success: false, message: 'Active attendance record not found' });
-    }
-    
-    // Update check-out time
-    attendance.checkOutTime = new Date();
-    attendance.notes = notes || attendance.notes;
-    await attendance.save();
-    
-    // Populate member details
-    const populatedAttendance = await GymAttendance.findById(attendance._id)
-      .populate('memberId', 'name membershipType');
-    
-    res.json({ success: true, data: populatedAttendance });
-  } catch (error) {
-    console.error('Check-out error:', error);
-    res.status(500).json({ success: false, message: 'Error checking out member' });
-  }
-});
-
-// Get active (checked-in) members
-router.get('/active', auth, async (req, res) => {
-  try {
-    const activeAttendance = await GymAttendance.find({
-      gymId: req.user.gymId,
-      checkOutTime: { $exists: false }
-    }).populate('memberId', 'name membershipType email phone');
-    
-    res.json({ success: true, data: activeAttendance });
-  } catch (error) {
-    console.error('Get active attendance error:', error);
-    res.status(500).json({ success: false, message: 'Error fetching active attendance records' });
-  }
-});
-
-// Get attendance by date range
-router.get('/range', auth, async (req, res) => {
-  try {
-    const { startDate, endDate } = req.query;
-    
-    if (!startDate || !endDate) {
-      return res.status(400).json({ success: false, message: 'Start and end dates are required' });
-    }
-    
-    const attendance = await GymAttendance.find({
-      gymId: req.user.gymId,
-      checkInTime: {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
-      }
-    }).populate('memberId', 'name membershipType')
-      .sort({ checkInTime: -1 });
-    
-    res.json({ success: true, data: attendance });
-  } catch (error) {
-    console.error('Get attendance range error:', error);
-    res.status(500).json({ success: false, message: 'Error fetching attendance records' });
+    res.status(500).json({ success: false, message: 'Error checking in customer' });
   }
 });
 

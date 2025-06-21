@@ -1,30 +1,23 @@
-
 const mongoose = require('mongoose');
 
 const gymAttendanceSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+    ref: 'Customer',
+    required: true,
   },
-  memberId: {
+  gymId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'GymMember',
-    required: true
+    ref: 'Gym',
+    required: true,
   },
-  checkInTime: {
+  timestamp: {
     type: Date,
     default: Date.now,
-    required: true
+    required: true,
   },
-  checkOutTime: {
-    type: Date
-  },
-  notes: {
-    type: String
-  }
 }, {
-  timestamps: true
+  timestamps: true,
 });
 
 const GymAttendance = mongoose.model('GymAttendance', gymAttendanceSchema);
