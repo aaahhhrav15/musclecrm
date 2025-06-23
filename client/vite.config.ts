@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => ({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:5001',
+        target: 'https://flexcrm-ui-suite-production.up.railway.app',
         changeOrigin: true,
         secure: false,
       }
