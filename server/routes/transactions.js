@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Transaction = require('../models/Transaction');
+const Customer = require('../models/Customer');
 const auth = require('../middleware/auth');
 
 // Get all transactions for a gym
@@ -42,6 +43,22 @@ router.post('/', auth, async (req, res) => {
 
     try {
         const newTransaction = await transaction.save();
+        
+        // Update customer's totalSpent
+        try {
+            const customer = await Customer.findById(req.body.userId);
+            if (customer) {
+                const transactions = await Transaction.find({ userId: req.body.userId });
+                const totalSpent = transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
+                customer.totalSpent = totalSpent;
+                await customer.save();
+                console.log(`Updated totalSpent for customer ${customer.name}: ${totalSpent}`);
+            }
+        } catch (error) {
+            console.error('Error updating customer totalSpent:', error);
+            // Don't fail the transaction creation if totalSpent update fails
+        }
+        
         res.status(201).json(newTransaction);
     } catch (error) {
         res.status(400).json({ message: error.message });
@@ -61,6 +78,21 @@ router.patch('/:id', auth, async (req, res) => {
         });
 
         const updatedTransaction = await transaction.save();
+        
+        // Update customer's totalSpent
+        try {
+            const customer = await Customer.findById(transaction.userId);
+            if (customer) {
+                const transactions = await Transaction.find({ userId: transaction.userId });
+                const totalSpent = transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
+                customer.totalSpent = totalSpent;
+                await customer.save();
+                console.log(`Updated totalSpent for customer ${customer.name}: ${totalSpent}`);
+            }
+        } catch (error) {
+            console.error('Error updating customer totalSpent:', error);
+        }
+        
         res.json(updatedTransaction);
     } catch (error) {
         res.status(400).json({ message: error.message });
@@ -75,7 +107,24 @@ router.delete('/:id', auth, async (req, res) => {
             return res.status(404).json({ message: 'Transaction not found' });
         }
 
+        const userId = transaction.userId; // Store userId before deletion
+        
         await transaction.remove();
+        
+        // Update customer's totalSpent
+        try {
+            const customer = await Customer.findById(userId);
+            if (customer) {
+                const transactions = await Transaction.find({ userId });
+                const totalSpent = transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
+                customer.totalSpent = totalSpent;
+                await customer.save();
+                console.log(`Updated totalSpent for customer ${customer.name}: ${totalSpent}`);
+            }
+        } catch (error) {
+            console.error('Error updating customer totalSpent:', error);
+        }
+        
         res.json({ message: 'Transaction deleted' });
     } catch (error) {
         res.status(500).json({ message: error.message });

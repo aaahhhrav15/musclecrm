@@ -69,6 +69,17 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isDialogOpen, setIsDialogOpen] = React.useState(isOpen);
   const [membershipEndDate, setMembershipEndDate] = React.useState<Date | null>(null);
+  const [renewalPreview, setRenewalPreview] = React.useState<{
+    willExtend: boolean;
+    newStartDate: Date | null;
+    newEndDate: Date | null;
+    currentEndDate: Date | null;
+  }>({
+    willExtend: false,
+    newStartDate: null,
+    newEndDate: null,
+    currentEndDate: null
+  });
 
   React.useEffect(() => {
     setIsDialogOpen(isOpen);
@@ -102,6 +113,44 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
     return () => subscription.unsubscribe();
   }, [form]);
 
+  // Calculate renewal preview
+  React.useEffect(() => {
+    const currentEndDate = customer.membershipEndDate 
+      ? new Date(customer.membershipEndDate)
+      : addMonths(new Date(customer.membershipStartDate), customer.membershipDuration);
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const startDate = form.getValues('membershipStartDate');
+    const duration = form.getValues('membershipDuration');
+    
+    if (startDate && duration > 0) {
+      let newStartDate: Date;
+      let newEndDate: Date;
+      let willExtend: boolean;
+      
+      if (currentEndDate > today) {
+        // Current membership is still active, extend from current end date
+        newStartDate = currentEndDate;
+        newEndDate = addMonths(currentEndDate, duration);
+        willExtend = true;
+      } else {
+        // Current membership has expired, use the selected start date
+        newStartDate = startDate;
+        newEndDate = addMonths(startDate, duration);
+        willExtend = false;
+      }
+      
+      setRenewalPreview({
+        willExtend,
+        newStartDate,
+        newEndDate,
+        currentEndDate
+      });
+    }
+  }, [customer, form.watch('membershipStartDate'), form.watch('membershipDuration')]);
+
   const handleClose = () => {
     setIsDialogOpen(false);
     form.reset();
@@ -111,15 +160,35 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       setIsSubmitting(true);
-      const endDate = addMonths(values.membershipStartDate, values.membershipDuration);
+      
+      // Calculate the current membership end date
+      const currentEndDate = customer.membershipEndDate 
+        ? new Date(customer.membershipEndDate)
+        : addMonths(new Date(customer.membershipStartDate), customer.membershipDuration);
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      // Determine the new start date and end date
+      let newStartDate: Date;
+      let newEndDate: Date;
+      
+      if (currentEndDate > today) {
+        // Current membership is still active, extend from current end date
+        newStartDate = currentEndDate;
+        newEndDate = addMonths(currentEndDate, values.membershipDuration);
+      } else {
+        // Current membership has expired, use the selected start date
+        newStartDate = values.membershipStartDate;
+        newEndDate = addMonths(values.membershipStartDate, values.membershipDuration);
+      }
       
       const updateData = {
         membershipType: values.membershipType,
         membershipFees: values.membershipFees,
         membershipDuration: values.membershipDuration,
-        membershipStartDate: values.membershipStartDate,
-        membershipEndDate: endDate,
-        totalSpent: (customer.totalSpent || 0) + values.membershipFees,
+        membershipStartDate: newStartDate,
+        membershipEndDate: newEndDate,
         transactionDate: values.transactionDate,
         paymentMode: values.paymentMode,
       };
@@ -128,7 +197,9 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
       console.log('Current customer data:', {
         membershipType: customer.membershipType,
         membershipFees: customer.membershipFees,
-        membershipDuration: customer.membershipDuration
+        membershipDuration: customer.membershipDuration,
+        currentEndDate: currentEndDate,
+        isExpired: currentEndDate <= today
       });
       
       // Update customer membership
@@ -143,7 +214,7 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
         amount: values.membershipFees,
         membershipType: values.membershipType,
         paymentMode: values.paymentMode,
-        description: `${values.membershipType.toUpperCase()} membership renewal for ${values.membershipDuration} months (${format(values.membershipStartDate, 'dd/MM/yyyy')} to ${format(endDate, 'dd/MM/yyyy')})`,
+        description: `${values.membershipType.toUpperCase()} membership renewal for ${values.membershipDuration} months (${format(newStartDate, 'dd/MM/yyyy')} to ${format(newEndDate, 'dd/MM/yyyy')})`,
         status: 'SUCCESS'
       });
 
@@ -338,6 +409,29 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
                 <div className="col-span-2">
                   <p className="text-sm text-muted-foreground">Membership End Date</p>
                   <p className="font-medium">{format(membershipEndDate, "PPP")}</p>
+                </div>
+              )}
+              
+              {/* Renewal Preview */}
+              {renewalPreview.newStartDate && renewalPreview.newEndDate && (
+                <div className="col-span-2 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <h4 className="font-medium text-blue-900 mb-2">Renewal Preview</h4>
+                  <div className="space-y-1 text-sm">
+                    <p className="text-blue-800">
+                      <span className="font-medium">Current End Date:</span> {renewalPreview.currentEndDate ? format(renewalPreview.currentEndDate, "PPP") : 'N/A'}
+                    </p>
+                    <p className="text-blue-800">
+                      <span className="font-medium">New Start Date:</span> {format(renewalPreview.newStartDate, "PPP")}
+                    </p>
+                    <p className="text-blue-800">
+                      <span className="font-medium">New End Date:</span> {format(renewalPreview.newEndDate, "PPP")}
+                    </p>
+                    <p className="text-blue-700 font-medium">
+                      {renewalPreview.willExtend 
+                        ? "✅ Will extend from current membership end date" 
+                        : "⚠️ Will start from selected date (current membership expired)"}
+                    </p>
+                  </div>
                 </div>
               )}
             </div>

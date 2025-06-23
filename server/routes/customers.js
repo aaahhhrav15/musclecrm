@@ -4,6 +4,7 @@ const auth = require('../middleware/auth');
 const { gymAuth } = require('../middleware/gymAuth');
 const Gym = require('../models/Gym');
 const Invoice = require('../models/Invoice');
+const Transaction = require('../models/Transaction');
 
 const router = express.Router();
 
@@ -87,6 +88,21 @@ router.post('/', async (req, res) => {
     });
     await customer.save();
     
+    // Calculate totalSpent from all transactions for this customer
+    try {
+      const transactions = await Transaction.find({ userId: customer._id });
+      const totalSpent = transactions.reduce((sum, transaction) => sum + (transaction.amount || 0), 0);
+      
+      // Update customer with calculated totalSpent
+      customer.totalSpent = totalSpent;
+      await customer.save();
+      
+      console.log(`Updated totalSpent for customer ${customer.name}: ${totalSpent}`);
+    } catch (error) {
+      console.error('Error calculating totalSpent from transactions:', error);
+      // Don't fail the entire operation if totalSpent calculation fails
+    }
+
     // Automatically create invoice if membership fees are greater than 0
     let invoice = null;
     if (customer.membershipFees > 0) {
@@ -239,6 +255,21 @@ router.put('/:id', async (req, res) => {
 
     await customer.save();
 
+    // Calculate totalSpent from all transactions for this customer
+    try {
+      const transactions = await Transaction.find({ userId: customer._id });
+      const totalSpent = transactions.reduce((sum, transaction) => sum + (transaction.amount || 0), 0);
+      
+      // Update customer with calculated totalSpent
+      customer.totalSpent = totalSpent;
+      await customer.save();
+      
+      console.log(`Updated totalSpent for customer ${customer.name}: ${totalSpent}`);
+    } catch (error) {
+      console.error('Error calculating totalSpent from transactions:', error);
+      // Don't fail the entire operation if totalSpent calculation fails
+    }
+
     // Automatically create invoice for membership renewal
     let invoice = null;
     if (isRenewal && membershipFees > 0) {
@@ -329,6 +360,39 @@ router.delete('/:id', async (req, res) => {
   } catch (error) {
     console.error('Error deleting customer:', error);
     res.status(500).json({ success: false, message: 'Error deleting customer' });
+  }
+});
+
+// Utility route to recalculate totalSpent for all customers
+router.post('/recalculate-totals', auth, async (req, res) => {
+  try {
+    const customers = await Customer.find({ gymId: req.user.gymId });
+    let updatedCount = 0;
+    
+    for (const customer of customers) {
+      try {
+        const transactions = await Transaction.find({ userId: customer._id });
+        const totalSpent = transactions.reduce((sum, transaction) => sum + (transaction.amount || 0), 0);
+        
+        if (customer.totalSpent !== totalSpent) {
+          customer.totalSpent = totalSpent;
+          await customer.save();
+          updatedCount++;
+          console.log(`Updated totalSpent for customer ${customer.name}: ${totalSpent}`);
+        }
+      } catch (error) {
+        console.error(`Error calculating totalSpent for customer ${customer.name}:`, error);
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: `Recalculated totalSpent for ${updatedCount} customers`,
+      updatedCount
+    });
+  } catch (error) {
+    console.error('Error recalculating totalSpent:', error);
+    res.status(500).json({ success: false, message: 'Error recalculating totalSpent' });
   }
 });
 

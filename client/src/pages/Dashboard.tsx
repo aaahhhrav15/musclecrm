@@ -242,6 +242,14 @@ const Dashboard: React.FC = () => {
     setTotalGymProfit(calculatedProfit);
   }, [metrics.memberProfit.memberAmount, profitExpense]);
 
+  // Calculate POS metrics
+  const totalPosAmount = metrics.pos.totalSell || 0;
+  const totalPosExpense = metrics.pos.totalPosExpense || 0;
+  const calculatedPosProfit = totalPosAmount - totalPosExpense;
+  
+  // Calculate overall profit
+  const overallTotalProfit = totalGymProfit + calculatedPosProfit;
+
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -653,28 +661,39 @@ const Dashboard: React.FC = () => {
             <div className="h-8 w-1 bg-gradient-to-b from-orange-500 to-orange-600 rounded-full" />
             <h2 className="text-2xl font-bold">POS Profit Analysis</h2>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <MetricCard 
-              title="POS Profit" 
-              value={metrics.posProfit.posProfit} 
+              title="Total POS Amount" 
+              value={totalPosAmount} 
               format="currency"
-              icon={<TrendingUp />}
+              icon={<DollarSign />}
               isLoading={isLoading}
-              gradientFrom="green-500"
-              gradientTo="green-600"
-              iconColor="green-600"
+              gradientFrom="blue-500"
+              gradientTo="blue-600"
+              iconColor="blue-600"
               delay={0.1}
             />
             <MetricCard 
-              title="POS Expense" 
-              value={metrics.posProfit.posExpense} 
+              title="Total POS Expense" 
+              value={totalPosExpense} 
               format="currency"
-              icon={<DollarSign />}
+              icon={<TrendingUp />}
               isLoading={isLoading}
               gradientFrom="red-500"
               gradientTo="red-600"
               iconColor="red-600"
               delay={0.2}
+            />
+            <MetricCard 
+              title="Total POS Profit" 
+              value={calculatedPosProfit} 
+              format="currency"
+              icon={<Target />}
+              isLoading={isLoading}
+              gradientFrom="green-500"
+              gradientTo="green-600"
+              iconColor="green-600"
+              delay={0.3}
             />
           </div>
         </div>
@@ -687,8 +706,8 @@ const Dashboard: React.FC = () => {
           </div>
           <div className="grid grid-cols-1 gap-6">
             <MetricCard 
-              title="Total Business Profit" 
-              value={metrics.overallProfit.totalProfit} 
+              title="Total Business Profit (Gym + POS)" 
+              value={overallTotalProfit} 
               format="currency"
               icon={<Target />}
               isLoading={isLoading}
