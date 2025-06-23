@@ -12,7 +12,7 @@ const gymSchema = new mongoose.Schema({
     required: true
   },
   logo: {
-    type: String, // URL to the logo image
+    type: String, // Base64 string with MIME type (e.g., 'data:image/png;base64,...')
     default: null
   },
   address: {

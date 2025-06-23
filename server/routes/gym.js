@@ -6,7 +6,6 @@ const { gymAuth } = require('../middleware/gymAuth');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const fileService = require('../services/fileService');
 const PDFDocument = require('pdfkit');
 const QRCode = require('qrcode');
 const sharp = require('sharp');
@@ -89,10 +88,7 @@ router.get('/info', async (req, res) => {
     // Convert the gym object to a plain object
     const gymData = gym.toObject();
 
-    // Add full URL for the logo if it exists
-    if (gymData.logo) {
-      gymData.logo = `${process.env.API_URL || 'http://localhost:5001'}/${gymData.logo}`;
-    }
+    // Do NOT modify gymData.logo; return as-is (Base64 string or null)
 
     res.json({ success: true, gym: gymData });
   } catch (error) {
@@ -152,37 +148,29 @@ router.put('/logo', auth, gymAuth, upload.single('logo'), async (req, res) => {
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
+    // Enforce 5MB size limit
+    const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+    if (req.file.size > MAX_SIZE) {
+      return res.status(400).json({ message: 'Logo file size exceeds 5MB limit' });
+    }
+
     const gym = await Gym.findById(req.gymId);
     if (!gym) {
       console.log('Gym not found:', req.gymId);
       return res.status(404).json({ message: 'Gym not found' });
     }
 
-    console.log('Found gym:', gym._id);
+    // Convert file buffer to Base64 string with MIME type
+    const base64Logo = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
 
-    // Delete old logo if exists
-    if (gym.logo) {
-      console.log('Deleting old logo:', gym.logo);
-      await fileService.deleteFile(gym.logo);
-    }
-
-    // Save new logo
-    console.log('Saving new logo...');
-    const logoPath = await fileService.saveFile(req.file);
-    console.log('Logo saved with path:', logoPath);
-    
-    // Update gym with new logo path
-    gym.logo = logoPath;
+    // Update gym with new logo (Base64 string)
+    gym.logo = base64Logo;
     await gym.save();
-    console.log('Gym updated with new logo path');
-
-    // Return the full URL for the logo
-    const logoUrl = `${process.env.API_URL || 'http://localhost:5001'}/${logoPath}`;
-    console.log('Returning logo URL:', logoUrl);
+    console.log('Gym updated with new logo (Base64)');
 
     res.json({ 
       message: 'Logo uploaded successfully', 
-      logo: logoUrl 
+      logo: base64Logo 
     });
   } catch (error) {
     console.error('Error uploading logo:', error);
@@ -201,11 +189,9 @@ router.delete('/logo', auth, gymAuth, async (req, res) => {
       return res.status(404).json({ message: 'Gym not found' });
     }
 
-    if (gym.logo) {
-      await fileService.deleteFile(gym.logo);
-      gym.logo = null;
-      await gym.save();
-    }
+    // Remove logo from gym (set to null)
+    gym.logo = null;
+    await gym.save();
 
     res.json({ message: 'Logo deleted successfully' });
   } catch (error) {
@@ -303,53 +289,42 @@ router.get('/generate-pdf', auth, gymAuth, async (req, res) => {
     let logoDimensions = { width: 0, height: 0 };
 
     // Process logo if available
-    if (gym.logo) {
+    if (gym.logo && typeof gym.logo === 'string' && gym.logo.startsWith('data:image/')) {
       try {
-        const logoFilename = gym.logo.split('/').pop();
-        const logoPath = path.join(__dirname, '..', 'uploads', 'logos', logoFilename);
-        
-        if (fs.existsSync(logoPath)) {
-          // Get original image dimensions
-          const metadata = await sharp(logoPath).metadata();
-          const originalWidth = metadata.width;
-          const originalHeight = metadata.height;
-          
-          // Calculate dimensions maintaining aspect ratio
-          const aspectRatio = originalWidth / originalHeight;
-          
-          if (aspectRatio > 1) {
-            // Landscape orientation
-            logoDimensions.width = Math.min(logoMaxWidth, originalWidth);
-            logoDimensions.height = logoDimensions.width / aspectRatio;
-            
-            if (logoDimensions.height > logoMaxHeight) {
-              logoDimensions.height = logoMaxHeight;
-              logoDimensions.width = logoDimensions.height * aspectRatio;
-            }
-          } else {
-            // Portrait or square orientation
-            logoDimensions.height = Math.min(logoMaxHeight, originalHeight);
+        // Extract base64 data from data URL
+        const base64Data = gym.logo.split(',')[1];
+        logoBuffer = Buffer.from(base64Data, 'base64');
+        // Use sharp to get dimensions
+        const metadata = await sharp(logoBuffer).metadata();
+        const originalWidth = metadata.width;
+        const originalHeight = metadata.height;
+        const aspectRatio = originalWidth / originalHeight;
+        if (aspectRatio > 1) {
+          logoDimensions.width = Math.min(logoMaxWidth, originalWidth);
+          logoDimensions.height = logoDimensions.width / aspectRatio;
+          if (logoDimensions.height > logoMaxHeight) {
+            logoDimensions.height = logoMaxHeight;
             logoDimensions.width = logoDimensions.height * aspectRatio;
-            
-            if (logoDimensions.width > logoMaxWidth) {
-              logoDimensions.width = logoMaxWidth;
-              logoDimensions.height = logoDimensions.width / aspectRatio;
-            }
           }
-
-          // Process image to PNG with appropriate size
-          logoBuffer = await sharp(logoPath)
-            .png()
-            .resize(Math.round(logoDimensions.width), Math.round(logoDimensions.height), { 
-              fit: 'inside', 
-              withoutEnlargement: true 
-            })
-            .toBuffer();
-          
-          hasLogo = true;
+        } else {
+          logoDimensions.height = Math.min(logoMaxHeight, originalHeight);
+          logoDimensions.width = logoDimensions.height * aspectRatio;
+          if (logoDimensions.width > logoMaxWidth) {
+            logoDimensions.width = logoMaxWidth;
+            logoDimensions.height = logoDimensions.width / aspectRatio;
+          }
         }
+        // Resize logo buffer for PDF
+        logoBuffer = await sharp(logoBuffer)
+          .png()
+          .resize(Math.round(logoDimensions.width), Math.round(logoDimensions.height), {
+            fit: 'inside',
+            withoutEnlargement: true
+          })
+          .toBuffer();
+        hasLogo = true;
       } catch (error) {
-        console.error('Error processing logo:', error);
+        console.error('Error processing base64 logo:', error);
         hasLogo = false;
       }
     }

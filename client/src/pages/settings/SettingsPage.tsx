@@ -36,6 +36,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { AxiosError } from 'axios';
 
 interface GymInfo {
   _id: string;
@@ -101,15 +102,6 @@ const SettingsPage: React.FC = () => {
     }
   });
 
-  const getImageUrl = (url: string | null) => {
-    if (!url) return null;
-    // If the URL is already absolute, return it as is
-    if (url.startsWith('http')) return url;
-    // Otherwise, prepend the API URL
-    const filename = url.split('/').pop();
-    return `${process.env.REACT_APP_API_URL || 'http://localhost:5001'}/uploads/logos/${filename}`;
-  };
-
   useEffect(() => {
     fetchGymInfo();
   }, []);
@@ -120,7 +112,7 @@ const SettingsPage: React.FC = () => {
       if (response.data.success) {
         const gymData = response.data.gym;
         setGymInfo(gymData);
-        setLogoPreview(getImageUrl(gymData.logo));
+        setLogoPreview(gymData.logo);
         // Set form default values
         personalForm.reset({
           name: gymData.name,
@@ -186,20 +178,24 @@ const SettingsPage: React.FC = () => {
         },
       });
 
-      if (response.data.success) {
-        const newLogoUrl = response.data.logoUrl;
-        setLogoPreview(getImageUrl(newLogoUrl));
-        setGymInfo(prev => prev ? { ...prev, logo: newLogoUrl } : null);
+      if (response.data.logo) {
+        setLogoPreview(response.data.logo);
+        setGymInfo(prev => {
+          if (!prev) return null;
+          const { logo, ...rest } = prev;
+          return { ...rest, logo: response.data.logo };
+        });
         toast({
           title: "Success",
           description: "Logo updated successfully",
         });
       }
-    } catch (error: any) {
-      console.error('Error uploading logo:', error);
+    } catch (error: unknown) {
+      const err = error as AxiosError;
+      console.error('Error uploading logo:', err);
       toast({
         title: "Error",
-        description: error.response?.data?.message || "Failed to upload logo. Please try again.",
+        description: (err.response?.data as { message?: string })?.message || "Failed to upload logo. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -212,14 +208,19 @@ const SettingsPage: React.FC = () => {
       const response = await axiosInstance.delete('/gym/logo');
       if (response.data.success) {
         setLogoPreview(null);
-        setGymInfo(prev => prev ? { ...prev, logo: null } : null);
+        setGymInfo(prev => {
+          if (!prev) return null;
+          const { logo, ...rest } = prev;
+          return { ...rest, logo: null };
+        });
         toast({
           title: "Success",
           description: "Logo removed successfully",
         });
       }
-    } catch (error) {
-      console.error('Error removing logo:', error);
+    } catch (error: unknown) {
+      const err = error as AxiosError;
+      console.error('Error removing logo:', err);
       toast({
         title: "Error",
         description: "Failed to remove logo",
@@ -254,8 +255,9 @@ const SettingsPage: React.FC = () => {
           description: "Gym information updated successfully",
         });
       }
-    } catch (error) {
-      console.error('Error updating gym info:', error);
+    } catch (error: unknown) {
+      const err = error as AxiosError;
+      console.error('Error updating gym info:', err);
       toast({
         title: "Error",
         description: "Failed to update gym information",
@@ -302,8 +304,9 @@ const SettingsPage: React.FC = () => {
         title: "Success",
         description: preview ? "PDF preview opened in new window" : "PDF downloaded successfully",
       });
-    } catch (error) {
-      console.error('Error generating PDF:', error);
+    } catch (error: unknown) {
+      const err = error as AxiosError;
+      console.error('Error generating PDF:', err);
       toast({
         title: "Error",
         description: "Failed to generate PDF. Please try again.",
@@ -409,21 +412,12 @@ const SettingsPage: React.FC = () => {
 
                 <div className="flex flex-col items-center mb-6">
                   <div className="relative w-32 h-32 mb-4">
-                    {logoPreview ? (
+                    {logoPreview && (
                       <>
                         <img
-                          src={getImageUrl(logoPreview)}
+                          src={logoPreview}
                           alt="Gym Logo"
                           className="w-full h-full object-contain rounded-lg border-2 border-border"
-                          onError={(e) => {
-                            console.error('Error loading image:', e);
-                            setLogoPreview(null);
-                            toast({
-                              title: "Error",
-                              description: "Failed to load logo image. Please try uploading again.",
-                              variant: "destructive",
-                            });
-                          }}
                         />
                         {!isEditing && (
                           <Button
@@ -436,10 +430,6 @@ const SettingsPage: React.FC = () => {
                           </Button>
                         )}
                       </>
-                    ) : (
-                      <div className="w-full h-full border-2 border-dashed rounded-lg flex items-center justify-center bg-muted/10">
-                        <Upload className="w-8 h-8 text-muted-foreground" />
-                      </div>
                     )}
                   </div>
                   {!isEditing && (

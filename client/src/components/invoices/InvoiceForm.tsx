@@ -229,14 +229,6 @@ export default function InvoiceForm({ open, onClose, onSubmit }: InvoiceFormProp
     }
   };
 
-  // Helper to get logo URL (copied from settings)
-  const getImageUrl = (url: string | null) => {
-    if (!url) return null;
-    if (url.startsWith('http')) return url;
-    const filename = url.split('/').pop();
-    return `${import.meta.env.VITE_API_URL || 'http://localhost:5001/api'}/uploads/logos/${filename}`;
-  };
-
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px]">
@@ -244,7 +236,7 @@ export default function InvoiceForm({ open, onClose, onSubmit }: InvoiceFormProp
         {gym?.logo && (
           <div className="flex justify-center mb-2">
             <img
-              src={getImageUrl(gym.logo)}
+              src={gym.logo}
               alt="Gym Logo"
               className="w-24 h-24 object-contain rounded-lg border"
               onError={e => (e.currentTarget.style.display = 'none')}

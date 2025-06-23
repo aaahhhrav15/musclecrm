@@ -238,18 +238,12 @@ router.get('/:id/pdf', auth, async (req, res) => {
 
     // Header Section
     // Draw gym logo if available
-    if (gym && gym.logo) {
+    if (gym && gym.logo && typeof gym.logo === 'string' && gym.logo.startsWith('data:image/')) {
       try {
-        const fs = require('fs');
-        const path = require('path');
-        let logoPath = gym.logo;
-        // If the logo path is relative (e.g., 'logos/filename.png'), resolve it to the uploads directory
-        if (!/^https?:\/\//.test(logoPath) && !path.isAbsolute(logoPath)) {
-          logoPath = path.join(__dirname, '../uploads', logoPath);
-        }
-        if (fs.existsSync(logoPath)) {
-          doc.image(logoPath, 50, currentY, { width: 50, height: 50 });
-        }
+        // Extract base64 data from data URL
+        const base64Data = gym.logo.split(',')[1];
+        const logoBuffer = Buffer.from(base64Data, 'base64');
+        doc.image(logoBuffer, 50, currentY, { width: 50, height: 50 });
       } catch (e) {
         // Do nothing if logo fails to load
       }
