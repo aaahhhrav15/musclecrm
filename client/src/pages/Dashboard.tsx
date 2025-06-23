@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import * as React from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
@@ -14,6 +15,16 @@ import { useGym } from '@/context/GymContext';
 import axiosInstance from '@/lib/axios';
 import { format } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogClose
+} from '@/components/ui/dialog';
+import CustomerService from '@/services/CustomerService';
+import api from '@/services/api';
+import { Customer } from '@/services/CustomerService';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
@@ -27,6 +38,8 @@ interface MetricCardProps {
   gradientTo?: string;
   iconColor?: string;
   delay?: number;
+  onClick?: () => void;
+  className?: string;
 }
 
 const MetricCard: React.FC<MetricCardProps> = ({ 
@@ -38,15 +51,18 @@ const MetricCard: React.FC<MetricCardProps> = ({
   gradientFrom = 'blue-500',
   gradientTo = 'blue-600',
   iconColor = 'blue-600',
-  delay = 0
+  delay = 0,
+  onClick,
+  className
 }) => {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay }}
+      className={className}
     >
-      <Card className="relative overflow-hidden border-0 shadow-lg">
+      <Card className="relative overflow-hidden border-0 shadow-lg cursor-pointer hover:shadow-lg transition" onClick={onClick}>
         <div className={`absolute inset-0 bg-gradient-to-br from-${gradientFrom}/10 to-${gradientTo}/5`} />
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
           <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
@@ -124,6 +140,40 @@ const defaultMetrics = {
     totalProfit: 0
   }
 };
+
+// Add Staff type for modal context
+interface Staff {
+  _id: string;
+  name: string;
+  email: string;
+  phone: string;
+  position: string;
+  hireDate: string;
+  status: 'Active' | 'Inactive' | 'On Leave';
+  dateOfBirth?: string;
+  experience?: number;
+}
+
+// Add Lead type for leads modal context
+interface Lead {
+  _id: string;
+  name: string;
+  phone: string;
+  source: string;
+  status: string;
+  followUpDate?: string;
+  notes: string;
+  createdAt: string;
+}
+
+type ModalType =
+  | 'memberBirthdays'
+  | 'employeeBirthdays'
+  | 'expiring'
+  | 'inactive'
+  | 'todayEnrolled'
+  | 'todayEnquiry'
+  | 'todayFollowUps';
 
 const Dashboard: React.FC = () => {
   // Fetch dashboard metrics
@@ -250,6 +300,113 @@ const Dashboard: React.FC = () => {
   // Calculate overall profit
   const overallTotalProfit = totalGymProfit + calculatedPosProfit;
 
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalType, setModalType] = useState<ModalType | null>(null);
+  const [modalData, setModalData] = useState<Customer[] | Staff[] | Lead[]>([]);
+  const [modalLoading, setModalLoading] = useState(false);
+
+  const handleOpenModal = async (type: ModalType) => {
+    setModalType(type);
+    setModalOpen(true);
+    setModalLoading(true);
+    let data: Customer[] | Staff[] | Lead[] = [];
+    try {
+      if (type === 'memberBirthdays') {
+        const today = new Date();
+        const { customers } = await CustomerService.getCustomers();
+        data = customers.filter(c => {
+          if (!c.birthday) return false;
+          const bday = new Date(c.birthday);
+          return bday.getDate() === today.getDate() && bday.getMonth() === today.getMonth();
+        });
+        if (data.length > 0) {
+          console.log('DEBUG memberBirthdays data:', data[0]);
+        }
+      } else if (type === 'employeeBirthdays') {
+        const today = new Date();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        const response = await api.get('/gym/staff');
+        data = (response.data.data || []).filter((s: Staff) => s.dateOfBirth && s.dateOfBirth.slice(5, 10) === `${month}-${day}`);
+      } else if (type === 'expiring') {
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const { customers } = await CustomerService.getCustomers();
+        data = customers.filter(c => c.membershipEndDate && c.membershipEndDate.slice(0, 10) === todayStr);
+      } else if (type === 'inactive') {
+        const { customers } = await CustomerService.getCustomers();
+        data = customers.filter(c => c.membershipType === 'none' || c.membershipType === 'inactive');
+      } else if (type === 'todayEnrolled') {
+        const today = new Date();
+        const { customers } = await CustomerService.getCustomers();
+        data = customers.filter(c => {
+          if (!c.joinDate) return false;
+          const join = new Date(c.joinDate);
+          return join.getDate() === today.getDate() && join.getMonth() === today.getMonth() && join.getFullYear() === today.getFullYear();
+        });
+        if (data.length > 0) {
+          console.log('DEBUG todayEnrolled data:', data[0]);
+        }
+      } else if (type === 'todayEnquiry') {
+        const today = new Date();
+        const response = await axiosInstance.get('/leads');
+        const leads = response.data as Lead[];
+        data = leads.filter(l => {
+          if (!l.createdAt) return false;
+          const created = new Date(l.createdAt);
+          return created.getDate() === today.getDate() && created.getMonth() === today.getMonth() && created.getFullYear() === today.getFullYear();
+        });
+      } else if (type === 'todayFollowUps') {
+        const today = new Date();
+        const response = await axiosInstance.get('/leads');
+        const leads = response.data as Lead[];
+        data = leads.filter(l => {
+          if (!l.followUpDate) return false;
+          const followUpDateObj = new Date(l.followUpDate);
+          return followUpDateObj.getDate() === today.getDate() && followUpDateObj.getMonth() === today.getMonth() && followUpDateObj.getFullYear() === today.getFullYear();
+        });
+      }
+    } catch (e) {
+      data = [];
+    }
+    setModalData(data);
+    setModalLoading(false);
+  };
+
+  const handleCloseModal = () => {
+    setModalOpen(false);
+    setModalType(null);
+    setModalData([]);
+  };
+
+  function isStaff(item: Customer | Staff | Lead): item is Staff {
+    return (item as Staff).position !== undefined && !(item as Lead).source;
+  }
+  function isCustomer(item: Customer | Staff | Lead): item is Customer {
+    return (typeof (item as Customer).id === 'string' && typeof (item as Customer).email === 'string');
+  }
+
+  function hasFollowUpDate(c: unknown): c is Customer & { followUpDate: string } {
+    return typeof (c as { followUpDate?: string }).followUpDate === 'string';
+  }
+
+  function isLead(item: Customer | Staff | Lead): item is Lead {
+    return (item as Lead).source !== undefined && (item as Lead).createdAt !== undefined && (item as Lead)._id !== undefined;
+  }
+
+  function getModalRowKey(item: Customer | Staff | Lead): string {
+    if (isCustomer(item) && item.id) return item.id;
+    if (isStaff(item) && item._id) return item._id;
+    if (isLead(item) && item._id) return item._id;
+    // Fallback: use name + Math.random() to guarantee uniqueness if no id
+    return `${item.name || 'unknown'}-${Math.random()}`;
+  }
+
+  useEffect(() => {
+    if ((modalType === 'todayEnrolled' || modalType === 'memberBirthdays') && modalData.length > 0) {
+      console.log('DEBUG modalData:', modalData[0]);
+    }
+  }, [modalType, modalData]);
+
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -322,6 +479,8 @@ const Dashboard: React.FC = () => {
               gradientTo="red-600"
               iconColor="red-600"
               delay={0.2}
+              onClick={() => handleOpenModal('inactive')}
+              className="cursor-pointer hover:shadow-lg transition"
             />
             <MetricCard
               title="Today's Expiring"
@@ -332,6 +491,8 @@ const Dashboard: React.FC = () => {
               gradientTo="orange-600"
               iconColor="orange-600"
               delay={0.25}
+              onClick={() => handleOpenModal('expiring')}
+              className="cursor-pointer hover:shadow-lg transition"
             />
             <MetricCard
               title="Today Enrolled"
@@ -342,6 +503,8 @@ const Dashboard: React.FC = () => {
               gradientTo="emerald-600"
               iconColor="emerald-600"
               delay={0.3}
+              onClick={() => handleOpenModal('todayEnrolled')}
+              className="cursor-pointer hover:shadow-lg transition"
             />
             <MetricCard
               title="Total Member Amount"
@@ -363,6 +526,8 @@ const Dashboard: React.FC = () => {
               gradientTo="pink-600"
               iconColor="pink-600"
               delay={0.4}
+              onClick={() => handleOpenModal('employeeBirthdays')}
+              className="cursor-pointer hover:shadow-lg transition"
             />
             <MetricCard
               title="Member Birthdays"
@@ -373,6 +538,8 @@ const Dashboard: React.FC = () => {
               gradientTo="indigo-600"
               iconColor="indigo-600"
               delay={0.45}
+              onClick={() => handleOpenModal('memberBirthdays')}
+              className="cursor-pointer hover:shadow-lg transition"
             />
             <MetricCard
               title="Today Invoices"
@@ -447,6 +614,8 @@ const Dashboard: React.FC = () => {
               gradientTo="lime-600"
               iconColor="lime-600"
               delay={0.8}
+              onClick={() => handleOpenModal('todayEnquiry')}
+              className="cursor-pointer hover:shadow-lg transition"
             />
             <MetricCard
               title="Today Follow-Ups"
@@ -457,6 +626,8 @@ const Dashboard: React.FC = () => {
               gradientTo="sky-600"
               iconColor="sky-600"
               delay={0.85}
+              onClick={() => handleOpenModal('todayFollowUps')}
+              className="cursor-pointer hover:shadow-lg transition"
             />
           </div>
         </div>
@@ -719,6 +890,75 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
       </motion.div>
+
+      {/* Modal for member/staff lists */}
+      <Dialog open={modalOpen} onOpenChange={handleCloseModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {modalType === 'memberBirthdays' ? 'Member Birthdays Today' :
+               modalType === 'employeeBirthdays' ? 'Employee Birthdays Today' :
+               modalType === 'expiring' ? "Today's Expiring Memberships" :
+               modalType === 'inactive' ? 'Inactive Members' :
+               modalType === 'todayEnrolled' ? 'Today Enrolled Members' :
+               modalType === 'todayEnquiry' ? 'Today Enquiries' :
+               modalType === 'todayFollowUps' ? 'Today Follow-Ups' : ''}
+            </DialogTitle>
+          </DialogHeader>
+          {modalLoading ? (
+            <div className="text-center py-8">Loading...</div>
+          ) : modalData.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">No records found.</div>
+          ) : (
+            <div className="max-h-96 overflow-y-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  {modalType === 'todayEnquiry' || modalType === 'todayFollowUps' ? (
+                    <tr>
+                      <th className="text-left p-2">Name</th>
+                      <th className="text-left p-2">Phone</th>
+                      <th className="text-left p-2">Source</th>
+                      <th className="text-left p-2">Status</th>
+                      <th className="text-left p-2">Follow-up Date</th>
+                      <th className="text-left p-2">Notes</th>
+                    </tr>
+                  ) : (
+                    <tr>
+                      <th className="text-left p-2">Name</th>
+                      <th className="text-left p-2">Email</th>
+                      <th className="text-left p-2">Phone</th>
+                      {modalType === 'employeeBirthdays' && <th className="text-left p-2">Position</th>}
+                      {modalType === 'expiring' && <th className="text-left p-2">End Date</th>}
+                    </tr>
+                  )}
+                </thead>
+                <tbody>
+                  {(modalData as (Customer | Staff | Lead)[]).map((item) => (
+                    isLead(item) ? (
+                      <tr key={getModalRowKey(item)} className="border-b">
+                        <td className="p-2">{item.name}</td>
+                        <td className="p-2">{item.phone || '-'}</td>
+                        <td className="p-2">{item.source || '-'}</td>
+                        <td className="p-2">{item.status || '-'}</td>
+                        <td className="p-2">{item.followUpDate ? new Date(item.followUpDate).toLocaleDateString() : '-'}</td>
+                        <td className="p-2">{item.notes || '-'}</td>
+                      </tr>
+                    ) : (
+                      <tr key={getModalRowKey(item)} className="border-b">
+                        <td className="p-2">{item.name}</td>
+                        <td className="p-2">{isCustomer(item) ? item.email || '-' : isStaff(item) ? item.email || '-' : '-'}</td>
+                        <td className="p-2">{isCustomer(item) ? item.phone || '-' : isStaff(item) ? item.phone || '-' : '-'}</td>
+                        {modalType === 'employeeBirthdays' && isStaff(item) && <td className="p-2">{item.position || '-'}</td>}
+                        {modalType === 'expiring' && isCustomer(item) && <td className="p-2">{item.membershipEndDate ? new Date(item.membershipEndDate).toLocaleDateString() : '-'}</td>}
+                      </tr>
+                    )
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };

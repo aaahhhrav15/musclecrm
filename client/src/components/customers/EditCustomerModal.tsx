@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { format } from 'date-fns';
-import { CalendarIcon } from 'lucide-react';
+import { Calendar as CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -39,6 +39,134 @@ import {
 import { CustomerService, Customer } from '@/services/CustomerService';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
+
+// Enhanced Date Picker Component (inline)
+const EnhancedDatePicker = ({ 
+  value, 
+  onChange, 
+  placeholder = "Pick a date", 
+  disabled = false, 
+  className,
+  fromYear = 1950,
+  toYear = new Date().getFullYear() + 2 
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(value || new Date());
+
+  const months = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+
+  const years = Array.from({ length: toYear - fromYear + 1 }, (_, i) => fromYear + i);
+
+  const handleMonthChange = (monthIndex) => {
+    const newDate = new Date(currentMonth);
+    newDate.setMonth(parseInt(monthIndex));
+    setCurrentMonth(newDate);
+  };
+
+  const handleYearChange = (year) => {
+    const newDate = new Date(currentMonth);
+    newDate.setFullYear(parseInt(year));
+    setCurrentMonth(newDate);
+  };
+
+  const handleDateSelect = (date) => {
+    onChange(date);
+    setIsOpen(false);
+  };
+
+  const clearDate = () => {
+    onChange(undefined);
+    setIsOpen(false);
+  };
+
+  return (
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          className={cn(
+            "w-full pl-3 text-left font-normal justify-start",
+            !value && "text-muted-foreground",
+            className
+          )}
+          disabled={disabled}
+        >
+          {value ? format(value, "PPP") : <span>{placeholder}</span>}
+          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        {/* Enhanced Header with Month/Year Selectors */}
+        <div className="flex items-center justify-between p-3 border-b bg-muted/30">
+          <Select 
+            value={currentMonth.getMonth().toString()} 
+            onValueChange={handleMonthChange}
+          >
+            <SelectTrigger className="w-[130px] h-8 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {months.map((month, index) => (
+                <SelectItem key={index} value={index.toString()}>
+                  {month}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          
+          <Select 
+            value={currentMonth.getFullYear().toString()} 
+            onValueChange={handleYearChange}
+          >
+            <SelectTrigger className="w-[100px] h-8 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="max-h-[200px]">
+              {years.reverse().map((year) => (
+                <SelectItem key={year} value={year.toString()}>
+                  {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        
+        {/* Calendar */}
+        <Calendar
+          mode="single"
+          selected={value}
+          onSelect={handleDateSelect}
+          month={currentMonth}
+          onMonthChange={setCurrentMonth}
+          fromDate={new Date(fromYear, 0, 1)}
+          toDate={new Date(toYear, 11, 31)}
+          initialFocus
+          className="p-0"
+        />
+        
+        {/* Footer with selected date and clear option */}
+        {value && (
+          <div className="flex items-center justify-between p-3 border-t bg-muted/30">
+            <div className="text-sm text-muted-foreground">
+              Selected: {format(value, "MMM d, yyyy")}
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearDate}
+              className="h-8 text-xs hover:bg-destructive/20 hover:text-destructive"
+            >
+              Clear
+            </Button>
+          </div>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+};
 
 const formSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -167,7 +295,7 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
 
   return (
     <Dialog open={isDialogOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Customer</DialogTitle>
         </DialogHeader>
@@ -201,6 +329,7 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
                 )}
               />
             </div>
+            
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -229,6 +358,7 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
                 )}
               />
             </div>
+            
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -278,6 +408,7 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
                 )}
               />
             </div>
+            
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -328,6 +459,8 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
                 )}
               />
             </div>
+            
+            {/* Enhanced Date Pickers - Only changes are here */}
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -335,37 +468,15 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Birthday</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          disabled={(date) =>
-                            date > new Date() || date < new Date("1900-01-01")
-                          }
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <FormControl>
+                      <EnhancedDatePicker
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Pick birthday"
+                        fromYear={1950}
+                        toYear={new Date().getFullYear()}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -376,124 +487,57 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Join Date</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          disabled={(date) =>
-                            date > new Date() || date < new Date("1900-01-01")
-                          }
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <FormControl>
+                      <EnhancedDatePicker
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Pick join date"
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
+            
             <FormField
               control={form.control}
               name="membershipStartDate"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
                   <FormLabel>Membership Start Date</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant={"outline"}
-                          className={cn(
-                            "w-full pl-3 text-left font-normal",
-                            !field.value && "text-muted-foreground"
-                          )}
-                        >
-                          {field.value ? (
-                            format(field.value, "PPP")
-                          ) : (
-                            <span>Pick a date</span>
-                          )}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={field.value}
-                        onSelect={field.onChange}
-                        disabled={(date) =>
-                          date < new Date("1900-01-01")
-                        }
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <FormControl>
+                    <EnhancedDatePicker
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="Pick start date"
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+            
             <FormField
               control={form.control}
               name="membershipEndDate"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
                   <FormLabel>Membership End Date (Optional)</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant={"outline"}
-                          className={cn(
-                            "w-full pl-3 text-left font-normal",
-                            !field.value && "text-muted-foreground"
-                          )}
-                        >
-                          {field.value ? (
-                            format(field.value, "PPP")
-                          ) : (
-                            <span>Pick a date</span>
-                          )}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={field.value}
-                        onSelect={field.onChange}
-                        disabled={(date) =>
-                          date < new Date("1900-01-01")
-                        }
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <FormControl>
+                    <EnhancedDatePicker
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="Pick end date"
+                      fromYear={new Date().getFullYear()}
+                      toYear={new Date().getFullYear() + 5}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+            
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -501,37 +545,13 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Transaction Date</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          disabled={(date) =>
-                            date > new Date()
-                          }
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <FormControl>
+                      <EnhancedDatePicker
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Pick transaction date"
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -564,6 +584,7 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
                 )}
               />
             </div>
+            
             <FormField
               control={form.control}
               name="notes"
@@ -577,6 +598,7 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
                 </FormItem>
               )}
             />
+            
             <DialogFooter>
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting ? "Saving..." : "Save Changes"}
@@ -587,4 +609,4 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
       </DialogContent>
     </Dialog>
   );
-}; 
+};
