@@ -166,7 +166,7 @@ router.post('/register', upload.single('logo'), async (req, res) => {
     // Set the token in a cookie
     res.cookie('token', token, {
       httpOnly: true,
-      secure: false,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
     });
@@ -217,7 +217,7 @@ router.post('/login', async (req, res) => {
     // Set the token in a cookie
     res.cookie('token', token, {
       httpOnly: true,
-      secure: false,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
     });
@@ -244,7 +244,7 @@ router.post('/login', async (req, res) => {
 router.post('/logout', (req, res) => {
   res.cookie('token', '', {
     httpOnly: true,
-    secure: false,
+    secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     maxAge: 0
   });
