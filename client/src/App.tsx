@@ -120,6 +120,8 @@ const App = () => (
                     
                     {/* Existing Gym Routes */}
                     <Route path="/dashboard/gym/trainers" element={<ProtectedRoute element={<TrainersPage />} />} />
+                    <Route path="/dashboard/gym/trainers/new" element={<ProtectedRoute element={<CreateTrainerPage />} />} />
+                    <Route path="/dashboard/gym/trainers/:id/edit" element={<ProtectedRoute element={<EditTrainerPage />} />} />
                     <Route path="/dashboard/gym/trainers/:id" element={<ProtectedRoute element={<ViewTrainerPage />} />} />
                     <Route path="/dashboard/gym/workout-plans" element={<ProtectedRoute element={<WorkoutPlansPage />} />} />
                     <Route path="/dashboard/gym/workout-plans/create" element={<ProtectedRoute element={<CreateWorkoutPlanPage />} />} />

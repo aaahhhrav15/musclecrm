@@ -46,6 +46,11 @@ const ViewTrainerPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (id === 'new') {
+      setTrainer(null);
+      setLoading(false);
+      return;
+    }
     const fetchTrainer = async () => {
       try {
         const response = await axios.get(`${API_URL}/trainers/${id}`, { withCredentials: true });
