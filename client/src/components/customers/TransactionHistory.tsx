@@ -142,7 +142,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({ userId }
         amount: values.amount,
         paymentMode: values.paymentMode,
         description: values.description,
-        transactionDate: values.transactionDate,
+        transactionDate: values.transactionDate.toISOString(),
         status: values.status,
       });
 
@@ -157,6 +157,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({ userId }
       setIsEditModalOpen(false);
       setEditingTransaction(null);
     } catch (error) {
+      console.error('Transaction update error:', error);
       toast({
         title: "Error",
         description: "Failed to update transaction",

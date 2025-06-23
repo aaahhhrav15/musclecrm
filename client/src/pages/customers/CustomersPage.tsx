@@ -21,7 +21,9 @@ import {
   Download,
   Eye,
   Pencil,
-  Trash2
+  Trash2,
+  AlertCircle,
+  Gift
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -60,12 +62,16 @@ import { FilterModal } from '@/components/customers/FilterModal';
 import { ViewCustomerModal } from '@/components/customers/ViewCustomerModal';
 import { Skeleton } from '@/components/ui/skeleton';
 import * as Papa from 'papaparse';
+import { differenceInDays, addDays, addMonths, format, isToday, isTomorrow, isThisWeek, isThisMonth, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 
 interface FilterState {
   membershipType?: string;
   source?: string;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
+  expiryFilter?: string;
+  birthdayFilter?: string;
+  statusFilter?: string;
 }
 
 function handleViewCustomer(customer: Customer, setSelectedCustomer: any, setIsViewModalOpen: any) {
@@ -82,6 +88,12 @@ function handleDeleteCustomer(customerId: string, handleDelete: any) {
   handleDelete(customerId);
 }
 
+// Helper to safely format dates
+function safeFormatDate(date: Date | null | undefined, fmt: string = 'MMM d, yyyy') {
+  if (!date || !(date instanceof Date) || isNaN(date.getTime())) return 'N/A';
+  return format(date, fmt);
+}
+
 export function CustomersPage() {
   const { toast } = useToast();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -90,7 +102,15 @@ export function CustomersPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
-  const [filters, setFilters] = useState<FilterState>({});
+  const [filters, setFilters] = useState<FilterState>({
+    membershipType: 'none',
+    source: 'none',
+    sortBy: 'none',
+    sortOrder: 'asc',
+    expiryFilter: 'none',
+    birthdayFilter: 'none',
+    statusFilter: 'none',
+  });
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
@@ -116,14 +136,141 @@ export function CustomersPage() {
     fetchCustomers();
   }, [toast]);
 
-  // Client-side filtering
+  // Helper functions for filtering
+  const calculateExpiryDate = (customer: Customer) => {
+    if (!customer.membershipStartDate || !customer.membershipDuration) return null;
+    const startDate = new Date(customer.membershipStartDate);
+    return addMonths(startDate, customer.membershipDuration);
+  };
+
+  const isCustomerExpired = (customer: Customer) => {
+    const expiryDate = calculateExpiryDate(customer);
+    if (!expiryDate) return false;
+    return new Date() > expiryDate;
+  };
+
+  const isCustomerExpiringSoon = (customer: Customer, days: number) => {
+    const expiryDate = calculateExpiryDate(customer);
+    if (!expiryDate) return false;
+    const daysUntilExpiry = differenceInDays(expiryDate, new Date());
+    return daysUntilExpiry >= 0 && daysUntilExpiry <= days;
+  };
+
+  const isBirthdayInRange = (customer: Customer, range: string) => {
+    if (!customer.birthday) return false;
+    const birthday = new Date(customer.birthday);
+    const today = new Date();
+
+    // Set birthday to current year for comparison
+    const currentYearBirthday = new Date(today.getFullYear(), birthday.getMonth(), birthday.getDate());
+
+    switch (range) {
+      case 'today':
+        return today.getDate() === birthday.getDate() && today.getMonth() === birthday.getMonth();
+      case 'tomorrow': {
+        const tomorrow = new Date(today);
+        tomorrow.setDate(today.getDate() + 1);
+        return tomorrow.getDate() === birthday.getDate() && tomorrow.getMonth() === birthday.getMonth();
+      }
+      case 'thisWeek': {
+        const start = startOfWeek(today);
+        const end = endOfWeek(today);
+        return currentYearBirthday >= start && currentYearBirthday <= end;
+      }
+      case 'thisMonth':
+        return today.getMonth() === birthday.getMonth();
+      case 'next7days': {
+        const next7Days = new Date(today);
+        next7Days.setDate(today.getDate() + 7);
+        return currentYearBirthday >= today && currentYearBirthday <= next7Days;
+      }
+      case 'next30days': {
+        const next30Days = new Date(today);
+        next30Days.setDate(today.getDate() + 30);
+        return currentYearBirthday >= today && currentYearBirthday <= next30Days;
+      }
+      default:
+        return false;
+    }
+  };
+
+  // Enhanced filtering with all new filters
   const filteredCustomers = customers.filter(customer => {
+    // Search query filter
     const query = searchQuery.toLowerCase();
-    return (
+    const matchesSearch = (
       customer.name.toLowerCase().includes(query) ||
       customer.email.toLowerCase().includes(query) ||
       (customer.phone && customer.phone.toLowerCase().includes(query))
     );
+
+    if (!matchesSearch) return false;
+
+    // Membership type filter
+    if (filters.membershipType && filters.membershipType !== 'none' && customer.membershipType !== filters.membershipType) {
+      return false;
+    }
+
+    // Source filter
+    if (filters.source && filters.source !== 'none' && customer.source !== filters.source) {
+      return false;
+    }
+
+    // Expiry filter
+    if (filters.expiryFilter && filters.expiryFilter !== 'none') {
+      const days = parseInt(filters.expiryFilter.replace(/\D/g, ''));
+      if (!isCustomerExpiringSoon(customer, days)) {
+        return false;
+      }
+    }
+
+    // Birthday filter
+    if (filters.birthdayFilter && filters.birthdayFilter !== 'none' && !isBirthdayInRange(customer, filters.birthdayFilter)) {
+      return false;
+    }
+
+    // Status filter
+    if (filters.statusFilter && filters.statusFilter !== 'none') {
+      switch (filters.statusFilter) {
+        case 'active':
+          if (isCustomerExpired(customer)) return false;
+          break;
+        case 'expired':
+          if (!isCustomerExpired(customer)) return false;
+          break;
+        case 'expiringSoon':
+          if (!isCustomerExpiringSoon(customer, 7)) return false;
+          break;
+      }
+    }
+
+    return true;
+  }).sort((a, b) => {
+    if (!filters.sortBy || filters.sortBy === 'none') return 0;
+    
+    const order = filters.sortOrder === 'desc' ? -1 : 1;
+    
+    switch (filters.sortBy) {
+      case 'name':
+        return order * a.name.localeCompare(b.name);
+      case 'joinDate':
+        const dateA = new Date(a.createdAt || '');
+        const dateB = new Date(b.createdAt || '');
+        return order * (dateA.getTime() - dateB.getTime());
+      case 'expiryDate':
+        const expiryA = calculateExpiryDate(a);
+        const expiryB = calculateExpiryDate(b);
+        if (!expiryA && !expiryB) return 0;
+        if (!expiryA) return 1;
+        if (!expiryB) return -1;
+        return order * (expiryA.getTime() - expiryB.getTime());
+      case 'totalSpent':
+        return order * ((a.totalSpent || 0) - (b.totalSpent || 0));
+      case 'membershipFees':
+        return order * ((a.membershipFees || 0) - (b.membershipFees || 0));
+      default:
+        return 0;
+    }
   });
 
   // Calculate customer insights
@@ -135,7 +282,10 @@ export function CustomersPage() {
       basicCustomers: 0,
       totalRevenue: 0,
       averageSpending: 0,
-      recentCustomers: 0
+      recentCustomers: 0,
+      expiringCustomers: 0,
+      birthdaysThisMonth: 0,
+      expiredCustomers: 0
     };
 
     const vipCustomers = customers.filter(c => c.membershipType === 'vip').length;
@@ -151,6 +301,15 @@ export function CustomersPage() {
       new Date(c.createdAt || '') > thirtyDaysAgo
     ).length;
 
+    // Calculate expiring customers (next 7 days)
+    const expiringCustomers = customers.filter(c => isCustomerExpiringSoon(c, 7)).length;
+
+    // Calculate birthdays this month
+    const birthdaysThisMonth = customers.filter(c => isBirthdayInRange(c, 'thisMonth')).length;
+
+    // Calculate expired customers
+    const expiredCustomers = customers.filter(c => isCustomerExpired(c)).length;
+
     return {
       totalCustomers: customers.length,
       vipCustomers,
@@ -158,7 +317,10 @@ export function CustomersPage() {
       basicCustomers,
       totalRevenue,
       averageSpending,
-      recentCustomers
+      recentCustomers,
+      expiringCustomers,
+      birthdaysThisMonth,
+      expiredCustomers
     };
   }, [customers]);
 
@@ -204,16 +366,24 @@ export function CustomersPage() {
       return;
     }
 
-    const dataToExport = filteredCustomers.map(customer => ({
-      "Name": customer.name,
-      "Email": customer.email,
-      "Phone": customer.phone || '',
-      "Membership Type": customer.membershipType || '',
-      "Membership Fees": customer.membershipFees || 0,
-      "Total Spent": customer.totalSpent || 0,
-      "Source": customer.source || '',
-      "Created Date": customer.createdAt ? new Date(customer.createdAt).toLocaleDateString() : ''
-    }));
+    const dataToExport = filteredCustomers.map(customer => {
+      const expiryDate = calculateExpiryDate(customer);
+      return {
+        "Name": customer.name,
+        "Email": customer.email,
+        "Phone": customer.phone || '',
+        "Membership Type": customer.membershipType || '',
+        "Membership Fees": customer.membershipFees || 0,
+        "Total Spent": customer.totalSpent || 0,
+        "Source": customer.source || '',
+        "Start Date": customer.membershipStartDate ? format(new Date(customer.membershipStartDate), 'yyyy-MM-dd') : '',
+        "Expiry Date": expiryDate ? format(expiryDate, 'yyyy-MM-dd') : '',
+        "Days Until Expiry": expiryDate ? differenceInDays(expiryDate, new Date()) : '',
+        "Status": isCustomerExpired(customer) ? 'Expired' : 'Active',
+        "Date of Birth": customer.birthday ? format(new Date(customer.birthday), 'yyyy-MM-dd') : '',
+        "Created Date": customer.createdAt ? format(new Date(customer.createdAt), 'yyyy-MM-dd') : ''
+      };
+    });
 
     const csv = Papa.unparse(dataToExport);
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -274,7 +444,7 @@ export function CustomersPage() {
           </div>
         </div>
 
-        {/* Insights Dashboard */}
+        {/* Enhanced Insights Dashboard */}
         <div className="grid grid-cols-1 xl:grid-cols-6 gap-6">
           {/* Left Column - Main Metrics */}
           <div className="xl:col-span-4 space-y-6">
@@ -309,16 +479,16 @@ export function CustomersPage() {
                 transition={{ delay: 0.2 }}
               >
                 <Card className="relative overflow-hidden border-0 shadow-lg">
-                  <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-green-600/5" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-orange-600/5" />
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Total Revenue</CardTitle>
-                    <div className="h-10 w-10 rounded-full bg-green-500/10 flex items-center justify-center">
-                      <DollarSign className="h-5 w-5 text-green-600" />
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Expiring Soon</CardTitle>
+                    <div className="h-10 w-10 rounded-full bg-orange-500/10 flex items-center justify-center">
+                      <AlertCircle className="h-5 w-5 text-orange-600" />
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-1">
-                    <div className="text-2xl font-bold">{formatCurrency(customerInsights.totalRevenue)}</div>
-                    <p className="text-xs text-muted-foreground">From all customers</p>
+                    <div className="text-2xl font-bold">{customerInsights.expiringCustomers}</div>
+                    <p className="text-xs text-muted-foreground">Next 7 days</p>
                   </CardContent>
                 </Card>
               </motion.div>
@@ -329,16 +499,16 @@ export function CustomersPage() {
                 transition={{ delay: 0.3 }}
               >
                 <Card className="relative overflow-hidden border-0 shadow-lg">
-                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-purple-600/5" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-pink-500/10 to-pink-600/5" />
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Average Spending</CardTitle>
-                    <div className="h-10 w-10 rounded-full bg-purple-500/10 flex items-center justify-center">
-                      <TrendingUp className="h-5 w-5 text-purple-600" />
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Birthdays</CardTitle>
+                    <div className="h-10 w-10 rounded-full bg-pink-500/10 flex items-center justify-center">
+                      <Gift className="h-5 w-5 text-pink-600" />
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-1">
-                    <div className="text-2xl font-bold">{formatCurrency(customerInsights.averageSpending)}</div>
-                    <p className="text-xs text-muted-foreground">Per customer</p>
+                    <div className="text-2xl font-bold">{customerInsights.birthdaysThisMonth}</div>
+                    <p className="text-xs text-muted-foreground">This month</p>
                   </CardContent>
                 </Card>
               </motion.div>
@@ -349,16 +519,16 @@ export function CustomersPage() {
                 transition={{ delay: 0.4 }}
               >
                 <Card className="relative overflow-hidden border-0 shadow-lg">
-                  <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-orange-600/5" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-red-500/10 to-red-600/5" />
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">New This Month</CardTitle>
-                    <div className="h-10 w-10 rounded-full bg-orange-500/10 flex items-center justify-center">
-                      <Calendar className="h-5 w-5 text-orange-600" />
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Expired</CardTitle>
+                    <div className="h-10 w-10 rounded-full bg-red-500/10 flex items-center justify-center">
+                      <UserX className="h-5 w-5 text-red-600" />
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-1">
-                    <div className="text-2xl font-bold">{customerInsights.recentCustomers}</div>
-                    <p className="text-xs text-muted-foreground">Last 30 days</p>
+                    <div className="text-2xl font-bold">{customerInsights.expiredCustomers}</div>
+                    <p className="text-xs text-muted-foreground">Need renewal</p>
                   </CardContent>
                 </Card>
               </motion.div>
@@ -454,93 +624,129 @@ export function CustomersPage() {
                       <TableHead className="font-semibold">Customer</TableHead>
                       <TableHead className="font-semibold">Contact</TableHead>
                       <TableHead className="font-semibold">Membership</TableHead>
-                      <TableHead className="font-semibold">Fees</TableHead>
+                      <TableHead className="font-semibold">Status</TableHead>
+                      <TableHead className="font-semibold">Expiry</TableHead>
                       <TableHead className="font-semibold">Total Spent</TableHead>
-                      <TableHead className="font-semibold">Source</TableHead>
                       <TableHead className="font-semibold w-[120px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredCustomers.map((customer: Customer, index) => (
-                      <motion.tr
-                        key={customer.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                        className="hover:bg-muted/30 transition-colors"
-                      >
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-10 w-10">
-                              <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                                {customer.name.charAt(0).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <div className="font-medium">{customer.name}</div>
-                              <div className="text-sm text-muted-foreground">{customer.email}</div>
+                    {filteredCustomers.map((customer: Customer, index) => {
+                      const expiryDate = calculateExpiryDate(customer);
+                      const isExpired = isCustomerExpired(customer);
+                      const isExpiringSoon = isCustomerExpiringSoon(customer, 7);
+                      const daysUntilExpiry = expiryDate ? differenceInDays(expiryDate, new Date()) : null;
+                      
+                      return (
+                        <motion.tr
+                          key={customer.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          className="hover:bg-muted/30 transition-colors"
+                        >
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-10 w-10">
+                                <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                                  {customer.name.charAt(0).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <div className="font-medium">{customer.name}</div>
+                                <div className="text-sm text-muted-foreground">{customer.email}</div>
+                              </div>
                             </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-1">
-                            <div className="flex items-center text-sm">
-                              <PhoneCall className="h-3 w-3 mr-1 text-muted-foreground" />
-                              {customer.phone || 'N/A'}
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-1">
+                              <div className="flex items-center text-sm">
+                                <PhoneCall className="h-3 w-3 mr-1 text-muted-foreground" />
+                                {customer.phone || 'N/A'}
+                              </div>
+                              <div className="flex items-center text-sm text-muted-foreground">
+                                <Mail className="h-3 w-3 mr-1" />
+                                {customer.email}
+                              </div>
                             </div>
-                            <div className="flex items-center text-sm text-muted-foreground">
-                              <Mail className="h-3 w-3 mr-1" />
-                              {customer.email}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={
-                            customer.membershipType === 'vip' ? 'default' :
-                            customer.membershipType === 'premium' ? 'secondary' :
-                            customer.membershipType === 'basic' ? 'outline' :
-                            'secondary'
-                          }>
-                            {customer.membershipType?.charAt(0).toUpperCase() + customer.membershipType?.slice(1) || 'N/A'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          {customer.membershipFees ? formatCurrency(customer.membershipFees) : 'N/A'}
-                        </TableCell>
-                        <TableCell className="font-semibold text-green-600">
-                          {formatCurrency(customer.totalSpent)}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {customer.source?.charAt(0).toUpperCase() + customer.source?.slice(1).replace('_', ' ') || 'N/A'}
-                        </TableCell>
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-muted">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48">
-                              <DropdownMenuItem onClick={() => handleViewCustomer(customer, setSelectedCustomer, setIsViewModalOpen)}>
-                                <Eye className="h-4 w-4 mr-2" />
-                                View Details
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleEditCustomer(customer, setSelectedCustomer, setIsEditModalOpen)}>
-                                <Pencil className="h-4 w-4 mr-2" />
-                                Edit Customer
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                className="text-red-600 focus:text-red-600"
-                                onClick={() => handleDeleteCustomer(customer.id, handleDelete)}
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Delete Customer
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </motion.tr>
-                    ))}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={
+                              customer.membershipType === 'vip' ? 'default' :
+                              customer.membershipType === 'premium' ? 'secondary' :
+                              customer.membershipType === 'basic' ? 'outline' :
+                              'secondary'
+                            }>
+                              {customer.membershipType?.charAt(0).toUpperCase() + customer.membershipType?.slice(1) || 'N/A'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={
+                              isExpired ? 'destructive' :
+                              isExpiringSoon ? 'secondary' :
+                              'default'
+                            } className={
+                              isExpired ? 'bg-red-100 text-red-800' :
+                              isExpiringSoon ? 'bg-orange-100 text-orange-800' :
+                              'bg-green-100 text-green-800'
+                            }>
+                              {isExpired ? 'Expired' : isExpiringSoon ? 'Expiring Soon' : 'Active'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {expiryDate ? (
+                              <div className="space-y-1">
+                                <div className="text-sm font-medium">
+                                  {safeFormatDate(expiryDate, 'MMM d, yyyy')}
+                                </div>
+                                <div className={`text-xs ${
+                                  isExpired ? 'text-red-600' :
+                                  isExpiringSoon ? 'text-orange-600' :
+                                  'text-muted-foreground'
+                                }`}>
+                                  {daysUntilExpiry !== null ? (
+                                    daysUntilExpiry < 0 ? 
+                                      `${Math.abs(daysUntilExpiry)} days ago` :
+                                      `${daysUntilExpiry} days left`
+                                  ) : 'N/A'}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">N/A</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="font-semibold text-green-600">
+                            {formatCurrency(customer.totalSpent)}
+                          </TableCell>
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-muted">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuItem onClick={() => handleViewCustomer(customer, setSelectedCustomer, setIsViewModalOpen)}>
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  View Details
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleEditCustomer(customer, setSelectedCustomer, setIsEditModalOpen)}>
+                                  <Pencil className="h-4 w-4 mr-2" />
+                                  Edit Customer
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="text-red-600 focus:text-red-600"
+                                  onClick={() => handleDeleteCustomer(customer.id, handleDelete)}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Delete Customer
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </motion.tr>
+                      );
+                    })}
                     {(!filteredCustomers || filteredCustomers.length === 0) && (
                       <TableRow>
                         <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">

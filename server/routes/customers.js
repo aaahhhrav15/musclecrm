@@ -217,24 +217,11 @@ router.put('/:id', async (req, res) => {
       });
     }
 
-    // Store old membership fees to detect renewal
-    const oldMembershipFees = customer.membershipFees;
+    // Store old membership fields to detect renewal
     const oldMembershipType = customer.membershipType;
     const oldMembershipDuration = customer.membershipDuration;
-    
-    // Consider it a renewal if membership fees are provided and greater than 0
-    // This handles cases where the same membership type is renewed
-    const isRenewal = membershipFees !== undefined && membershipFees > 0;
-
-    console.log('Renewal detection:', {
-      oldMembershipFees,
-      newMembershipFees: membershipFees,
-      oldMembershipType,
-      newMembershipType: membershipType,
-      oldMembershipDuration,
-      newMembershipDuration: membershipDuration,
-      isRenewal
-    });
+    const oldMembershipStartDate = customer.membershipStartDate;
+    const oldMembershipFees = customer.membershipFees;
 
     // Update customer fields
     if (name) customer.name = name;
@@ -251,7 +238,21 @@ router.put('/:id', async (req, res) => {
     if (transactionDate) customer.transactionDate = transactionDate;
     if (paymentMode) customer.paymentMode = paymentMode;
     if (notes !== undefined) customer.notes = notes;
-    if (birthday !== undefined) customer.birthday = birthday;
+
+    // Handle birthday update with validation
+    if (birthday !== undefined) {
+      if (birthday === null || birthday === '') {
+        customer.birthday = null;
+      } else {
+        const newBirthday = new Date(birthday);
+        if (!isNaN(newBirthday.getTime())) {
+          customer.birthday = newBirthday;
+        } else {
+          // Optional: handle invalid date format
+          console.warn(`Invalid date format for birthday: ${birthday}`);
+        }
+      }
+    }
 
     await customer.save();
 
@@ -270,70 +271,10 @@ router.put('/:id', async (req, res) => {
       // Don't fail the entire operation if totalSpent calculation fails
     }
 
-    // Automatically create invoice for membership renewal
-    let invoice = null;
-    if (isRenewal && membershipFees > 0) {
-      console.log('Creating renewal invoice for customer:', customer.name);
-      try {
-        // Get the last invoice number with proper error handling
-        let nextNumber = 1;
-        try {
-          const lastInvoice = await Invoice.findOne({}, {}, { sort: { 'invoiceNumber': -1 } });
-          if (lastInvoice && lastInvoice.invoiceNumber) {
-            const lastNumber = parseInt(lastInvoice.invoiceNumber.replace('INV', ''));
-            if (!isNaN(lastNumber)) {
-              nextNumber = lastNumber + 1;
-            }
-          }
-        } catch (error) {
-          console.error('Error getting last invoice number:', error);
-          // Use timestamp as fallback
-          nextNumber = Math.floor(Date.now() / 1000);
-        }
-        
-        const invoiceNumber = `INV${String(nextNumber).padStart(5, '0')}`;
-        console.log('Generated invoice number:', invoiceNumber);
-
-        // Create invoice item for membership renewal
-        const renewalItem = {
-          description: `${membershipType.toUpperCase()} Membership Renewal - ${membershipDuration} months`,
-          quantity: 1,
-          unitPrice: membershipFees,
-          amount: membershipFees
-        };
-
-        // Set due date to 7 days from now
-        const dueDate = new Date();
-        dueDate.setDate(dueDate.getDate() + 7);
-
-        invoice = new Invoice({
-          userId: req.user._id,
-          gymId: req.gymId,
-          customerId: customer._id,
-          invoiceNumber,
-          amount: membershipFees,
-          currency: 'INR',
-          status: 'pending',
-          dueDate,
-          items: [renewalItem],
-          notes: `Membership renewal fees for ${customer.name} - ${membershipType.toUpperCase()} plan for ${membershipDuration} months`
-        });
-
-        await invoice.save();
-        console.log('Renewal invoice created successfully:', invoice.invoiceNumber);
-      } catch (invoiceError) {
-        console.error('Failed to create renewal invoice:', invoiceError);
-        // Don't fail the entire operation if invoice creation fails
-      }
-    } else {
-      console.log('No renewal invoice created. isRenewal:', isRenewal, 'membershipFees:', membershipFees);
-    }
-
     res.json({
       success: true,
       message: 'Customer updated successfully',
-      customer,
-      invoice: invoice ? invoice.toObject() : null
+      customer
     });
   } catch (error) {
     console.error('Error updating customer:', error);

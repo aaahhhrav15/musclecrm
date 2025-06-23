@@ -73,11 +73,44 @@ router.patch('/:id', auth, async (req, res) => {
             return res.status(404).json({ message: 'Transaction not found' });
         }
 
-        Object.keys(req.body).forEach(key => {
-            transaction[key] = req.body[key];
+        // Only allow updating specific fields
+        const allowedFields = ['amount', 'paymentMode', 'description', 'transactionDate', 'status'];
+        const updateData = {};
+
+        allowedFields.forEach(field => {
+            if (req.body[field] !== undefined) {
+                updateData[field] = req.body[field];
+            }
         });
 
-        const updatedTransaction = await transaction.save();
+        // Convert transactionDate to proper Date object if it's a string
+        if (updateData.transactionDate && typeof updateData.transactionDate === 'string') {
+            updateData.transactionDate = new Date(updateData.transactionDate);
+        }
+
+        // Validate the update data
+        if (updateData.amount !== undefined && (isNaN(updateData.amount) || updateData.amount < 0)) {
+            return res.status(400).json({ message: 'Amount must be a positive number' });
+        }
+
+        if (updateData.paymentMode !== undefined && !['cash', 'card', 'upi', 'bank_transfer', 'other'].includes(updateData.paymentMode)) {
+            return res.status(400).json({ message: 'Invalid payment mode' });
+        }
+
+        if (updateData.status !== undefined && !['PENDING', 'SUCCESS', 'FAILED', 'CANCELLED'].includes(updateData.status)) {
+            return res.status(400).json({ message: 'Invalid status' });
+        }
+
+        // Use findByIdAndUpdate for partial updates
+        const updatedTransaction = await Transaction.findByIdAndUpdate(
+            req.params.id,
+            updateData,
+            { new: true, runValidators: false }
+        );
+        
+        if (!updatedTransaction) {
+            return res.status(404).json({ message: 'Transaction not found' });
+        }
         
         // Update customer's totalSpent
         try {
@@ -95,6 +128,7 @@ router.patch('/:id', auth, async (req, res) => {
         
         res.json(updatedTransaction);
     } catch (error) {
+        console.error('Transaction update error:', error);
         res.status(400).json({ message: error.message });
     }
 });

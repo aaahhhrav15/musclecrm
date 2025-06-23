@@ -2,7 +2,7 @@ import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { format, addMonths } from 'date-fns';
+import { format, addMonths, isValid } from 'date-fns';
 import { CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -55,6 +55,12 @@ interface RenewMembershipModalProps {
   onClose: () => void;
   customer: Customer;
   onMembershipRenewed?: (updatedCustomer: Customer) => void;
+}
+
+// Helper to safely format dates
+function safeFormatDate(date: Date | null | undefined, fmt: string = 'PPP') {
+  if (!date || !(date instanceof Date) || isNaN(date.getTime())) return 'N/A';
+  return format(date, fmt);
 }
 
 export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
@@ -214,7 +220,7 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
         amount: values.membershipFees,
         membershipType: values.membershipType,
         paymentMode: values.paymentMode,
-        description: `${values.membershipType.toUpperCase()} membership renewal for ${values.membershipDuration} months (${format(newStartDate, 'dd/MM/yyyy')} to ${format(newEndDate, 'dd/MM/yyyy')})`,
+        description: `${values.membershipType.toUpperCase()} membership renewal for ${values.membershipDuration} months (${safeFormatDate(newStartDate, 'PPP')} to ${safeFormatDate(newEndDate, 'PPP')})`,
         status: 'SUCCESS'
       });
 
@@ -381,7 +387,7 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
                             )}
                           >
                             {field.value ? (
-                              format(field.value, "PPP")
+                              safeFormatDate(field.value, "PPP")
                             ) : (
                               <span>Pick a date</span>
                             )}
@@ -408,7 +414,7 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
               {membershipEndDate && (
                 <div className="col-span-2">
                   <p className="text-sm text-muted-foreground">Membership End Date</p>
-                  <p className="font-medium">{format(membershipEndDate, "PPP")}</p>
+                  <p className="font-medium">{safeFormatDate(membershipEndDate, "PPP")}</p>
                 </div>
               )}
               
@@ -418,13 +424,13 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
                   <h4 className="font-medium text-blue-900 mb-2">Renewal Preview</h4>
                   <div className="space-y-1 text-sm">
                     <p className="text-blue-800">
-                      <span className="font-medium">Current End Date:</span> {renewalPreview.currentEndDate ? format(renewalPreview.currentEndDate, "PPP") : 'N/A'}
+                      <span className="font-medium">Current End Date:</span> {safeFormatDate(renewalPreview.currentEndDate, "PPP")}
                     </p>
                     <p className="text-blue-800">
-                      <span className="font-medium">New Start Date:</span> {format(renewalPreview.newStartDate, "PPP")}
+                      <span className="font-medium">New Start Date:</span> {safeFormatDate(renewalPreview.newStartDate, "PPP")}
                     </p>
                     <p className="text-blue-800">
-                      <span className="font-medium">New End Date:</span> {format(renewalPreview.newEndDate, "PPP")}
+                      <span className="font-medium">New End Date:</span> {safeFormatDate(renewalPreview.newEndDate, "PPP")}
                     </p>
                     <p className="text-blue-700 font-medium">
                       {renewalPreview.willExtend 
@@ -453,7 +459,7 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
                             )}
                           >
                             {field.value ? (
-                              format(field.value, "PPP")
+                              safeFormatDate(field.value, "PPP")
                             ) : (
                               <span>Pick a date</span>
                             )}
