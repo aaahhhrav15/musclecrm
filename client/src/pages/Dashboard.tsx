@@ -1,38 +1,58 @@
-import * as React from 'react';
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
-import DashboardLayout from '@/components/layouts/DashboardLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { formatCurrency } from '@/lib/utils';
-import { Users, UserCheck, UserX, CalendarClock, Plus, UserPlus, UserMinus, Calendar, DollarSign, ShoppingCart, TrendingUp, Cake, Gift, BarChart3, Target, AlertCircle, Activity } from 'lucide-react';
+import * as React from "react";
+import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
+import DashboardLayout from "@/components/layouts/DashboardLayout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatCurrency } from "@/lib/utils";
+import {
+  Users,
+  UserCheck,
+  UserX,
+  CalendarClock,
+  Plus,
+  UserPlus,
+  UserMinus,
+  Calendar,
+  DollarSign,
+  ShoppingCart,
+  TrendingUp,
+  Cake,
+  Gift,
+  BarChart3,
+  Target,
+  AlertCircle,
+  Activity,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useToast } from '@/hooks/use-toast';
-import { useRequireAuth } from '@/hooks/useRequireAuth';
-import { useIndustry } from '@/context/IndustryContext';
-import { useGym } from '@/context/GymContext';
-import axiosInstance from '@/lib/axios';
-import { format } from 'date-fns';
-import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from "@/hooks/use-toast";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
+import { useIndustry } from "@/context/IndustryContext";
+import { useGym } from "@/context/GymContext";
+import axiosInstance from "@/lib/axios";
+import { format } from "date-fns";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogClose
-} from '@/components/ui/dialog';
-import CustomerService from '@/services/CustomerService';
-import api from '@/services/api';
-import { Customer } from '@/services/CustomerService';
+  DialogClose,
+} from "@/components/ui/dialog";
+import CustomerService from "@/services/CustomerService";
+import api from "@/services/api";
+import { Customer } from "@/services/CustomerService";
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://flexcrm-ui-suite-production.up.railway.app/api';
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  "https://flexcrm-ui-suite-production.up.railway.app/api";
 
 interface MetricCardProps {
   title: string;
   value: number | string;
   icon?: React.ReactNode;
-  format?: 'number' | 'currency';
+  format?: "number" | "currency";
   isLoading?: boolean;
   gradientFrom?: string;
   gradientTo?: string;
@@ -42,18 +62,18 @@ interface MetricCardProps {
   className?: string;
 }
 
-const MetricCard: React.FC<MetricCardProps> = ({ 
-  title, 
-  value, 
-  icon, 
-  format = 'number', 
+const MetricCard: React.FC<MetricCardProps> = ({
+  title,
+  value,
+  icon,
+  format = "number",
   isLoading,
-  gradientFrom = 'blue-500',
-  gradientTo = 'blue-600',
-  iconColor = 'blue-600',
+  gradientFrom = "blue-500",
+  gradientTo = "blue-600",
+  iconColor = "blue-600",
   delay = 0,
   onClick,
-  className
+  className,
 }) => {
   return (
     <motion.div
@@ -62,13 +82,22 @@ const MetricCard: React.FC<MetricCardProps> = ({
       transition={{ delay }}
       className={className}
     >
-      <Card className="relative overflow-hidden border-0 shadow-lg cursor-pointer hover:shadow-lg transition" onClick={onClick}>
-        <div className={`absolute inset-0 bg-gradient-to-br from-${gradientFrom}/10 to-${gradientTo}/5`} />
+      <Card
+        className="relative overflow-hidden border-0 shadow-lg cursor-pointer hover:shadow-lg transition"
+        onClick={onClick}
+      >
+        <div
+          className={`absolute inset-0 bg-gradient-to-br from-${gradientFrom}/10 to-${gradientTo}/5`}
+        />
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-          <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
-          <div className={`h-10 w-10 rounded-full bg-${gradientFrom}/10 flex items-center justify-center`}>
-            {React.cloneElement(icon as React.ReactElement, { 
-              className: `h-5 w-5 text-${iconColor}` 
+          <CardTitle className="text-sm font-medium text-muted-foreground">
+            {title}
+          </CardTitle>
+          <div
+            className={`h-10 w-10 rounded-full bg-${gradientFrom}/10 flex items-center justify-center`}
+          >
+            {React.cloneElement(icon as React.ReactElement, {
+              className: `h-5 w-5 text-${iconColor}`,
             })}
           </div>
         </CardHeader>
@@ -77,9 +106,13 @@ const MetricCard: React.FC<MetricCardProps> = ({
             <Skeleton className="h-8 w-24" />
           ) : (
             <div className="text-2xl font-bold">
-              {format === 'currency' 
-                ? formatCurrency(typeof value === 'string' ? parseFloat(value) : value) 
-                : typeof value === 'string' ? value : value.toLocaleString()}
+              {format === "currency"
+                ? formatCurrency(
+                    typeof value === "string" ? parseFloat(value) : value
+                  )
+                : typeof value === "string"
+                ? value
+                : value.toLocaleString()}
             </div>
           )}
           <p className="text-xs text-muted-foreground flex items-center">
@@ -110,12 +143,12 @@ const defaultMetrics = {
     todayExpense: 0,
     totalExpense: 0,
     todayEnquiry: 0,
-    todayFollowUps: 0
+    todayFollowUps: 0,
   },
   memberProfit: {
     memberAmount: 0,
     memberExpense: 0,
-    totalMemberProfit: 0
+    totalMemberProfit: 0,
   },
   pos: {
     todayPurchase: 0,
@@ -130,15 +163,15 @@ const defaultMetrics = {
     totalSellInvoice: 0,
     sellDueAmount: 0,
     totalPosExpense: 0,
-    todayPosExpense: 0
+    todayPosExpense: 0,
   },
   posProfit: {
     posProfit: 0,
-    posExpense: 0
+    posExpense: 0,
   },
   overallProfit: {
-    totalProfit: 0
-  }
+    totalProfit: 0,
+  },
 };
 
 // Add Staff type for modal context
@@ -149,7 +182,7 @@ interface Staff {
   phone: string;
   position: string;
   hireDate: string;
-  status: 'Active' | 'Inactive' | 'On Leave';
+  status: "Active" | "Inactive" | "On Leave";
   dateOfBirth?: string;
   experience?: number;
 }
@@ -167,24 +200,24 @@ interface Lead {
 }
 
 type ModalType =
-  | 'memberBirthdays'
-  | 'employeeBirthdays'
-  | 'expiring'
-  | 'inactive'
-  | 'todayEnrolled'
-  | 'todayEnquiry'
-  | 'todayFollowUps';
+  | "memberBirthdays"
+  | "employeeBirthdays"
+  | "expiring"
+  | "inactive"
+  | "todayEnrolled"
+  | "todayEnquiry"
+  | "todayFollowUps";
 
 const Dashboard: React.FC = () => {
   // Fetch dashboard metrics
   const { data: dashboardData, isLoading } = useQuery({
-    queryKey: ['dashboardMetrics'],
+    queryKey: ["dashboardMetrics"],
     queryFn: async () => {
       const response = await axios.get(`${API_URL}/dashboard`, {
-        withCredentials: true
+        withCredentials: true,
       });
       return response.data.metrics;
-    }
+    },
   });
 
   const metrics = dashboardData || defaultMetrics;
@@ -210,10 +243,16 @@ const Dashboard: React.FC = () => {
         const month = today.getMonth() + 1;
         const year = today.getFullYear();
         // Fetch all expenses for today
-        const response = await axiosInstance.get(`/gym/expenses?gymId=${gym._id}&month=${month}&year=${year}`);
+        const response = await axiosInstance.get(
+          `/gym/expenses?gymId=${gym._id}&month=${month}&year=${year}`
+        );
         const expenses = Array.isArray(response.data) ? response.data : [];
         const todayStr = today.toISOString().slice(0, 10);
-        const total = expenses.filter(e => e.date && e.date.slice(0, 10) === todayStr && e.category === 'gym')
+        const total = expenses
+          .filter(
+            (e) =>
+              e.date && e.date.slice(0, 10) === todayStr && e.category === "gym"
+          )
           .reduce((sum, expense) => sum + (expense.amount || 0), 0);
         setTodayExpense(total);
       } catch (error) {
@@ -233,9 +272,13 @@ const Dashboard: React.FC = () => {
         const now = new Date();
         const month = now.getMonth() + 1;
         const year = now.getFullYear();
-        const response = await axiosInstance.get(`/gym/expenses?gymId=${gym._id}&month=${month}&year=${year}`);
+        const response = await axiosInstance.get(
+          `/gym/expenses?gymId=${gym._id}&month=${month}&year=${year}`
+        );
         const total = Array.isArray(response.data)
-          ? response.data.filter(e => e.category === 'gym').reduce((sum, expense) => sum + (expense.amount || 0), 0)
+          ? response.data
+              .filter((e) => e.category === "gym")
+              .reduce((sum, expense) => sum + (expense.amount || 0), 0)
           : 0;
         setMonthlyExpense(total);
       } catch (error) {
@@ -253,9 +296,13 @@ const Dashboard: React.FC = () => {
       setIsTotalExpenseLoading(true);
       try {
         // Fetch all expenses for this gym
-        const response = await axiosInstance.get(`/gym/expenses?gymId=${gym._id}`);
+        const response = await axiosInstance.get(
+          `/gym/expenses?gymId=${gym._id}`
+        );
         const expenses = Array.isArray(response.data) ? response.data : [];
-        const total = expenses.filter(e => e.category === 'gym').reduce((sum, expense) => sum + (expense.amount || 0), 0);
+        const total = expenses
+          .filter((e) => e.category === "gym")
+          .reduce((sum, expense) => sum + (expense.amount || 0), 0);
         setTotalExpense(total);
       } catch (error) {
         setTotalExpense(0);
@@ -272,9 +319,13 @@ const Dashboard: React.FC = () => {
       setIsProfitExpenseLoading(true);
       try {
         // Fetch all expenses for this gym
-        const response = await axiosInstance.get(`/gym/expenses?gymId=${gym._id}`);
+        const response = await axiosInstance.get(
+          `/gym/expenses?gymId=${gym._id}`
+        );
         const expenses = Array.isArray(response.data) ? response.data : [];
-        const total = expenses.filter(e => e.category === 'gym').reduce((sum, expense) => sum + (expense.amount || 0), 0);
+        const total = expenses
+          .filter((e) => e.category === "gym")
+          .reduce((sum, expense) => sum + (expense.amount || 0), 0);
         setProfitExpense(total);
       } catch (error) {
         setProfitExpense(0);
@@ -296,7 +347,7 @@ const Dashboard: React.FC = () => {
   const totalPosAmount = metrics.pos.totalSell || 0;
   const totalPosExpense = metrics.pos.totalPosExpense || 0;
   const calculatedPosProfit = totalPosAmount - totalPosExpense;
-  
+
   // Calculate overall profit
   const overallTotalProfit = totalGymProfit + calculatedPosProfit;
 
@@ -311,58 +362,81 @@ const Dashboard: React.FC = () => {
     setModalLoading(true);
     let data: Customer[] | Staff[] | Lead[] = [];
     try {
-      if (type === 'memberBirthdays') {
+      if (type === "memberBirthdays") {
         const today = new Date();
         const { customers } = await CustomerService.getCustomers();
-        data = customers.filter(c => {
+        data = customers.filter((c) => {
           if (!c.birthday) return false;
           const bday = new Date(c.birthday);
-          return bday.getDate() === today.getDate() && bday.getMonth() === today.getMonth();
+          return (
+            bday.getDate() === today.getDate() &&
+            bday.getMonth() === today.getMonth()
+          );
         });
         if (data.length > 0) {
-          console.log('DEBUG memberBirthdays data:', data[0]);
+          console.log("DEBUG memberBirthdays data:", data[0]);
         }
-      } else if (type === 'employeeBirthdays') {
+      } else if (type === "employeeBirthdays") {
         const today = new Date();
-        const month = String(today.getMonth() + 1).padStart(2, '0');
-        const day = String(today.getDate()).padStart(2, '0');
-        const response = await api.get('/gym/staff');
-        data = (response.data.data || []).filter((s: Staff) => s.dateOfBirth && s.dateOfBirth.slice(5, 10) === `${month}-${day}`);
-      } else if (type === 'expiring') {
+        const month = String(today.getMonth() + 1).padStart(2, "0");
+        const day = String(today.getDate()).padStart(2, "0");
+        const response = await api.get("/gym/staff");
+        data = (response.data.data || []).filter(
+          (s: Staff) =>
+            s.dateOfBirth && s.dateOfBirth.slice(5, 10) === `${month}-${day}`
+        );
+      } else if (type === "expiring") {
         const todayStr = new Date().toISOString().slice(0, 10);
         const { customers } = await CustomerService.getCustomers();
-        data = customers.filter(c => c.membershipEndDate && c.membershipEndDate.slice(0, 10) === todayStr);
-      } else if (type === 'inactive') {
+        data = customers.filter(
+          (c) =>
+            c.membershipEndDate && c.membershipEndDate.slice(0, 10) === todayStr
+        );
+      } else if (type === "inactive") {
         const { customers } = await CustomerService.getCustomers();
-        data = customers.filter(c => c.membershipType === 'none' || c.membershipType === 'inactive');
-      } else if (type === 'todayEnrolled') {
+        data = customers.filter(
+          (c) => c.membershipType === "none" || c.membershipType === "inactive"
+        );
+      } else if (type === "todayEnrolled") {
         const today = new Date();
         const { customers } = await CustomerService.getCustomers();
-        data = customers.filter(c => {
+        data = customers.filter((c) => {
           if (!c.joinDate) return false;
           const join = new Date(c.joinDate);
-          return join.getDate() === today.getDate() && join.getMonth() === today.getMonth() && join.getFullYear() === today.getFullYear();
+          return (
+            join.getDate() === today.getDate() &&
+            join.getMonth() === today.getMonth() &&
+            join.getFullYear() === today.getFullYear()
+          );
         });
         if (data.length > 0) {
-          console.log('DEBUG todayEnrolled data:', data[0]);
+          console.log("DEBUG todayEnrolled data:", data[0]);
         }
-      } else if (type === 'todayEnquiry') {
+      } else if (type === "todayEnquiry") {
         const today = new Date();
-        const response = await axiosInstance.get('/leads');
+        const response = await axiosInstance.get("/leads");
         const leads = response.data as Lead[];
-        data = leads.filter(l => {
+        data = leads.filter((l) => {
           if (!l.createdAt) return false;
           const created = new Date(l.createdAt);
-          return created.getDate() === today.getDate() && created.getMonth() === today.getMonth() && created.getFullYear() === today.getFullYear();
+          return (
+            created.getDate() === today.getDate() &&
+            created.getMonth() === today.getMonth() &&
+            created.getFullYear() === today.getFullYear()
+          );
         });
-      } else if (type === 'todayFollowUps') {
+      } else if (type === "todayFollowUps") {
         const today = new Date();
-        const response = await axiosInstance.get('/leads');
+        const response = await axiosInstance.get("/leads");
         const leads = response.data as Lead[];
-        data = leads.filter(l => {
+        data = leads.filter((l) => {
           if (!l.followUpDate) return false;
           const followUpDateObj = new Date(l.followUpDate);
-          return followUpDateObj.getDate() === today.getDate() && followUpDateObj.getMonth() === today.getMonth() && followUpDateObj.getFullYear() === today.getFullYear();
+          return (
+            followUpDateObj.getDate() === today.getDate() &&
+            followUpDateObj.getMonth() === today.getMonth() &&
+            followUpDateObj.getFullYear() === today.getFullYear()
+          );
         });
       }
     } catch (e) {
@@ -382,15 +456,24 @@ const Dashboard: React.FC = () => {
     return (item as Staff).position !== undefined && !(item as Lead).source;
   }
   function isCustomer(item: Customer | Staff | Lead): item is Customer {
-    return (typeof (item as Customer).id === 'string' && typeof (item as Customer).email === 'string');
+    return (
+      typeof (item as Customer).id === "string" &&
+      typeof (item as Customer).email === "string"
+    );
   }
 
-  function hasFollowUpDate(c: unknown): c is Customer & { followUpDate: string } {
-    return typeof (c as { followUpDate?: string }).followUpDate === 'string';
+  function hasFollowUpDate(
+    c: unknown
+  ): c is Customer & { followUpDate: string } {
+    return typeof (c as { followUpDate?: string }).followUpDate === "string";
   }
 
   function isLead(item: Customer | Staff | Lead): item is Lead {
-    return (item as Lead).source !== undefined && (item as Lead).createdAt !== undefined && (item as Lead)._id !== undefined;
+    return (
+      (item as Lead).source !== undefined &&
+      (item as Lead).createdAt !== undefined &&
+      (item as Lead)._id !== undefined
+    );
   }
 
   function getModalRowKey(item: Customer | Staff | Lead): string {
@@ -398,12 +481,15 @@ const Dashboard: React.FC = () => {
     if (isStaff(item) && item._id) return item._id;
     if (isLead(item) && item._id) return item._id;
     // Fallback: use name + Math.random() to guarantee uniqueness if no id
-    return `${item.name || 'unknown'}-${Math.random()}`;
+    return `${item.name || "unknown"}-${Math.random()}`;
   }
 
   useEffect(() => {
-    if ((modalType === 'todayEnrolled' || modalType === 'memberBirthdays') && modalData.length > 0) {
-      console.log('DEBUG modalData:', modalData[0]);
+    if (
+      (modalType === "todayEnrolled" || modalType === "memberBirthdays") &&
+      modalData.length > 0
+    ) {
+      console.log("DEBUG modalData:", modalData[0]);
     }
   }, [modalType, modalData]);
 
@@ -479,7 +565,7 @@ const Dashboard: React.FC = () => {
               gradientTo="red-600"
               iconColor="red-600"
               delay={0.2}
-              onClick={() => handleOpenModal('inactive')}
+              onClick={() => handleOpenModal("inactive")}
               className="cursor-pointer hover:shadow-lg transition"
             />
             <MetricCard
@@ -491,7 +577,7 @@ const Dashboard: React.FC = () => {
               gradientTo="orange-600"
               iconColor="orange-600"
               delay={0.25}
-              onClick={() => handleOpenModal('expiring')}
+              onClick={() => handleOpenModal("expiring")}
               className="cursor-pointer hover:shadow-lg transition"
             />
             <MetricCard
@@ -503,7 +589,7 @@ const Dashboard: React.FC = () => {
               gradientTo="emerald-600"
               iconColor="emerald-600"
               delay={0.3}
-              onClick={() => handleOpenModal('todayEnrolled')}
+              onClick={() => handleOpenModal("todayEnrolled")}
               className="cursor-pointer hover:shadow-lg transition"
             />
             <MetricCard
@@ -526,7 +612,7 @@ const Dashboard: React.FC = () => {
               gradientTo="pink-600"
               iconColor="pink-600"
               delay={0.4}
-              onClick={() => handleOpenModal('employeeBirthdays')}
+              onClick={() => handleOpenModal("employeeBirthdays")}
               className="cursor-pointer hover:shadow-lg transition"
             />
             <MetricCard
@@ -538,7 +624,7 @@ const Dashboard: React.FC = () => {
               gradientTo="indigo-600"
               iconColor="indigo-600"
               delay={0.45}
-              onClick={() => handleOpenModal('memberBirthdays')}
+              onClick={() => handleOpenModal("memberBirthdays")}
               className="cursor-pointer hover:shadow-lg transition"
             />
             <MetricCard
@@ -584,7 +670,7 @@ const Dashboard: React.FC = () => {
               delay={0.65}
             />
             <MetricCard
-              title={`Monthly Expense (${format(new Date(), 'MMMM yyyy')})`}
+              title={`Monthly Expense (${format(new Date(), "MMMM yyyy")})`}
               value={monthlyExpense}
               icon={<Calendar />}
               format="currency"
@@ -614,7 +700,7 @@ const Dashboard: React.FC = () => {
               gradientTo="lime-600"
               iconColor="lime-600"
               delay={0.8}
-              onClick={() => handleOpenModal('todayEnquiry')}
+              onClick={() => handleOpenModal("todayEnquiry")}
               className="cursor-pointer hover:shadow-lg transition"
             />
             <MetricCard
@@ -626,7 +712,7 @@ const Dashboard: React.FC = () => {
               gradientTo="sky-600"
               iconColor="sky-600"
               delay={0.85}
-              onClick={() => handleOpenModal('todayFollowUps')}
+              onClick={() => handleOpenModal("todayFollowUps")}
               className="cursor-pointer hover:shadow-lg transition"
             />
           </div>
@@ -639,9 +725,9 @@ const Dashboard: React.FC = () => {
             <h2 className="text-2xl font-bold">Profit Analysis</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <MetricCard 
-              title="Member Amount" 
-              value={metrics.memberProfit.memberAmount} 
+            <MetricCard
+              title="Member Amount"
+              value={metrics.memberProfit.memberAmount}
               format="currency"
               icon={<DollarSign />}
               isLoading={isLoading}
@@ -650,9 +736,9 @@ const Dashboard: React.FC = () => {
               iconColor="emerald-600"
               delay={0.1}
             />
-            <MetricCard 
-              title="Total Expenses" 
-              value={profitExpense} 
+            <MetricCard
+              title="Total Expenses"
+              value={profitExpense}
               format="currency"
               icon={<TrendingUp />}
               isLoading={isProfitExpenseLoading}
@@ -661,9 +747,9 @@ const Dashboard: React.FC = () => {
               iconColor="red-600"
               delay={0.2}
             />
-            <MetricCard 
-              title="Total Gym Profit" 
-              value={totalGymProfit} 
+            <MetricCard
+              title="Total Gym Profit"
+              value={totalGymProfit}
               format="currency"
               icon={<Target />}
               isLoading={isLoading || isProfitExpenseLoading}
@@ -682,9 +768,9 @@ const Dashboard: React.FC = () => {
             <h2 className="text-2xl font-bold">Point of Sale</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            <MetricCard 
-              title="Today Purchase" 
-              value={metrics.pos.todayPurchase} 
+            <MetricCard
+              title="Today Purchase"
+              value={metrics.pos.todayPurchase}
               format="currency"
               icon={<ShoppingCart />}
               isLoading={isLoading}
@@ -693,9 +779,9 @@ const Dashboard: React.FC = () => {
               iconColor="blue-600"
               delay={0.1}
             />
-            <MetricCard 
-              title="Total Purchase" 
-              value={metrics.pos.totalPurchase} 
+            <MetricCard
+              title="Total Purchase"
+              value={metrics.pos.totalPurchase}
               format="currency"
               icon={<ShoppingCart />}
               isLoading={isLoading}
@@ -704,9 +790,9 @@ const Dashboard: React.FC = () => {
               iconColor="indigo-600"
               delay={0.15}
             />
-            <MetricCard 
-              title="Total Stock Value" 
-              value={metrics.pos.totalStockValue} 
+            <MetricCard
+              title="Total Stock Value"
+              value={metrics.pos.totalStockValue}
               format="currency"
               icon={<BarChart3 />}
               isLoading={isLoading}
@@ -715,9 +801,9 @@ const Dashboard: React.FC = () => {
               iconColor="green-600"
               delay={0.2}
             />
-            <MetricCard 
-              title="Low Stock Value" 
-              value={metrics.pos.lowStockValue} 
+            <MetricCard
+              title="Low Stock Value"
+              value={metrics.pos.lowStockValue}
               format="currency"
               icon={<AlertCircle />}
               isLoading={isLoading}
@@ -726,9 +812,9 @@ const Dashboard: React.FC = () => {
               iconColor="orange-600"
               delay={0.25}
             />
-            <MetricCard 
-              title="Total Clearing Amount" 
-              value={metrics.pos.totalClearingAmount} 
+            <MetricCard
+              title="Total Clearing Amount"
+              value={metrics.pos.totalClearingAmount}
               format="currency"
               icon={<DollarSign />}
               isLoading={isLoading}
@@ -737,9 +823,9 @@ const Dashboard: React.FC = () => {
               iconColor="purple-600"
               delay={0.3}
             />
-            <MetricCard 
-              title="Today Sell" 
-              value={metrics.pos.todaySell} 
+            <MetricCard
+              title="Today Sell"
+              value={metrics.pos.todaySell}
               format="currency"
               icon={<TrendingUp />}
               isLoading={isLoading}
@@ -748,9 +834,9 @@ const Dashboard: React.FC = () => {
               iconColor="emerald-600"
               delay={0.35}
             />
-            <MetricCard 
-              title="Total Sell" 
-              value={metrics.pos.totalSell} 
+            <MetricCard
+              title="Total Sell"
+              value={metrics.pos.totalSell}
               format="currency"
               icon={<TrendingUp />}
               isLoading={isLoading}
@@ -759,9 +845,9 @@ const Dashboard: React.FC = () => {
               iconColor="teal-600"
               delay={0.4}
             />
-            <MetricCard 
-              title="Total Sell Purchase Value" 
-              value={metrics.pos.totalSellPurchaseValue} 
+            <MetricCard
+              title="Total Sell Purchase Value"
+              value={metrics.pos.totalSellPurchaseValue}
               format="currency"
               icon={<BarChart3 />}
               isLoading={isLoading}
@@ -770,9 +856,9 @@ const Dashboard: React.FC = () => {
               iconColor="cyan-600"
               delay={0.45}
             />
-            <MetricCard 
-              title="Today Sell Invoice" 
-              value={metrics.pos.todaySellInvoice} 
+            <MetricCard
+              title="Today Sell Invoice"
+              value={metrics.pos.todaySellInvoice}
               icon={<BarChart3 />}
               isLoading={isLoading}
               gradientFrom="pink-500"
@@ -780,9 +866,9 @@ const Dashboard: React.FC = () => {
               iconColor="pink-600"
               delay={0.5}
             />
-            <MetricCard 
-              title="Total Sell Invoice" 
-              value={metrics.pos.totalSellInvoice} 
+            <MetricCard
+              title="Total Sell Invoice"
+              value={metrics.pos.totalSellInvoice}
               icon={<BarChart3 />}
               isLoading={isLoading}
               gradientFrom="rose-500"
@@ -790,9 +876,9 @@ const Dashboard: React.FC = () => {
               iconColor="rose-600"
               delay={0.55}
             />
-            <MetricCard 
-              title="Sell Due Amount" 
-              value={metrics.pos.sellDueAmount} 
+            <MetricCard
+              title="Sell Due Amount"
+              value={metrics.pos.sellDueAmount}
               format="currency"
               icon={<AlertCircle />}
               isLoading={isLoading}
@@ -801,9 +887,9 @@ const Dashboard: React.FC = () => {
               iconColor="amber-600"
               delay={0.6}
             />
-            <MetricCard 
-              title="Total POS Expense" 
-              value={metrics.pos.totalPosExpense} 
+            <MetricCard
+              title="Total POS Expense"
+              value={metrics.pos.totalPosExpense}
               format="currency"
               icon={<DollarSign />}
               isLoading={isLoading}
@@ -812,9 +898,9 @@ const Dashboard: React.FC = () => {
               iconColor="slate-600"
               delay={0.65}
             />
-            <MetricCard 
-              title="Today POS Expense" 
-              value={metrics.pos.todayPosExpense} 
+            <MetricCard
+              title="Today POS Expense"
+              value={metrics.pos.todayPosExpense}
               format="currency"
               icon={<DollarSign />}
               isLoading={isLoading}
@@ -833,9 +919,9 @@ const Dashboard: React.FC = () => {
             <h2 className="text-2xl font-bold">POS Profit Analysis</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <MetricCard 
-              title="Total POS Amount" 
-              value={totalPosAmount} 
+            <MetricCard
+              title="Total POS Amount"
+              value={totalPosAmount}
               format="currency"
               icon={<DollarSign />}
               isLoading={isLoading}
@@ -844,9 +930,9 @@ const Dashboard: React.FC = () => {
               iconColor="blue-600"
               delay={0.1}
             />
-            <MetricCard 
-              title="Total POS Expense" 
-              value={totalPosExpense} 
+            <MetricCard
+              title="Total POS Expense"
+              value={totalPosExpense}
               format="currency"
               icon={<TrendingUp />}
               isLoading={isLoading}
@@ -855,9 +941,9 @@ const Dashboard: React.FC = () => {
               iconColor="red-600"
               delay={0.2}
             />
-            <MetricCard 
-              title="Total POS Profit" 
-              value={calculatedPosProfit} 
+            <MetricCard
+              title="Total POS Profit"
+              value={calculatedPosProfit}
               format="currency"
               icon={<Target />}
               isLoading={isLoading}
@@ -876,9 +962,9 @@ const Dashboard: React.FC = () => {
             <h2 className="text-2xl font-bold">Overall Performance</h2>
           </div>
           <div className="grid grid-cols-1 gap-6">
-            <MetricCard 
-              title="Total Business Profit (Gym + POS)" 
-              value={overallTotalProfit} 
+            <MetricCard
+              title="Total Business Profit (Gym + POS)"
+              value={overallTotalProfit}
               format="currency"
               icon={<Target />}
               isLoading={isLoading}
@@ -896,24 +982,35 @@ const Dashboard: React.FC = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {modalType === 'memberBirthdays' ? 'Member Birthdays Today' :
-               modalType === 'employeeBirthdays' ? 'Employee Birthdays Today' :
-               modalType === 'expiring' ? "Today's Expiring Memberships" :
-               modalType === 'inactive' ? 'Inactive Members' :
-               modalType === 'todayEnrolled' ? 'Today Enrolled Members' :
-               modalType === 'todayEnquiry' ? 'Today Enquiries' :
-               modalType === 'todayFollowUps' ? 'Today Follow-Ups' : ''}
+              {modalType === "memberBirthdays"
+                ? "Member Birthdays Today"
+                : modalType === "employeeBirthdays"
+                ? "Employee Birthdays Today"
+                : modalType === "expiring"
+                ? "Today's Expiring Memberships"
+                : modalType === "inactive"
+                ? "Inactive Members"
+                : modalType === "todayEnrolled"
+                ? "Today Enrolled Members"
+                : modalType === "todayEnquiry"
+                ? "Today Enquiries"
+                : modalType === "todayFollowUps"
+                ? "Today Follow-Ups"
+                : ""}
             </DialogTitle>
           </DialogHeader>
           {modalLoading ? (
             <div className="text-center py-8">Loading...</div>
           ) : modalData.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">No records found.</div>
+            <div className="text-center py-8 text-muted-foreground">
+              No records found.
+            </div>
           ) : (
             <div className="max-h-96 overflow-y-auto">
               <table className="min-w-full text-sm">
                 <thead>
-                  {modalType === 'todayEnquiry' || modalType === 'todayFollowUps' ? (
+                  {modalType === "todayEnquiry" ||
+                  modalType === "todayFollowUps" ? (
                     <tr>
                       <th className="text-left p-2">Name</th>
                       <th className="text-left p-2">Phone</th>
@@ -927,32 +1024,62 @@ const Dashboard: React.FC = () => {
                       <th className="text-left p-2">Name</th>
                       <th className="text-left p-2">Email</th>
                       <th className="text-left p-2">Phone</th>
-                      {modalType === 'employeeBirthdays' && <th className="text-left p-2">Position</th>}
-                      {modalType === 'expiring' && <th className="text-left p-2">End Date</th>}
+                      {modalType === "employeeBirthdays" && (
+                        <th className="text-left p-2">Position</th>
+                      )}
+                      {modalType === "expiring" && (
+                        <th className="text-left p-2">End Date</th>
+                      )}
                     </tr>
                   )}
                 </thead>
                 <tbody>
-                  {(modalData as (Customer | Staff | Lead)[]).map((item) => (
+                  {(modalData as (Customer | Staff | Lead)[]).map((item) =>
                     isLead(item) ? (
                       <tr key={getModalRowKey(item)} className="border-b">
                         <td className="p-2">{item.name}</td>
-                        <td className="p-2">{item.phone || '-'}</td>
-                        <td className="p-2">{item.source || '-'}</td>
-                        <td className="p-2">{item.status || '-'}</td>
-                        <td className="p-2">{item.followUpDate ? new Date(item.followUpDate).toLocaleDateString() : '-'}</td>
-                        <td className="p-2">{item.notes || '-'}</td>
+                        <td className="p-2">{item.phone || "-"}</td>
+                        <td className="p-2">{item.source || "-"}</td>
+                        <td className="p-2">{item.status || "-"}</td>
+                        <td className="p-2">
+                          {item.followUpDate
+                            ? new Date(item.followUpDate).toLocaleDateString()
+                            : "-"}
+                        </td>
+                        <td className="p-2">{item.notes || "-"}</td>
                       </tr>
                     ) : (
                       <tr key={getModalRowKey(item)} className="border-b">
                         <td className="p-2">{item.name}</td>
-                        <td className="p-2">{isCustomer(item) ? item.email || '-' : isStaff(item) ? item.email || '-' : '-'}</td>
-                        <td className="p-2">{isCustomer(item) ? item.phone || '-' : isStaff(item) ? item.phone || '-' : '-'}</td>
-                        {modalType === 'employeeBirthdays' && isStaff(item) && <td className="p-2">{item.position || '-'}</td>}
-                        {modalType === 'expiring' && isCustomer(item) && <td className="p-2">{item.membershipEndDate ? new Date(item.membershipEndDate).toLocaleDateString() : '-'}</td>}
+                        <td className="p-2">
+                          {isCustomer(item)
+                            ? item.email || "-"
+                            : isStaff(item)
+                            ? item.email || "-"
+                            : "-"}
+                        </td>
+                        <td className="p-2">
+                          {isCustomer(item)
+                            ? item.phone || "-"
+                            : isStaff(item)
+                            ? item.phone || "-"
+                            : "-"}
+                        </td>
+                        {modalType === "employeeBirthdays" && isStaff(item) && (
+                          <td className="p-2">{item.position || "-"}</td>
+                        )}
+                        {modalType === "expiring" && isCustomer(item) && (
+                          <td className="p-2">
+                            {item.membershipEndDate
+                              ? new Date(
+                                  item.membershipEndDate
+                                ).toLocaleDateString()
+                              : "-"}
+                          </td>
+                        )}
                       </tr>
                     )
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>
