@@ -2,7 +2,7 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosR
 import { useToast } from '@/hooks/use-toast';
 
 // Configure base API settings
-const API_URL = '/api';
+const API_URL = 'https://flexcrm-ui-suite-production.up.railway.app/api';
 
 // Response interfaces
 export interface ApiResponse {
