@@ -122,8 +122,9 @@ export function CustomersPage() {
       setIsLoading(true);
       try {
         const data = await CustomerService.getCustomers();
-        setCustomers(data.customers);
+        setCustomers(data.customers || []);
       } catch (error) {
+        setCustomers([]);
         toast({
           title: "Error",
           description: error instanceof Error ? error.message : "Failed to load customers",
