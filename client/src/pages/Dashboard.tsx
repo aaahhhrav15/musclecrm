@@ -43,6 +43,7 @@ import {
 import CustomerService from "@/services/CustomerService";
 import api from "@/services/api";
 import { Customer } from "@/services/CustomerService";
+import { addMonths, differenceInDays } from "date-fns";
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
@@ -220,7 +221,91 @@ const Dashboard: React.FC = () => {
     },
   });
 
+  // Fetch customer data directly to ensure accurate member counts
+  const { data: customerData } = useQuery({
+    queryKey: ["customers"],
+    queryFn: async () => {
+      const { customers } = await CustomerService.getCustomers({ page: 1, limit: 10000 });
+      return customers;
+    },
+  });
+
+  // Helper functions for filtering (copied from CustomersPage)
+  const calculateExpiryDate = (customer: Customer) => {
+    if (!customer.membershipStartDate || !customer.membershipDuration) return null;
+    const startDate = new Date(customer.membershipStartDate);
+    return addMonths(startDate, customer.membershipDuration);
+  };
+
+  const isCustomerExpired = (customer: Customer) => {
+    const expiryDate = calculateExpiryDate(customer);
+    if (!expiryDate) return false;
+    return new Date() > expiryDate;
+  };
+
+  // Calculate member metrics from customer data
+  const memberMetrics = React.useMemo(() => {
+    if (!customerData) return {
+      totalMembers: 0,
+      activeMembers: 0,
+      inactiveMembers: 0,
+      expiringToday: 0,
+    };
+
+    const totalMembers = customerData.length;
+
+    // Active: membershipEndDate is today or in the future
+    const activeMembers = customerData.filter(c => {
+      if (!c.membershipEndDate) return false;
+      const endDate = new Date(c.membershipEndDate);
+      const today = new Date();
+      // Set time to 00:00:00 for both dates to compare only the date part
+      endDate.setHours(0,0,0,0);
+      today.setHours(0,0,0,0);
+      return endDate >= today;
+    }).length;
+
+    // Inactive: membershipEndDate is before today or missing
+    const inactiveMembers = customerData.filter(c => {
+      if (!c.membershipEndDate) return true;
+      const endDate = new Date(c.membershipEndDate);
+      const today = new Date();
+      endDate.setHours(0,0,0,0);
+      today.setHours(0,0,0,0);
+      return endDate < today;
+    }).length;
+
+    // Expiring today: expiry date is today
+    const expiringToday = customerData.filter(c => {
+      if (!c.membershipEndDate) return false;
+      const endDate = new Date(c.membershipEndDate);
+      const today = new Date();
+      endDate.setHours(0,0,0,0);
+      today.setHours(0,0,0,0);
+      return endDate.getTime() === today.getTime();
+    }).length;
+
+    return {
+      totalMembers,
+      activeMembers,
+      inactiveMembers,
+      expiringToday,
+    };
+  }, [customerData]);
+
   const metrics = dashboardData || defaultMetrics;
+
+  // Override member metrics with calculated values from customer data
+  const finalMetrics = {
+    ...metrics,
+    members: {
+      ...metrics.members,
+      totalMembers: memberMetrics.totalMembers,
+      activeMembers: memberMetrics.activeMembers,
+      inactiveMembers: memberMetrics.inactiveMembers,
+      todayExpiry: memberMetrics.expiringToday,
+    }
+  };
 
   // --- Monthly Expense Logic ---
   const { gym } = useGym();
@@ -364,7 +449,7 @@ const Dashboard: React.FC = () => {
     try {
       if (type === "memberBirthdays") {
         const today = new Date();
-        const { customers } = await CustomerService.getCustomers();
+        const { customers, total } = await CustomerService.getCustomers({ page: 1, limit: 10000 });
         data = customers.filter((c) => {
           if (!c.birthday) return false;
           const bday = new Date(c.birthday);
@@ -386,20 +471,40 @@ const Dashboard: React.FC = () => {
             s.dateOfBirth && s.dateOfBirth.slice(5, 10) === `${month}-${day}`
         );
       } else if (type === "expiring") {
+        // Fetch all customers for expiring modal
+        let allCustomers: Customer[] = [];
+        let page = 1;
+        const pageSize = 100;
+        let total = 0;
+        do {
+          const { customers, total: t } = await CustomerService.getCustomers({ page, limit: pageSize });
+          allCustomers = allCustomers.concat(customers);
+          total = t;
+          page++;
+        } while (allCustomers.length < total);
         const todayStr = new Date().toISOString().slice(0, 10);
-        const { customers } = await CustomerService.getCustomers();
-        data = customers.filter(
+        data = allCustomers.filter(
           (c) =>
             c.membershipEndDate && c.membershipEndDate.slice(0, 10) === todayStr
         );
       } else if (type === "inactive") {
-        const { customers } = await CustomerService.getCustomers();
-        data = customers.filter(
-          (c) => c.membershipType === "none" || c.membershipType === "inactive"
+        // Fetch all customers for inactive modal
+        let allCustomers: Customer[] = [];
+        let page = 1;
+        const pageSize = 100;
+        let total = 0;
+        do {
+          const { customers, total: t } = await CustomerService.getCustomers({ page, limit: pageSize });
+          allCustomers = allCustomers.concat(customers);
+          total = t;
+          page++;
+        } while (allCustomers.length < total);
+        data = allCustomers.filter(
+          (c) => !c.membershipType || c.membershipType === "none" || c.membershipType === "inactive" || (c.membershipEndDate && new Date(c.membershipEndDate) < new Date())
         );
       } else if (type === "todayEnrolled") {
         const today = new Date();
-        const { customers } = await CustomerService.getCustomers();
+        const { customers, total } = await CustomerService.getCustomers({ page: 1, limit: 10000 });
         data = customers.filter((c) => {
           if (!c.joinDate) return false;
           const join = new Date(c.joinDate);
@@ -538,7 +643,7 @@ const Dashboard: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <MetricCard
               title="Total Members"
-              value={dashboardData?.members?.totalMembers || 0}
+              value={finalMetrics.members.totalMembers}
               icon={<Users />}
               isLoading={isLoading}
               gradientFrom="blue-500"
@@ -548,7 +653,7 @@ const Dashboard: React.FC = () => {
             />
             <MetricCard
               title="Active Members"
-              value={dashboardData?.members?.activeMembers || 0}
+              value={finalMetrics.members.activeMembers}
               icon={<UserPlus />}
               isLoading={isLoading}
               gradientFrom="green-500"
@@ -558,7 +663,7 @@ const Dashboard: React.FC = () => {
             />
             <MetricCard
               title="Inactive Members"
-              value={dashboardData?.members?.inactiveMembers || 0}
+              value={finalMetrics.members.inactiveMembers}
               icon={<UserMinus />}
               isLoading={isLoading}
               gradientFrom="red-500"
@@ -570,7 +675,7 @@ const Dashboard: React.FC = () => {
             />
             <MetricCard
               title="Today's Expiring"
-              value={dashboardData?.members?.todayExpiry || 0}
+              value={metrics.members.todayExpiry}
               icon={<AlertCircle />}
               isLoading={isLoading}
               gradientFrom="orange-500"
@@ -582,7 +687,7 @@ const Dashboard: React.FC = () => {
             />
             <MetricCard
               title="Today Enrolled"
-              value={dashboardData?.members?.todayEnrolled || 0}
+              value={metrics.members.todayEnrolled}
               icon={<UserPlus />}
               isLoading={isLoading}
               gradientFrom="emerald-500"
@@ -594,7 +699,7 @@ const Dashboard: React.FC = () => {
             />
             <MetricCard
               title="Total Member Amount"
-              value={dashboardData?.members?.totalMemberAmount || 0}
+              value={metrics.members.totalMemberAmount}
               icon={<DollarSign />}
               format="currency"
               isLoading={isLoading}
@@ -605,7 +710,7 @@ const Dashboard: React.FC = () => {
             />
             <MetricCard
               title="Employee Birthdays"
-              value={dashboardData?.members?.todayEmployeeBirthdays || 0}
+              value={metrics.members.todayEmployeeBirthdays}
               icon={<Cake />}
               isLoading={isLoading}
               gradientFrom="pink-500"
@@ -617,7 +722,7 @@ const Dashboard: React.FC = () => {
             />
             <MetricCard
               title="Member Birthdays"
-              value={dashboardData?.members?.todayMemberBirthdays || 0}
+              value={metrics.members.todayMemberBirthdays}
               icon={<Gift />}
               isLoading={isLoading}
               gradientFrom="indigo-500"
@@ -629,7 +734,7 @@ const Dashboard: React.FC = () => {
             />
             <MetricCard
               title="Today Invoices"
-              value={dashboardData?.members?.todayInvoices || 0}
+              value={metrics.members.todayInvoices}
               icon={<BarChart3 />}
               isLoading={isLoading}
               gradientFrom="cyan-500"
@@ -639,7 +744,7 @@ const Dashboard: React.FC = () => {
             />
             <MetricCard
               title="Total Invoices"
-              value={dashboardData?.members?.totalInvoices || 0}
+              value={metrics.members.totalInvoices}
               icon={<BarChart3 />}
               isLoading={isLoading}
               gradientFrom="teal-500"
@@ -649,7 +754,7 @@ const Dashboard: React.FC = () => {
             />
             <MetricCard
               title="Today Due Amount"
-              value={dashboardData?.members?.todayDueAmount || 0}
+              value={metrics.members.todayDueAmount}
               icon={<AlertCircle />}
               format="currency"
               isLoading={isLoading}
@@ -693,7 +798,7 @@ const Dashboard: React.FC = () => {
             />
             <MetricCard
               title="Today Enquiry"
-              value={dashboardData?.members?.todayEnquiry || 0}
+              value={metrics.members.todayEnquiry}
               icon={<Users />}
               isLoading={isLoading}
               gradientFrom="lime-500"
@@ -705,7 +810,7 @@ const Dashboard: React.FC = () => {
             />
             <MetricCard
               title="Today Follow-Ups"
-              value={dashboardData?.members?.todayFollowUps || 0}
+              value={metrics.members.todayFollowUps}
               icon={<Target />}
               isLoading={isLoading}
               gradientFrom="sky-500"
@@ -1006,11 +1111,17 @@ const Dashboard: React.FC = () => {
               No records found.
             </div>
           ) : (
-            <div className="max-h-96 overflow-y-auto">
+            <div className="max-h-[70vh] overflow-y-auto">
               <table className="min-w-full text-sm">
                 <thead>
-                  {modalType === "todayEnquiry" ||
-                  modalType === "todayFollowUps" ? (
+                  {(modalType === "expiring" || modalType === "inactive") ? (
+                    <tr>
+                      <th className="text-left p-2">Name</th>
+                      <th className="text-left p-2">Email</th>
+                      <th className="text-left p-2">Phone</th>
+                      <th className="text-left p-2">End Date</th>
+                    </tr>
+                  ) : modalType === "todayEnquiry" || modalType === "todayFollowUps" ? (
                     <tr>
                       <th className="text-left p-2">Name</th>
                       <th className="text-left p-2">Phone</th>
@@ -1027,59 +1138,44 @@ const Dashboard: React.FC = () => {
                       {modalType === "employeeBirthdays" && (
                         <th className="text-left p-2">Position</th>
                       )}
-                      {modalType === "expiring" && (
-                        <th className="text-left p-2">End Date</th>
-                      )}
                     </tr>
                   )}
                 </thead>
                 <tbody>
-                  {(modalData as (Customer | Staff | Lead)[]).map((item) =>
-                    isLead(item) ? (
+                  {(modalData as (Customer | Staff | Lead)[]).map((item) => {
+                    if ((modalType === "expiring" || modalType === "inactive") && isCustomer(item)) {
+                      return (
+                        <tr key={getModalRowKey(item)} className="border-b">
+                          <td className="p-2">{item.name}</td>
+                          <td className="p-2">{item.email || "-"}</td>
+                          <td className="p-2">{item.phone || "-"}</td>
+                          <td className="p-2">{item.membershipEndDate ? new Date(item.membershipEndDate).toLocaleDateString() : "-"}</td>
+                        </tr>
+                      );
+                    }
+                    if (isLead(item)) {
+                      return (
+                        <tr key={getModalRowKey(item)} className="border-b">
+                          <td className="p-2">{item.name}</td>
+                          <td className="p-2">{item.phone || "-"}</td>
+                          <td className="p-2">{item.source || "-"}</td>
+                          <td className="p-2">{item.status || "-"}</td>
+                          <td className="p-2">{item.followUpDate ? new Date(item.followUpDate).toLocaleDateString() : "-"}</td>
+                          <td className="p-2">{item.notes || "-"}</td>
+                        </tr>
+                      );
+                    }
+                    return (
                       <tr key={getModalRowKey(item)} className="border-b">
                         <td className="p-2">{item.name}</td>
-                        <td className="p-2">{item.phone || "-"}</td>
-                        <td className="p-2">{item.source || "-"}</td>
-                        <td className="p-2">{item.status || "-"}</td>
-                        <td className="p-2">
-                          {item.followUpDate
-                            ? new Date(item.followUpDate).toLocaleDateString()
-                            : "-"}
-                        </td>
-                        <td className="p-2">{item.notes || "-"}</td>
-                      </tr>
-                    ) : (
-                      <tr key={getModalRowKey(item)} className="border-b">
-                        <td className="p-2">{item.name}</td>
-                        <td className="p-2">
-                          {isCustomer(item)
-                            ? item.email || "-"
-                            : isStaff(item)
-                            ? item.email || "-"
-                            : "-"}
-                        </td>
-                        <td className="p-2">
-                          {isCustomer(item)
-                            ? item.phone || "-"
-                            : isStaff(item)
-                            ? item.phone || "-"
-                            : "-"}
-                        </td>
+                        <td className="p-2">{isCustomer(item) ? item.email || "-" : isStaff(item) ? item.email || "-" : "-"}</td>
+                        <td className="p-2">{isCustomer(item) ? item.phone || "-" : isStaff(item) ? item.phone || "-" : "-"}</td>
                         {modalType === "employeeBirthdays" && isStaff(item) && (
                           <td className="p-2">{item.position || "-"}</td>
                         )}
-                        {modalType === "expiring" && isCustomer(item) && (
-                          <td className="p-2">
-                            {item.membershipEndDate
-                              ? new Date(
-                                  item.membershipEndDate
-                                ).toLocaleDateString()
-                              : "-"}
-                          </td>
-                        )}
                       </tr>
-                    )
-                  )}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

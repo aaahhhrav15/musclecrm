@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Plus, 
@@ -120,25 +120,104 @@ export function CustomersPage() {
     birthdayFilter: 'none',
     statusFilter: 'none',
   });
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [allCustomers, setAllCustomers] = useState<Customer[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [totalCustomers, setTotalCustomers] = useState(0);
-  const [allCustomers, setAllCustomers] = useState<Customer[]>([]); // For metrics
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  // Client-side filtering function
-  const applyClientSideFilters = (customerList: Customer[]) => {
-    let filtered = [...customerList];
+  // Fetch all customers once using React Query
+  const { data: customersData, isLoading, error } = useQuery({
+    queryKey: ['customers'],
+    queryFn: async () => {
+      const data = await CustomerService.getCustomers({
+        page: 1,
+        limit: 10000, // Large enough to get all customers
+      });
+      return data.customers || [];
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+  });
+
+  // Update allCustomers when data changes
+  useEffect(() => {
+    if (customersData) {
+      setAllCustomers(customersData);
+    }
+  }, [customersData]);
+
+  // Helper functions for filtering
+  const calculateExpiryDate = (customer: Customer) => {
+    if (!customer.membershipStartDate || !customer.membershipDuration) return null;
+    const startDate = new Date(customer.membershipStartDate);
+    return addMonths(startDate, customer.membershipDuration);
+  };
+
+  const isCustomerExpired = (customer: Customer) => {
+    const expiryDate = calculateExpiryDate(customer);
+    if (!expiryDate) return false;
+    return new Date() > expiryDate;
+  };
+
+  const isCustomerExpiringSoon = (customer: Customer, days: number) => {
+    const expiryDate = calculateExpiryDate(customer);
+    if (!expiryDate) return false;
+    const daysUntilExpiry = differenceInDays(expiryDate, new Date());
+    return daysUntilExpiry >= 0 && daysUntilExpiry <= days;
+  };
+
+  const isBirthdayInRange = (customer: Customer, range: string) => {
+    if (!customer.birthday) return false;
+    const birthday = new Date(customer.birthday);
+    const today = new Date();
+
+    // Set birthday to current year for comparison
+    const currentYearBirthday = new Date(today.getFullYear(), birthday.getMonth(), birthday.getDate());
+
+    switch (range) {
+      case 'today':
+        return today.getDate() === birthday.getDate() && today.getMonth() === birthday.getMonth();
+      case 'tomorrow': {
+        const tomorrow = new Date(today);
+        tomorrow.setDate(today.getDate() + 1);
+        return tomorrow.getDate() === birthday.getDate() && tomorrow.getMonth() === birthday.getMonth();
+      }
+      case 'thisWeek': {
+        const start = startOfWeek(today);
+        const end = endOfWeek(today);
+        return currentYearBirthday >= start && currentYearBirthday <= end;
+      }
+      case 'thisMonth':
+        return today.getMonth() === birthday.getMonth();
+      case 'next7days': {
+        const next7Days = new Date(today);
+        next7Days.setDate(today.getDate() + 7);
+        return currentYearBirthday >= today && currentYearBirthday <= next7Days;
+      }
+      case 'next30days': {
+        const next30Days = new Date(today);
+        next30Days.setDate(today.getDate() + 30);
+        return currentYearBirthday >= today && currentYearBirthday <= next30Days;
+      }
+      default:
+        return false;
+    }
+  };
+
+  // Client-side filtering function - now memoized
+  const filteredCustomers = useMemo(() => {
+    if (!allCustomers.length) return [];
+    
+    let filtered = [...allCustomers];
 
     // Apply search filter
     if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
       filtered = filtered.filter(customer => 
-        customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        customer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (customer.phone && customer.phone.toLowerCase().includes(searchQuery.toLowerCase()))
+        (customer.name && customer.name.toLowerCase().includes(query)) ||
+        (customer.email && customer.email.toLowerCase().includes(query)) ||
+        (customer.phone && customer.phone.toLowerCase().includes(query))
       );
     }
 
@@ -249,119 +328,23 @@ export function CustomersPage() {
     }
 
     return filtered;
-  };
+  }, [allCustomers, searchQuery, filters]);
 
-  // Fetch all customers first, then apply client-side filtering
-  useEffect(() => {
-    const fetchAllCustomers = async () => {
-      setIsLoading(true);
-      try {
-        // Fetch all customers without filters (let client-side handle filtering)
-        const data = await CustomerService.getCustomers({
-          page: 1,
-          limit: 10000, // Large enough to get all customers
-        });
-        
-        const allCustomersRaw = data.customers || [];
-        setAllCustomers(allCustomersRaw);
-        
-        // Apply client-side filtering
-        const filteredCustomers = applyClientSideFilters(allCustomersRaw);
-        
-        // Calculate pagination for filtered results
-        const startIndex = (currentPage - 1) * rowsPerPage;
-        const endIndex = startIndex + rowsPerPage;
-        const paginatedCustomers = filteredCustomers.slice(startIndex, endIndex);
-        
-        setCustomers(paginatedCustomers);
-        setTotalCustomers(filteredCustomers.length);
-        
-      } catch (error) {
-        setCustomers([]);
-        setTotalCustomers(0);
-        setAllCustomers([]);
-        toast({
-          title: "Error",
-          description: error instanceof Error ? error.message : "Failed to load customers",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchAllCustomers();
-  }, [toast, currentPage, rowsPerPage, searchQuery, filters]);
+  // Paginated customers - now derived from filteredCustomers
+  const paginatedCustomers = useMemo(() => {
+    const startIndex = (currentPage - 1) * rowsPerPage;
+    const endIndex = startIndex + rowsPerPage;
+    return filteredCustomers.slice(startIndex, endIndex);
+  }, [filteredCustomers, currentPage, rowsPerPage]);
 
-  // Reset page to 1 when filters, search, or rows per page change
+  // Reset page to 1 when filters or search change
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, filters, rowsPerPage]);
 
-  // Helper functions for filtering
-  const calculateExpiryDate = (customer: Customer) => {
-    if (!customer.membershipStartDate || !customer.membershipDuration) return null;
-    const startDate = new Date(customer.membershipStartDate);
-    return addMonths(startDate, customer.membershipDuration);
-  };
-
-  const isCustomerExpired = (customer: Customer) => {
-    const expiryDate = calculateExpiryDate(customer);
-    if (!expiryDate) return false;
-    return new Date() > expiryDate;
-  };
-
-  const isCustomerExpiringSoon = (customer: Customer, days: number) => {
-    const expiryDate = calculateExpiryDate(customer);
-    if (!expiryDate) return false;
-    const daysUntilExpiry = differenceInDays(expiryDate, new Date());
-    return daysUntilExpiry >= 0 && daysUntilExpiry <= days;
-  };
-
-  const isBirthdayInRange = (customer: Customer, range: string) => {
-    if (!customer.birthday) return false;
-    const birthday = new Date(customer.birthday);
-    const today = new Date();
-
-    // Set birthday to current year for comparison
-    const currentYearBirthday = new Date(today.getFullYear(), birthday.getMonth(), birthday.getDate());
-
-    switch (range) {
-      case 'today':
-        return today.getDate() === birthday.getDate() && today.getMonth() === birthday.getMonth();
-      case 'tomorrow': {
-        const tomorrow = new Date(today);
-        tomorrow.setDate(today.getDate() + 1);
-        return tomorrow.getDate() === birthday.getDate() && tomorrow.getMonth() === birthday.getMonth();
-      }
-      case 'thisWeek': {
-        const start = startOfWeek(today);
-        const end = endOfWeek(today);
-        return currentYearBirthday >= start && currentYearBirthday <= end;
-      }
-      case 'thisMonth':
-        return today.getMonth() === birthday.getMonth();
-      case 'next7days': {
-        const next7Days = new Date(today);
-        next7Days.setDate(today.getDate() + 7);
-        return currentYearBirthday >= today && currentYearBirthday <= next7Days;
-      }
-      case 'next30days': {
-        const next30Days = new Date(today);
-        next30Days.setDate(today.getDate() + 30);
-        return currentYearBirthday >= today && currentYearBirthday <= next30Days;
-      }
-      default:
-        return false;
-    }
-  };
-
-  // Use filtered customers for metrics calculation
-  const customerInsights = React.useMemo(() => {
-    // Get filtered customers for metrics
-    const filteredForMetrics = applyClientSideFilters(allCustomers);
-    
-    if (!filteredForMetrics.length) return {
+  // Customer insights based on filtered customers
+  const customerInsights = useMemo(() => {
+    if (!filteredCustomers.length) return {
       totalCustomers: 0,
       vipCustomers: 0,
       premiumCustomers: 0,
@@ -374,38 +357,38 @@ export function CustomersPage() {
       expiredCustomers: 0
     };
 
-    const vipCustomers = filteredForMetrics.filter(c => c.membershipType === 'vip').length;
-    const premiumCustomers = filteredForMetrics.filter(c => c.membershipType === 'premium').length;
-    const basicCustomers = filteredForMetrics.filter(c => c.membershipType === 'basic').length;
-    const totalRevenue = filteredForMetrics.reduce((sum, c) => sum + (c.totalSpent || 0), 0);
-    const averageSpending = totalRevenue / filteredForMetrics.length;
+    const vipCustomers = filteredCustomers.filter(c => c.membershipType === 'vip').length;
+    const premiumCustomers = filteredCustomers.filter(c => c.membershipType === 'premium').length;
+    const basicCustomers = filteredCustomers.filter(c => c.membershipType === 'basic').length;
+    const totalRevenue = filteredCustomers.reduce((sum, c) => sum + (c.totalSpent || 0), 0);
+    const averageSpending = totalRevenue / filteredCustomers.length;
     
     // Calculate recent customers (last 30 days)
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const recentCustomers = filteredForMetrics.filter(c => 
+    const recentCustomers = filteredCustomers.filter(c => 
       new Date(c.createdAt || '') > thirtyDaysAgo
     ).length;
 
     // Calculate expiring customers (next 7 days) - only those with expiry dates
-    const expiringCustomers = filteredForMetrics.filter(c => {
+    const expiringCustomers = filteredCustomers.filter(c => {
       const expiryDate = calculateExpiryDate(c);
       return expiryDate && isCustomerExpiringSoon(c, 7);
     }).length;
 
     // Calculate birthdays this month - only those with birthdays
-    const birthdaysThisMonth = filteredForMetrics.filter(c => {
+    const birthdaysThisMonth = filteredCustomers.filter(c => {
       return c.birthday && isBirthdayInRange(c, 'thisMonth');
     }).length;
 
     // Calculate expired customers - only those with expiry dates
-    const expiredCustomers = filteredForMetrics.filter(c => {
+    const expiredCustomers = filteredCustomers.filter(c => {
       const expiryDate = calculateExpiryDate(c);
       return expiryDate && isCustomerExpired(c);
     }).length;
 
     return {
-      totalCustomers: filteredForMetrics.length,
+      totalCustomers: filteredCustomers.length,
       vipCustomers,
       premiumCustomers,
       basicCustomers,
@@ -416,7 +399,7 @@ export function CustomersPage() {
       birthdaysThisMonth,
       expiredCustomers
     };
-  }, [allCustomers, searchQuery, filters]);
+  }, [filteredCustomers]);
 
   const deleteMutation = useMutation({
     mutationFn: CustomerService.deleteCustomer,
@@ -452,9 +435,6 @@ export function CustomersPage() {
   };
 
   const handleExport = () => {
-    // Get all filtered customers for export (not just current page)
-    const filteredCustomers = applyClientSideFilters(allCustomers);
-    
     if (!filteredCustomers || filteredCustomers.length === 0) {
       toast({
         title: "Info",
@@ -522,6 +502,7 @@ export function CustomersPage() {
     (filters.birthdayFilter && filters.birthdayFilter !== 'none');
 
   // Calculate pagination
+  const totalCustomers = filteredCustomers.length;
   const totalPages = Math.ceil(totalCustomers / rowsPerPage);
   const startItem = (currentPage - 1) * rowsPerPage + 1;
   const endItem = Math.min(currentPage * rowsPerPage, totalCustomers);
@@ -705,9 +686,6 @@ export function CustomersPage() {
                   className="pl-10 h-11 shadow-sm border-muted-foreground/20 focus:ring-2 focus:ring-primary/20"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') e.preventDefault();
-                  }}
                   type="text"
                   autoComplete="off"
                 />
@@ -813,7 +791,7 @@ export function CustomersPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {customers.map((customer: Customer, index) => {
+                    {paginatedCustomers.map((customer: Customer, index) => {
                       const expiryDate = calculateExpiryDate(customer);
                       const isExpired = isCustomerExpired(customer);
                       const isExpiringSoon = isCustomerExpiringSoon(customer, 7);
@@ -929,7 +907,7 @@ export function CustomersPage() {
                         </motion.tr>
                       );
                     })}
-                    {(!customers || customers.length === 0) && (
+                    {(!paginatedCustomers || paginatedCustomers.length === 0) && (
                       <TableRow>
                         <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
                           <div className="flex flex-col items-center space-y-2">
