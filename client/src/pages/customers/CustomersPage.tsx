@@ -23,7 +23,9 @@ import {
   Pencil,
   Trash2,
   AlertCircle,
-  Gift
+  Gift,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -53,6 +55,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { AddCustomerModal } from '@/components/customers/AddCustomerModal';
 import { EditCustomerModal } from '@/components/customers/EditCustomerModal';
 import { formatDate, formatCurrency } from '@/lib/utils';
@@ -113,18 +122,164 @@ export function CustomersPage() {
   });
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [totalCustomers, setTotalCustomers] = useState(0);
+  const [allCustomers, setAllCustomers] = useState<Customer[]>([]); // For metrics
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  // Fetch all customers once on mount
+  // Client-side filtering function
+  const applyClientSideFilters = (customerList: Customer[]) => {
+    let filtered = [...customerList];
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      filtered = filtered.filter(customer => 
+        customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        customer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (customer.phone && customer.phone.toLowerCase().includes(searchQuery.toLowerCase()))
+      );
+    }
+
+    // Apply membership type filter
+    if (filters.membershipType && filters.membershipType !== 'none') {
+      filtered = filtered.filter(customer => customer.membershipType === filters.membershipType);
+    }
+
+    // Apply source filter
+    if (filters.source && filters.source !== 'none') {
+      filtered = filtered.filter(customer => customer.source === filters.source);
+    }
+
+    // Apply status filter (active, expired, expiring)
+    if (filters.statusFilter && filters.statusFilter !== 'none') {
+      filtered = filtered.filter(customer => {
+        const isExpired = isCustomerExpired(customer);
+        const isExpiring = isCustomerExpiringSoon(customer, 7);
+        
+        switch (filters.statusFilter) {
+          case 'active':
+            return !isExpired && !isExpiring;
+          case 'expired':
+            return isExpired;
+          case 'expiring':
+            return isExpiring && !isExpired;
+          default:
+            return true;
+        }
+      });
+    }
+
+    // Apply expiry filter
+    if (filters.expiryFilter && filters.expiryFilter !== 'none') {
+      filtered = filtered.filter(customer => {
+        const expiryDate = calculateExpiryDate(customer);
+        if (!expiryDate) return false; // Exclude customers without expiry dates
+        
+        const daysUntilExpiry = differenceInDays(expiryDate, new Date());
+        
+        switch (filters.expiryFilter) {
+          case 'expired':
+            return daysUntilExpiry < 0;
+          case 'expiring_7days':
+            return daysUntilExpiry >= 0 && daysUntilExpiry <= 7;
+          case 'expiring_30days':
+            return daysUntilExpiry >= 0 && daysUntilExpiry <= 30;
+          case 'expiring_90days':
+            return daysUntilExpiry >= 0 && daysUntilExpiry <= 90;
+          case 'active_long':
+            return daysUntilExpiry > 90;
+          default:
+            return true;
+        }
+      });
+    }
+
+    // Apply birthday filter
+    if (filters.birthdayFilter && filters.birthdayFilter !== 'none') {
+      filtered = filtered.filter(customer => {
+        // Only include customers who have a birthday set
+        if (!customer.birthday) return false;
+        
+        return isBirthdayInRange(customer, filters.birthdayFilter);
+      });
+    }
+
+    // Apply sorting
+    if (filters.sortBy && filters.sortBy !== 'none') {
+      filtered.sort((a, b) => {
+        let aValue: any, bValue: any;
+        
+        switch (filters.sortBy) {
+          case 'name':
+            aValue = a.name.toLowerCase();
+            bValue = b.name.toLowerCase();
+            break;
+          case 'email':
+            aValue = a.email.toLowerCase();
+            bValue = b.email.toLowerCase();
+            break;
+          case 'membershipType':
+            aValue = a.membershipType || '';
+            bValue = b.membershipType || '';
+            break;
+          case 'totalSpent':
+            aValue = a.totalSpent || 0;
+            bValue = b.totalSpent || 0;
+            break;
+          case 'createdAt':
+            aValue = new Date(a.createdAt || 0).getTime();
+            bValue = new Date(b.createdAt || 0).getTime();
+            break;
+          case 'expiryDate':
+            aValue = calculateExpiryDate(a)?.getTime() || 0;
+            bValue = calculateExpiryDate(b)?.getTime() || 0;
+            break;
+          default:
+            return 0;
+        }
+        
+        if (filters.sortOrder === 'desc') {
+          return aValue < bValue ? 1 : aValue > bValue ? -1 : 0;
+        } else {
+          return aValue > bValue ? 1 : aValue < bValue ? -1 : 0;
+        }
+      });
+    }
+
+    return filtered;
+  };
+
+  // Fetch all customers first, then apply client-side filtering
   useEffect(() => {
-    const fetchCustomers = async () => {
+    const fetchAllCustomers = async () => {
       setIsLoading(true);
       try {
-        const data = await CustomerService.getCustomers();
-        setCustomers(data.customers || []);
+        // Fetch all customers without filters (let client-side handle filtering)
+        const data = await CustomerService.getCustomers({
+          page: 1,
+          limit: 10000, // Large enough to get all customers
+        });
+        
+        const allCustomersRaw = data.customers || [];
+        setAllCustomers(allCustomersRaw);
+        
+        // Apply client-side filtering
+        const filteredCustomers = applyClientSideFilters(allCustomersRaw);
+        
+        // Calculate pagination for filtered results
+        const startIndex = (currentPage - 1) * rowsPerPage;
+        const endIndex = startIndex + rowsPerPage;
+        const paginatedCustomers = filteredCustomers.slice(startIndex, endIndex);
+        
+        setCustomers(paginatedCustomers);
+        setTotalCustomers(filteredCustomers.length);
+        
       } catch (error) {
         setCustomers([]);
+        setTotalCustomers(0);
+        setAllCustomers([]);
         toast({
           title: "Error",
           description: error instanceof Error ? error.message : "Failed to load customers",
@@ -134,8 +289,14 @@ export function CustomersPage() {
         setIsLoading(false);
       }
     };
-    fetchCustomers();
-  }, [toast]);
+    
+    fetchAllCustomers();
+  }, [toast, currentPage, rowsPerPage, searchQuery, filters]);
+
+  // Reset page to 1 when filters, search, or rows per page change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filters, rowsPerPage]);
 
   // Helper functions for filtering
   const calculateExpiryDate = (customer: Customer) => {
@@ -195,88 +356,12 @@ export function CustomersPage() {
     }
   };
 
-  // Enhanced filtering with all new filters
-  const filteredCustomers = customers.filter(customer => {
-    // Search query filter
-    const query = searchQuery.toLowerCase();
-    const matchesSearch = (
-      customer.name.toLowerCase().includes(query) ||
-      customer.email.toLowerCase().includes(query) ||
-      (customer.phone && customer.phone.toLowerCase().includes(query))
-    );
-
-    if (!matchesSearch) return false;
-
-    // Membership type filter
-    if (filters.membershipType && filters.membershipType !== 'none' && customer.membershipType !== filters.membershipType) {
-      return false;
-    }
-
-    // Source filter
-    if (filters.source && filters.source !== 'none' && customer.source !== filters.source) {
-      return false;
-    }
-
-    // Expiry filter
-    if (filters.expiryFilter && filters.expiryFilter !== 'none') {
-      const days = parseInt(filters.expiryFilter.replace(/\D/g, ''));
-      if (!isCustomerExpiringSoon(customer, days)) {
-        return false;
-      }
-    }
-
-    // Birthday filter
-    if (filters.birthdayFilter && filters.birthdayFilter !== 'none' && !isBirthdayInRange(customer, filters.birthdayFilter)) {
-      return false;
-    }
-
-    // Status filter
-    if (filters.statusFilter && filters.statusFilter !== 'none') {
-      switch (filters.statusFilter) {
-        case 'active':
-          if (isCustomerExpired(customer)) return false;
-          break;
-        case 'expired':
-          if (!isCustomerExpired(customer)) return false;
-          break;
-        case 'expiringSoon':
-          if (!isCustomerExpiringSoon(customer, 7)) return false;
-          break;
-      }
-    }
-
-    return true;
-  }).sort((a, b) => {
-    if (!filters.sortBy || filters.sortBy === 'none') return 0;
-    
-    const order = filters.sortOrder === 'desc' ? -1 : 1;
-    
-    switch (filters.sortBy) {
-      case 'name':
-        return order * a.name.localeCompare(b.name);
-      case 'joinDate':
-        const dateA = new Date(a.createdAt || '');
-        const dateB = new Date(b.createdAt || '');
-        return order * (dateA.getTime() - dateB.getTime());
-      case 'expiryDate':
-        const expiryA = calculateExpiryDate(a);
-        const expiryB = calculateExpiryDate(b);
-        if (!expiryA && !expiryB) return 0;
-        if (!expiryA) return 1;
-        if (!expiryB) return -1;
-        return order * (expiryA.getTime() - expiryB.getTime());
-      case 'totalSpent':
-        return order * ((a.totalSpent || 0) - (b.totalSpent || 0));
-      case 'membershipFees':
-        return order * ((a.membershipFees || 0) - (b.membershipFees || 0));
-      default:
-        return 0;
-    }
-  });
-
-  // Calculate customer insights
+  // Use filtered customers for metrics calculation
   const customerInsights = React.useMemo(() => {
-    if (!customers.length) return {
+    // Get filtered customers for metrics
+    const filteredForMetrics = applyClientSideFilters(allCustomers);
+    
+    if (!filteredForMetrics.length) return {
       totalCustomers: 0,
       vipCustomers: 0,
       premiumCustomers: 0,
@@ -289,30 +374,38 @@ export function CustomersPage() {
       expiredCustomers: 0
     };
 
-    const vipCustomers = customers.filter(c => c.membershipType === 'vip').length;
-    const premiumCustomers = customers.filter(c => c.membershipType === 'premium').length;
-    const basicCustomers = customers.filter(c => c.membershipType === 'basic').length;
-    const totalRevenue = customers.reduce((sum, c) => sum + (c.totalSpent || 0), 0);
-    const averageSpending = totalRevenue / customers.length;
+    const vipCustomers = filteredForMetrics.filter(c => c.membershipType === 'vip').length;
+    const premiumCustomers = filteredForMetrics.filter(c => c.membershipType === 'premium').length;
+    const basicCustomers = filteredForMetrics.filter(c => c.membershipType === 'basic').length;
+    const totalRevenue = filteredForMetrics.reduce((sum, c) => sum + (c.totalSpent || 0), 0);
+    const averageSpending = totalRevenue / filteredForMetrics.length;
     
     // Calculate recent customers (last 30 days)
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const recentCustomers = customers.filter(c => 
+    const recentCustomers = filteredForMetrics.filter(c => 
       new Date(c.createdAt || '') > thirtyDaysAgo
     ).length;
 
-    // Calculate expiring customers (next 7 days)
-    const expiringCustomers = customers.filter(c => isCustomerExpiringSoon(c, 7)).length;
+    // Calculate expiring customers (next 7 days) - only those with expiry dates
+    const expiringCustomers = filteredForMetrics.filter(c => {
+      const expiryDate = calculateExpiryDate(c);
+      return expiryDate && isCustomerExpiringSoon(c, 7);
+    }).length;
 
-    // Calculate birthdays this month
-    const birthdaysThisMonth = customers.filter(c => isBirthdayInRange(c, 'thisMonth')).length;
+    // Calculate birthdays this month - only those with birthdays
+    const birthdaysThisMonth = filteredForMetrics.filter(c => {
+      return c.birthday && isBirthdayInRange(c, 'thisMonth');
+    }).length;
 
-    // Calculate expired customers
-    const expiredCustomers = customers.filter(c => isCustomerExpired(c)).length;
+    // Calculate expired customers - only those with expiry dates
+    const expiredCustomers = filteredForMetrics.filter(c => {
+      const expiryDate = calculateExpiryDate(c);
+      return expiryDate && isCustomerExpired(c);
+    }).length;
 
     return {
-      totalCustomers: customers.length,
+      totalCustomers: filteredForMetrics.length,
       vipCustomers,
       premiumCustomers,
       basicCustomers,
@@ -323,7 +416,7 @@ export function CustomersPage() {
       birthdaysThisMonth,
       expiredCustomers
     };
-  }, [customers]);
+  }, [allCustomers, searchQuery, filters]);
 
   const deleteMutation = useMutation({
     mutationFn: CustomerService.deleteCustomer,
@@ -359,10 +452,13 @@ export function CustomersPage() {
   };
 
   const handleExport = () => {
+    // Get all filtered customers for export (not just current page)
+    const filteredCustomers = applyClientSideFilters(allCustomers);
+    
     if (!filteredCustomers || filteredCustomers.length === 0) {
       toast({
         title: "Info",
-        description: "No data to export.",
+        description: "No data to export with current filters.",
       });
       return;
     }
@@ -380,7 +476,7 @@ export function CustomersPage() {
         "Start Date": customer.membershipStartDate ? format(new Date(customer.membershipStartDate), 'yyyy-MM-dd') : '',
         "Expiry Date": expiryDate ? format(expiryDate, 'yyyy-MM-dd') : '',
         "Days Until Expiry": expiryDate ? differenceInDays(expiryDate, new Date()) : '',
-        "Status": isCustomerExpired(customer) ? 'Expired' : 'Active',
+        "Status": isCustomerExpired(customer) ? 'Expired' : isCustomerExpiringSoon(customer, 7) ? 'Expiring Soon' : 'Active',
         "Date of Birth": customer.birthday ? format(new Date(customer.birthday), 'yyyy-MM-dd') : '',
         "Created Date": customer.createdAt ? format(new Date(customer.createdAt), 'yyyy-MM-dd') : ''
       };
@@ -397,8 +493,73 @@ export function CustomersPage() {
     document.body.removeChild(link);
     toast({
       title: "Success",
-      description: "Customer data exported successfully!",
+      description: `${filteredCustomers.length} customer records exported successfully!`,
     });
+  };
+
+  // Clear all filters
+  const clearAllFilters = () => {
+    setFilters({
+      membershipType: 'none',
+      source: 'none',
+      sortBy: 'none',
+      sortOrder: 'asc',
+      expiryFilter: 'none',
+      birthdayFilter: 'none',
+      statusFilter: 'none',
+    });
+    setSearchQuery('');
+  };
+
+  // Check if any filters are active
+  const hasActiveFilters = 
+    searchQuery ||
+    (filters.membershipType && filters.membershipType !== 'none') ||
+    (filters.source && filters.source !== 'none') ||
+    (filters.sortBy && filters.sortBy !== 'none') ||
+    (filters.statusFilter && filters.statusFilter !== 'none') ||
+    (filters.expiryFilter && filters.expiryFilter !== 'none') ||
+    (filters.birthdayFilter && filters.birthdayFilter !== 'none');
+
+  // Calculate pagination
+  const totalPages = Math.ceil(totalCustomers / rowsPerPage);
+  const startItem = (currentPage - 1) * rowsPerPage + 1;
+  const endItem = Math.min(currentPage * rowsPerPage, totalCustomers);
+
+  // Generate page numbers for pagination
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+    
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) {
+          pages.push(i);
+        }
+        pages.push('...');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1);
+        pages.push('...');
+        for (let i = totalPages - 3; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        pages.push(1);
+        pages.push('...');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          pages.push(i);
+        }
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+    
+    return pages;
   };
 
   if (isLoading) {
@@ -607,13 +768,33 @@ export function CustomersPage() {
               <div className="flex items-center justify-between">
                 <CardTitle className="text-xl font-semibold">Customer Directory</CardTitle>
                 <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Rows per page:</span>
+                    <Select value={rowsPerPage.toString()} onValueChange={(value) => setRowsPerPage(Number(value))}>
+                      <SelectTrigger className="w-20 h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="5">5</SelectItem>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                        <SelectItem value="100">100</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <Badge variant="secondary" className="text-sm px-3 py-1">
-                    {filteredCustomers?.length || 0} customers
+                    {totalCustomers} customers
                   </Badge>
                   <Button type="button" variant="outline" onClick={() => setIsFilterModalOpen(true)}>
                     <Filter className="w-4 h-4 mr-2" />
                     Filter
                   </Button>
+                  {hasActiveFilters && (
+                    <Button type="button" variant="ghost" onClick={clearAllFilters} size="sm">
+                      Clear All
+                    </Button>
+                  )}
                 </div>
               </div>
             </CardHeader>
@@ -632,7 +813,7 @@ export function CustomersPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredCustomers.map((customer: Customer, index) => {
+                    {customers.map((customer: Customer, index) => {
                       const expiryDate = calculateExpiryDate(customer);
                       const isExpired = isCustomerExpired(customer);
                       const isExpiringSoon = isCustomerExpiringSoon(customer, 7);
@@ -748,13 +929,23 @@ export function CustomersPage() {
                         </motion.tr>
                       );
                     })}
-                    {(!filteredCustomers || filteredCustomers.length === 0) && (
+                    {(!customers || customers.length === 0) && (
                       <TableRow>
                         <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
                           <div className="flex flex-col items-center space-y-2">
                             <Users className="h-12 w-12 text-muted-foreground/50" />
                             <div className="text-lg font-medium">No customers found</div>
-                            <p className="text-sm">Try adjusting your search or filter criteria</p>
+                            <p className="text-sm">
+                              {hasActiveFilters 
+                                ? 'Try adjusting your search or filter criteria' 
+                                : 'Get started by adding your first customer'}
+                            </p>
+                            {!hasActiveFilters && (
+                              <Button onClick={() => setIsAddModalOpen(true)} className="mt-4">
+                                <Plus className="h-4 w-4 mr-2" />
+                                Add Your First Customer
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -762,6 +953,74 @@ export function CustomersPage() {
                   </TableBody>
                 </Table>
               </div>
+              
+              {/* Enhanced Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between p-4 border-t">
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    Showing {startItem} to {endItem} of {totalCustomers} customers
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(1)}
+                      disabled={currentPage === 1}
+                      className="hidden sm:flex"
+                    >
+                      First
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+
+                    <div className="flex items-center gap-1">
+                      {getPageNumbers().map((page, index) => (
+                        <React.Fragment key={index}>
+                          {page === '...' ? (
+                            <span className="px-2 py-1 text-muted-foreground">...</span>
+                          ) : (
+                            <Button
+                              variant={currentPage === page ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setCurrentPage(page as number)}
+                              className="w-8 h-8 p-0"
+                            >
+                              {page}
+                            </Button>
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(totalPages)}
+                      disabled={currentPage === totalPages}
+                      className="hidden sm:flex"
+                    >
+                      Last
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

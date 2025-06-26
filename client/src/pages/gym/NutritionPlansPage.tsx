@@ -1,16 +1,43 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Edit, Trash2, CheckCircle, XCircle, Eye, Search } from 'lucide-react';
+import { 
+  Plus, 
+  Edit, 
+  Trash2, 
+  CheckCircle, 
+  XCircle, 
+  Eye, 
+  Search,
+  ChefHat,
+  Target,
+  Clock,
+  Utensils,
+  Activity,
+  Zap,
+  TrendingUp,
+  Calendar,
+  Filter,
+  Download
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { toast } from 'sonner';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import axiosInstance from '@/lib/axios';
 import GeminiNutritionForm from '@/components/nutrition/GeminiNutritionForm';
+import { Skeleton } from '@/components/ui/skeleton';
+import * as Papa from 'papaparse';
 
 interface Customer {
   _id: string;
@@ -56,6 +83,8 @@ const NutritionPlansPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [planToDelete, setPlanToDelete] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [sortBy, setSortBy] = useState('newest');
   const [formData, setFormData] = useState({
     plan_name: '',
     total_calories: '',
@@ -82,8 +111,12 @@ const NutritionPlansPage: React.FC = () => {
   });
 
   useEffect(() => {
-    fetchPlans();
-    fetchCustomers();
+    const fetchData = async () => {
+      setIsLoading(true);
+      await Promise.all([fetchPlans(), fetchCustomers()]);
+      setIsLoading(false);
+    };
+    fetchData();
   }, []);
 
   useEffect(() => {
@@ -126,10 +159,56 @@ const NutritionPlansPage: React.FC = () => {
     return customer ? customer.name : 'Unknown User';
   };
 
-  const filteredPlans = plans.filter(plan => {
-    const userName = getUserName(plan.user_id).toLowerCase();
-    return userName.includes(searchQuery.toLowerCase());
-  });
+  // Enhanced filtering and sorting
+  const filteredAndSortedPlans = React.useMemo(() => {
+    let filtered = plans.filter(plan => {
+      const userName = getUserName(plan.user_id).toLowerCase();
+      const planName = plan.plan_name.toLowerCase();
+      const query = searchQuery.toLowerCase();
+      return userName.includes(query) || planName.includes(query);
+    });
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'newest':
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        case 'oldest':
+          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        case 'name':
+          return a.plan_name.localeCompare(b.plan_name);
+        case 'calories_high':
+          return b.total_calories - a.total_calories;
+        case 'calories_low':
+          return a.total_calories - b.total_calories;
+        default:
+          return 0;
+      }
+    });
+
+    return filtered;
+  }, [plans, searchQuery, sortBy, customers]);
+
+  // Calculate insights
+  const insights = React.useMemo(() => {
+    const totalPlans = plans.length;
+    const totalCalories = plans.reduce((sum, plan) => sum + plan.total_calories, 0);
+    const avgCalories = totalPlans > 0 ? Math.round(totalCalories / totalPlans) : 0;
+    const totalMeals = plans.reduce((sum, plan) => sum + plan.meals.length, 0);
+    const recentPlans = plans.filter(plan => {
+      const planDate = new Date(plan.createdAt);
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      return planDate > weekAgo;
+    }).length;
+
+    return {
+      totalPlans,
+      avgCalories,
+      totalMeals,
+      recentPlans
+    };
+  }, [plans]);
 
   const handleCreatePlan = async () => {
     try {
@@ -154,7 +233,7 @@ const NutritionPlansPage: React.FC = () => {
       
       const response = await axiosInstance.post('/nutrition-plans', dataToSend);
       if (response.data.success && response.data.nutritionPlan) {
-        setPlans([...plans, response.data.nutritionPlan]);
+        setPlans([response.data.nutritionPlan, ...plans]);
         setIsDialogOpen(false);
         resetForm();
         toast.success('Nutrition plan created successfully');
@@ -236,6 +315,36 @@ const NutritionPlansPage: React.FC = () => {
     setIsDialogOpen(true);
   };
 
+  const handleExport = () => {
+    if (!filteredAndSortedPlans || filteredAndSortedPlans.length === 0) {
+      toast.error("No data to export.");
+      return;
+    }
+
+    const dataToExport = filteredAndSortedPlans.map(plan => ({
+      "Plan Name": plan.plan_name,
+      "User": getUserName(plan.user_id),
+      "Total Calories": plan.total_calories,
+      "Protein Target": plan.protein_target,
+      "Carbs Target": plan.carbs_target,
+      "Fat Target": plan.fat_target,
+      "Number of Meals": plan.meals.length,
+      "Created Date": new Date(plan.createdAt).toLocaleDateString(),
+    }));
+
+    const csv = Papa.unparse(dataToExport);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `nutrition-plans-export-${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Nutrition plans exported successfully!");
+  };
+
+  // ... [All the meal and food item handler functions remain the same] ...
   const handleMealChange = (mealIndex: number, field: string, value: string | number) => {
     setFormData(prev => ({
       ...prev,
@@ -372,423 +481,676 @@ const NutritionPlansPage: React.FC = () => {
     setIsViewDialogOpen(true);
   };
 
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-6">
+          <Skeleton className="h-10 w-full" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[...Array(4)].map((_, i) => (
+              <Skeleton key={i} className="h-32 w-full" />
+            ))}
+          </div>
+          <Skeleton className="h-[500px] w-full" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="container mx-auto px-4 py-8"
+        className="space-y-8"
       >
         {/* Header Section */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <h1 className="text-2xl font-semibold text-gray-900">Nutrition Plans</h1>
-              <p className="text-gray-500 mt-1">
-                Manage your nutrition plans
-              </p>
-            </div>
-            <div className="flex gap-4">
-              <Dialog open={isGeminiDialogOpen} onOpenChange={setIsGeminiDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" className="bg-green-500 hover:bg-green-600 text-white">
-                    <Plus className="mr-2 h-4 w-4" /> AI Generate Plan
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>Generate Nutrition Plan with AI</DialogTitle>
-                    <DialogDescription>
-                      Fill in the details below to generate a personalized nutrition plan using AI.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <GeminiNutritionForm onPlanGenerated={handleGeminiPlanGenerated} />
-                </DialogContent>
-              </Dialog>
-
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="mr-2 h-4 w-4" /> Create Plan
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>{editingPlan ? 'Edit Nutrition Plan' : 'Create Nutrition Plan'}</DialogTitle>
-                    <DialogDescription>
-                      {editingPlan ? 'Update the nutrition plan details below.' : 'Fill in the details to create a new nutrition plan.'}
-                    </DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={editingPlan ? handleUpdatePlan : handleCreatePlan} className="space-y-6">
-                    <div className="space-y-4">
-                      <div className="grid gap-2">
-                        <label className="text-sm font-medium">Plan Name</label>
-                        <Input
-                          value={formData.plan_name}
-                          onChange={(e) => setFormData(prev => ({ ...prev, plan_name: e.target.value }))}
-                          placeholder="Enter plan name"
-                          required
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="grid gap-2">
-                          <label className="text-sm font-medium">Total Calories</label>
-                          <Input
-                            type="number"
-                            value={formData.total_calories}
-                            onChange={(e) => setFormData(prev => ({ ...prev, total_calories: e.target.value }))}
-                            placeholder="Enter total calories"
-                            required
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <label className="text-sm font-medium">Protein Target (g)</label>
-                          <Input
-                            type="number"
-                            value={formData.protein_target}
-                            onChange={(e) => setFormData(prev => ({ ...prev, protein_target: e.target.value }))}
-                            placeholder="Enter protein target"
-                            required
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="grid gap-2">
-                          <label className="text-sm font-medium">Carbs Target (g)</label>
-                          <Input
-                            type="number"
-                            value={formData.carbs_target}
-                            onChange={(e) => setFormData(prev => ({ ...prev, carbs_target: e.target.value }))}
-                            placeholder="Enter carbs target"
-                            required
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <label className="text-sm font-medium">Fat Target (g)</label>
-                          <Input
-                            type="number"
-                            value={formData.fat_target}
-                            onChange={(e) => setFormData(prev => ({ ...prev, fat_target: e.target.value }))}
-                            placeholder="Enter fat target"
-                            required
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-center">
-                          <h3 className="text-lg font-medium">Meals</h3>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={handleAddMeal}
-                          >
-                            <Plus className="h-4 w-4 mr-2" /> Add Meal
-                          </Button>
-                        </div>
-                        {formData.meals.map((meal, mealIndex) => (
-                          <div key={mealIndex} className="border rounded-lg p-4 space-y-4">
-                            <div className="flex justify-between items-center">
-                              <h4 className="text-md font-medium">Meal {mealIndex + 1}</h4>
-                              {mealIndex > 0 && (
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleRemoveMeal(mealIndex)}
-                                >
-                                  <XCircle className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="grid gap-2">
-                                <label className="text-sm font-medium">Meal Type</label>
-                                <Input
-                                  value={meal.meal_type}
-                                  onChange={(e) => handleMealChange(mealIndex, 'meal_type', e.target.value)}
-                                  placeholder="e.g., Breakfast, Lunch"
-                                  required
-                                />
-                              </div>
-                              <div className="grid gap-2">
-                                <label className="text-sm font-medium">Time</label>
-                                <Input
-                                  value={meal.time}
-                                  onChange={(e) => handleMealChange(mealIndex, 'time', e.target.value)}
-                                  placeholder="e.g., 07:00 AM"
-                                  required
-                                />
-                              </div>
-                            </div>
-
-                            <div className="grid gap-2">
-                              <label className="text-sm font-medium">Total Calories</label>
-                              <Input
-                                type="number"
-                                value={meal.calories}
-                                onChange={(e) => handleMealChange(mealIndex, 'calories', e.target.value)}
-                                placeholder="Enter meal calories"
-                                required
-                              />
-                            </div>
-
-                            <div className="space-y-4">
-                              <div className="flex justify-between items-center">
-                                <h5 className="text-sm font-medium">Food Items</h5>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleAddFoodItem(mealIndex)}
-                                >
-                                  <Plus className="h-4 w-4 mr-2" /> Add Food Item
-                                </Button>
-                              </div>
-                              {meal.items.map((item, itemIndex) => (
-                                <div key={itemIndex} className="border rounded p-3 space-y-3">
-                                  <div className="flex justify-between items-center">
-                                    <h6 className="text-sm font-medium">Food Item {itemIndex + 1}</h6>
-                                    {itemIndex > 0 && (
-                                      <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => handleRemoveFoodItem(mealIndex, itemIndex)}
-                                      >
-                                        <XCircle className="h-4 w-4" />
-                                      </Button>
-                                    )}
-                                  </div>
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div className="grid gap-2">
-                                      <label className="text-sm font-medium">Food Name</label>
-                                      <Input
-                                        value={item.food_name}
-                                        onChange={(e) => handleFoodItemChange(mealIndex, itemIndex, 'food_name', e.target.value)}
-                                        placeholder="Enter food name"
-                                        required
-                                      />
-                                    </div>
-                                    <div className="grid gap-2">
-                                      <label className="text-sm font-medium">Quantity</label>
-                                      <Input
-                                        value={item.quantity}
-                                        onChange={(e) => handleFoodItemChange(mealIndex, itemIndex, 'quantity', e.target.value)}
-                                        placeholder="Enter quantity"
-                                        required
-                                      />
-                                    </div>
-                                  </div>
-
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div className="grid gap-2">
-                                      <label className="text-sm font-medium">Calories</label>
-                                      <Input
-                                        type="number"
-                                        value={item.calories}
-                                        onChange={(e) => handleFoodItemChange(mealIndex, itemIndex, 'calories', e.target.value)}
-                                        placeholder="Enter calories"
-                                        required
-                                      />
-                                    </div>
-                                    <div className="grid gap-2">
-                                      <label className="text-sm font-medium">Protein (g)</label>
-                                      <Input
-                                        type="number"
-                                        value={item.protein}
-                                        onChange={(e) => handleFoodItemChange(mealIndex, itemIndex, 'protein', e.target.value)}
-                                        placeholder="Enter protein"
-                                        required
-                                      />
-                                    </div>
-                                  </div>
-
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div className="grid gap-2">
-                                      <label className="text-sm font-medium">Carbs (g)</label>
-                                      <Input
-                                        type="number"
-                                        value={item.carbs}
-                                        onChange={(e) => handleFoodItemChange(mealIndex, itemIndex, 'carbs', e.target.value)}
-                                        placeholder="Enter carbs"
-                                        required
-                                      />
-                                    </div>
-                                    <div className="grid gap-2">
-                                      <label className="text-sm font-medium">Fat (g)</label>
-                                      <Input
-                                        type="number"
-                                        value={item.fat}
-                                        onChange={(e) => handleFoodItemChange(mealIndex, itemIndex, 'fat', e.target.value)}
-                                        placeholder="Enter fat"
-                                        required
-                                      />
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                        Cancel
-                      </Button>
-                      <Button type="submit">
-                        {editingPlan ? 'Update Plan' : 'Create Plan'}
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
-            </div>
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 pb-4 border-b">
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+              Nutrition Plans
+            </h1>
+            <p className="text-muted-foreground text-lg">
+              Create and manage personalized nutrition plans for your members.
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <Button variant="outline" size="lg" className="shadow-sm" onClick={handleExport}>
+              <Download className="mr-2 h-5 w-5" /> Export Data
+            </Button>
+            <Button 
+              variant="outline" 
+              size="lg" 
+              className="shadow-sm bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700"
+              onClick={() => setIsGeminiDialogOpen(true)}
+            >
+              <Zap className="mr-2 h-5 w-5" /> AI Generate Plan
+            </Button>
+            <Button onClick={() => setIsDialogOpen(true)} size="lg" className="shadow-sm">
+              <Plus className="mr-2 h-5 w-5" /> Create Plan
+            </Button>
           </div>
         </div>
 
-        {/* Search Bar */}
-        <div className="mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+        {/* Insights Dashboard */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
+            <Card className="relative overflow-hidden border-0 shadow-lg">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-blue-600/5" />
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total Plans</CardTitle>
+                <div className="h-10 w-10 rounded-full bg-blue-500/10 flex items-center justify-center">
+                  <ChefHat className="h-5 w-5 text-blue-600" />
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-1">
+                <div className="text-2xl font-bold">{insights.totalPlans}</div>
+                <p className="text-xs text-muted-foreground flex items-center">
+                  <TrendingUp className="h-3 w-3 mr-1" />
+                  Nutrition plans created
+                </p>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <Card className="relative overflow-hidden border-0 shadow-lg">
+              <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-green-600/5" />
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Avg Calories</CardTitle>
+                <div className="h-10 w-10 rounded-full bg-green-500/10 flex items-center justify-center">
+                  <Target className="h-5 w-5 text-green-600" />
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-1">
+                <div className="text-2xl font-bold">{insights.avgCalories}</div>
+                <p className="text-xs text-muted-foreground">kcal per plan</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            <Card className="relative overflow-hidden border-0 shadow-lg">
+              <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-purple-600/5" />
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total Meals</CardTitle>
+                <div className="h-10 w-10 rounded-full bg-purple-500/10 flex items-center justify-center">
+                  <Utensils className="h-5 w-5 text-purple-600" />
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-1">
+                <div className="text-2xl font-bold">{insights.totalMeals}</div>
+                <p className="text-xs text-muted-foreground">Meals planned</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+          >
+            <Card className="relative overflow-hidden border-0 shadow-lg">
+              <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-orange-600/5" />
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Recent Plans</CardTitle>
+                <div className="h-10 w-10 rounded-full bg-orange-500/10 flex items-center justify-center">
+                  <Calendar className="h-5 w-5 text-orange-600" />
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-1">
+                <div className="text-2xl font-bold">{insights.recentPlans}</div>
+                <p className="text-xs text-muted-foreground">Last 7 days</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+
+        {/* Search and Filter Section */}
+        <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              type="text"
-              placeholder="Search by user name..."
+              placeholder="Search by plan name or user..."
+              className="pl-10 h-11 shadow-sm border-muted-foreground/20 focus:ring-2 focus:ring-primary/20"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
             />
+          </div>
+          
+          <div className="flex gap-3">
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="w-[180px] h-11">
+                <SelectValue placeholder="Sort by..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">Newest First</SelectItem>
+                <SelectItem value="oldest">Oldest First</SelectItem>
+                <SelectItem value="name">Plan Name</SelectItem>
+                <SelectItem value="calories_high">Highest Calories</SelectItem>
+                <SelectItem value="calories_low">Lowest Calories</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {(searchQuery || sortBy !== 'newest') && (
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setSearchQuery('');
+                  setSortBy('newest');
+                }}
+                className="h-11"
+              >
+                Clear Filters
+              </Button>
+            )}
           </div>
         </div>
 
         {/* Plans Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredPlans.map((plan) => (
-            <Card key={plan._id} className="hover:shadow-lg transition-shadow">
-              <CardHeader className="pb-2">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle className="text-lg">{plan.plan_name}</CardTitle>
-                    <CardDescription className="mt-1">
-                      {getUserName(plan.user_id)}
-                    </CardDescription>
-                    <CardDescription className="text-xs text-gray-400">
-                      Created on {new Date(plan.createdAt).toLocaleDateString()}
-                    </CardDescription>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleViewPlan(plan)}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEdit(plan)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDeletePlan(plan._id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+          {filteredAndSortedPlans.length === 0 ? (
+            <div className="col-span-full text-center py-12">
+              <div className="mx-auto w-24 h-24 bg-muted rounded-full flex items-center justify-center mb-4">
+                <ChefHat className="h-12 w-12 text-muted-foreground" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">No Nutrition Plans Found</h3>
+              <p className="text-muted-foreground mb-6">
+                {searchQuery 
+                  ? 'Try adjusting your search criteria.' 
+                  : 'Get started by creating your first nutrition plan.'}
+              </p>
+              {!searchQuery && (
+                <div className="flex gap-3 justify-center">
+                  <Button onClick={() => setIsGeminiDialogOpen(true)} variant="outline">
+                    <Zap className="h-4 w-4 mr-2" />
+                    AI Generate Plan
+                  </Button>
+                  <Button onClick={() => setIsDialogOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Your First Plan
+                  </Button>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div>
-                      <span className="text-gray-500">Total Calories:</span>
-                      <span className="ml-2 text-gray-900">{plan.total_calories} kcal</span>
+              )}
+            </div>
+          ) : (
+            filteredAndSortedPlans.map((plan, index) => (
+              <motion.div
+                key={plan._id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+              >
+                <Card className="hover:shadow-lg transition-all duration-200 border-0 shadow-md group">
+                  <CardHeader className="pb-3">
+                    <div className="flex justify-between items-start">
+                      <div className="space-y-1 flex-1">
+                        <CardTitle className="text-lg font-semibold line-clamp-1">{plan.plan_name}</CardTitle>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary" className="text-xs">
+                            {getUserName(plan.user_id)}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(plan.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleViewPlan(plan)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleEdit(plan)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-red-600 hover:text-red-700"
+                          onClick={() => handleDeletePlan(plan._id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-gray-500">Protein:</span>
-                      <span className="ml-2 text-gray-900">{plan.protein_target}g</span>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1">
+                            <Activity className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground">Calories</span>
+                          </div>
+                          <div className="text-sm font-semibold">{plan.total_calories} kcal</div>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1">
+                            <Target className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground">Protein</span>
+                          </div>
+                          <div className="text-sm font-semibold">{plan.protein_target}g</div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-1 text-muted-foreground">
+                          <Utensils className="h-3 w-3" />
+                          <span>{plan.meals.length} meals planned</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          <span>Daily plan</span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    {plan.meals.length} meals planned
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))
+          )}
         </div>
+
+        {/* Create/Edit Plan Dialog */}
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-semibold">
+                {editingPlan ? 'Edit Nutrition Plan' : 'Create Nutrition Plan'}
+              </DialogTitle>
+              <DialogDescription>
+                {editingPlan ? 'Update the nutrition plan details below.' : 'Fill in the details to create a new nutrition plan.'}
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              editingPlan ? handleUpdatePlan() : handleCreatePlan();
+            }} className="space-y-6">
+              <div className="space-y-4">
+                <div className="grid gap-2">
+                  <label className="text-sm font-medium">Plan Name</label>
+                  <Input
+                    value={formData.plan_name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, plan_name: e.target.value }))}
+                    placeholder="Enter plan name"
+                    required
+                    className="h-11"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <label className="text-sm font-medium">Total Calories</label>
+                    <Input
+                      type="number"
+                      value={formData.total_calories}
+                      onChange={(e) => setFormData(prev => ({ ...prev, total_calories: e.target.value }))}
+                      placeholder="Enter total calories"
+                      required
+                      className="h-11"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <label className="text-sm font-medium">Protein Target (g)</label>
+                    <Input
+                      type="number"
+                      value={formData.protein_target}
+                      onChange={(e) => setFormData(prev => ({ ...prev, protein_target: e.target.value }))}
+                      placeholder="Enter protein target"
+                      required
+                      className="h-11"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <label className="text-sm font-medium">Carbs Target (g)</label>
+                    <Input
+                      type="number"
+                      value={formData.carbs_target}
+                      onChange={(e) => setFormData(prev => ({ ...prev, carbs_target: e.target.value }))}
+                      placeholder="Enter carbs target"
+                      required
+                      className="h-11"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <label className="text-sm font-medium">Fat Target (g)</label>
+                    <Input
+                      type="number"
+                      value={formData.fat_target}
+                      onChange={(e) => setFormData(prev => ({ ...prev, fat_target: e.target.value }))}
+                      placeholder="Enter fat target"
+                      required
+                      className="h-11"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-lg font-medium">Meals</h3>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleAddMeal}
+                    >
+                      <Plus className="h-4 w-4 mr-2" /> Add Meal
+                    </Button>
+                  </div>
+                  {formData.meals.map((meal, mealIndex) => (
+                    <Card key={mealIndex} className="border border-muted">
+                      <CardHeader className="pb-3">
+                        <div className="flex justify-between items-center">
+                          <h4 className="font-medium">Meal {mealIndex + 1}</h4>
+                          {mealIndex > 0 && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleRemoveMeal(mealIndex)}
+                            >
+                              <XCircle className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="grid gap-2">
+                            <label className="text-sm font-medium">Meal Type</label>
+                            <Input
+                              value={meal.meal_type}
+                              onChange={(e) => handleMealChange(mealIndex, 'meal_type', e.target.value)}
+                              placeholder="e.g., Breakfast, Lunch"
+                              required
+                              className="h-10"
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <label className="text-sm font-medium">Time</label>
+                            <Input
+                              value={meal.time}
+                              onChange={(e) => handleMealChange(mealIndex, 'time', e.target.value)}
+                              placeholder="e.g., 07:00 AM"
+                              required
+                              className="h-10"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid gap-2">
+                          <label className="text-sm font-medium">Total Calories</label>
+                          <Input
+                            type="number"
+                            value={meal.calories}
+                            onChange={(e) => handleMealChange(mealIndex, 'calories', e.target.value)}
+                            placeholder="Enter meal calories"
+                            required
+                            className="h-10"
+                          />
+                        </div>
+
+                        <div className="space-y-4">
+                          <div className="flex justify-between items-center">
+                            <h5 className="text-sm font-medium">Food Items</h5>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleAddFoodItem(mealIndex)}
+                            >
+                              <Plus className="h-4 w-4 mr-2" /> Add Food Item
+                            </Button>
+                          </div>
+                          {meal.items.map((item, itemIndex) => (
+                            <Card key={itemIndex} className="border border-muted/50 bg-muted/30">
+                              <CardContent className="pt-4 space-y-3">
+                                <div className="flex justify-between items-center">
+                                  <h6 className="text-sm font-medium">Food Item {itemIndex + 1}</h6>
+                                  {itemIndex > 0 && (
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleRemoveFoodItem(mealIndex, itemIndex)}
+                                    >
+                                      <XCircle className="h-4 w-4" />
+                                    </Button>
+                                  )}
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div className="grid gap-2">
+                                    <label className="text-sm font-medium">Food Name</label>
+                                    <Input
+                                      value={item.food_name}
+                                      onChange={(e) => handleFoodItemChange(mealIndex, itemIndex, 'food_name', e.target.value)}
+                                      placeholder="Enter food name"
+                                      required
+                                      className="h-9"
+                                    />
+                                  </div>
+                                  <div className="grid gap-2">
+                                    <label className="text-sm font-medium">Quantity</label>
+                                    <Input
+                                      value={item.quantity}
+                                      onChange={(e) => handleFoodItemChange(mealIndex, itemIndex, 'quantity', e.target.value)}
+                                      placeholder="Enter quantity"
+                                      required
+                                      className="h-9"
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div className="grid gap-2">
+                                    <label className="text-sm font-medium">Calories</label>
+                                    <Input
+                                      type="number"
+                                      value={item.calories}
+                                      onChange={(e) => handleFoodItemChange(mealIndex, itemIndex, 'calories', e.target.value)}
+                                      placeholder="Enter calories"
+                                      required
+                                      className="h-9"
+                                    />
+                                  </div>
+                                  <div className="grid gap-2">
+                                    <label className="text-sm font-medium">Protein (g)</label>
+                                    <Input
+                                      type="number"
+                                      value={item.protein}
+                                      onChange={(e) => handleFoodItemChange(mealIndex, itemIndex, 'protein', e.target.value)}
+                                      placeholder="Enter protein"
+                                      required
+                                      className="h-9"
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div className="grid gap-2">
+                                    <label className="text-sm font-medium">Carbs (g)</label>
+                                    <Input
+                                      type="number"
+                                      value={item.carbs}
+                                      onChange={(e) => handleFoodItemChange(mealIndex, itemIndex, 'carbs', e.target.value)}
+                                      placeholder="Enter carbs"
+                                      required
+                                      className="h-9"
+                                    />
+                                  </div>
+                                  <div className="grid gap-2">
+                                    <label className="text-sm font-medium">Fat (g)</label>
+                                    <Input
+                                      type="number"
+                                      value={item.fat}
+                                      onChange={(e) => handleFoodItemChange(mealIndex, itemIndex, 'fat', e.target.value)}
+                                      placeholder="Enter fat"
+                                      required
+                                      className="h-9"
+                                    />
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" type="button" onClick={() => setIsDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">
+                  {editingPlan ? 'Update Plan' : 'Create Plan'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Gemini AI Dialog */}
+        <Dialog open={isGeminiDialogOpen} onOpenChange={setIsGeminiDialogOpen}>
+          <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Zap className="h-5 w-5 text-green-600" />
+                Generate Nutrition Plan with AI
+              </DialogTitle>
+              <DialogDescription>
+                Fill in the details below to generate a personalized nutrition plan using AI.
+              </DialogDescription>
+            </DialogHeader>
+            <GeminiNutritionForm onPlanGenerated={handleGeminiPlanGenerated} />
+          </DialogContent>
+        </Dialog>
 
         {/* View Plan Dialog */}
         <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-          <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+          <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>{selectedPlan?.plan_name}</DialogTitle>
+              <DialogTitle className="text-xl font-semibold flex items-center gap-2">
+                <ChefHat className="h-5 w-5" />
+                {selectedPlan?.plan_name}
+              </DialogTitle>
               <DialogDescription>
                 {selectedPlan && (
-                  <>
-                    <div>User: {getUserName(selectedPlan.user_id)}</div>
-                    <div>Created on {new Date(selectedPlan.createdAt).toLocaleDateString()}</div>
-                  </>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span>User: {getUserName(selectedPlan.user_id)}</span>
+                      <Badge variant="outline">{new Date(selectedPlan.createdAt).toLocaleDateString()}</Badge>
+                    </div>
+                  </div>
                 )}
               </DialogDescription>
             </DialogHeader>
             {selectedPlan && (
               <div className="space-y-6">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg">
-                  <div>
-                    <div className="text-sm text-gray-500">Total Calories</div>
-                    <div className="text-lg font-semibold">{selectedPlan.total_calories} kcal</div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-6 bg-gradient-to-r from-muted/50 to-muted/30 rounded-lg border">
+                  <div className="text-center">
+                    <div className="text-sm text-muted-foreground">Total Calories</div>
+                    <div className="text-2xl font-bold text-primary">{selectedPlan.total_calories}</div>
+                    <div className="text-xs text-muted-foreground">kcal</div>
                   </div>
-                  <div>
-                    <div className="text-sm text-gray-500">Protein Target</div>
-                    <div className="text-lg font-semibold">{selectedPlan.protein_target}g</div>
+                  <div className="text-center">
+                    <div className="text-sm text-muted-foreground">Protein Target</div>
+                    <div className="text-2xl font-bold text-green-600">{selectedPlan.protein_target}</div>
+                    <div className="text-xs text-muted-foreground">grams</div>
                   </div>
-                  <div>
-                    <div className="text-sm text-gray-500">Carbs Target</div>
-                    <div className="text-lg font-semibold">{selectedPlan.carbs_target}g</div>
+                  <div className="text-center">
+                    <div className="text-sm text-muted-foreground">Carbs Target</div>
+                    <div className="text-2xl font-bold text-blue-600">{selectedPlan.carbs_target}</div>
+                    <div className="text-xs text-muted-foreground">grams</div>
                   </div>
-                  <div>
-                    <div className="text-sm text-gray-500">Fat Target</div>
-                    <div className="text-lg font-semibold">{selectedPlan.fat_target}g</div>
+                  <div className="text-center">
+                    <div className="text-sm text-muted-foreground">Fat Target</div>
+                    <div className="text-2xl font-bold text-orange-600">{selectedPlan.fat_target}</div>
+                    <div className="text-xs text-muted-foreground">grams</div>
                   </div>
                 </div>
 
                 <div className="space-y-4">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <Utensils className="h-5 w-5" />
+                    Meal Plan
+                  </h3>
                   {selectedPlan.meals.map((meal, index) => (
-                    <div key={index} className="border rounded-lg p-4">
-                      <div className="flex justify-between items-center mb-3">
-                        <h3 className="font-medium text-lg">{meal.meal_type}</h3>
-                        <span className="text-sm text-gray-500">{meal.time}</span>
-                      </div>
-                      <div className="text-sm text-gray-500 mb-3">
-                        {meal.calories} calories
-                      </div>
-                      <div className="space-y-2">
-                        {meal.items.map((item, itemIndex) => (
-                          <div key={itemIndex} className="flex items-start gap-3">
-                            <CheckCircle className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                    <Card key={index} className="border shadow-sm">
+                      <CardHeader className="pb-3">
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                              <Utensils className="h-5 w-5 text-primary" />
+                            </div>
                             <div>
-                              <div className="text-gray-900">{item.food_name}</div>
-                              <div className="text-sm text-gray-500">
-                                {item.quantity} • {item.calories} kcal
-                              </div>
-                              <div className="text-xs text-gray-500 mt-1">
-                                P: {item.protein}g • C: {item.carbs}g • F: {item.fat}g
+                              <h4 className="font-semibold text-lg">{meal.meal_type}</h4>
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Clock className="h-3 w-3" />
+                                <span>{meal.time}</span>
+                                <span>•</span>
+                                <span>{meal.calories} calories</span>
                               </div>
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="pt-0">
+                        <div className="space-y-3">
+                          {meal.items.map((item, itemIndex) => (
+                            <div key={itemIndex} className="flex items-start gap-3 p-3 rounded-lg bg-muted/30">
+                              <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                              <div className="flex-1">
+                                <div className="font-medium text-foreground">{item.food_name}</div>
+                                <div className="text-sm text-muted-foreground mb-2">
+                                  {item.quantity} • {item.calories} kcal
+                                </div>
+                                <div className="grid grid-cols-3 gap-4 text-xs">
+                                  <div className="flex items-center gap-1">
+                                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                                    <span>Protein: {item.protein}g</span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                                    <span>Carbs: {item.carbs}g</span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <div className="w-2 h-2 rounded-full bg-orange-500"></div>
+                                    <span>Fat: {item.fat}g</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
               </div>
@@ -802,7 +1164,7 @@ const NutritionPlansPage: React.FC = () => {
             <AlertDialogHeader>
               <AlertDialogTitle>Are you sure?</AlertDialogTitle>
               <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete the nutrition plan.
+                This action cannot be undone. This will permanently delete the nutrition plan and all its meal data.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -811,7 +1173,7 @@ const NutritionPlansPage: React.FC = () => {
                 onClick={handleDeleteConfirm}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
-                Delete
+                Delete Plan
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -821,4 +1183,4 @@ const NutritionPlansPage: React.FC = () => {
   );
 };
 
-export default NutritionPlansPage; 
+export default NutritionPlansPage;
