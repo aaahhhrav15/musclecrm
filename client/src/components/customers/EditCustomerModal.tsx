@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -36,7 +36,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { CustomerService, Customer } from '@/services/CustomerService';
+import { CustomerService, Customer, CustomerFormData } from '@/services/CustomerService';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -46,12 +46,12 @@ const EnhancedDatePicker = ({
   onChange, 
   placeholder = "Pick a date", 
   disabled = false, 
-  className,
+  className = "",
   fromYear = 1950,
   toYear = new Date().getFullYear() + 2 
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [currentMonth, setCurrentMonth] = useState(value || new Date());
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [currentMonth, setCurrentMonth] = React.useState(value || new Date());
 
   const months = [
     "January", "February", "March", "April", "May", "June",
@@ -215,19 +215,36 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
       email: customer.email,
       phone: customer.phone || '',
       address: customer.address || '',
-      source: customer.source || 'other',
-      membershipType: customer.membershipType || 'none',
+      source: (customer.source as 'website' | 'referral' | 'walk-in' | 'social_media' | 'other') || 'other',
+      membershipType: (customer.membershipType as 'none' | 'basic' | 'premium' | 'vip') || 'none',
       membershipFees: customer.membershipFees || 0,
       membershipDuration: customer.membershipDuration || 0,
       joinDate: customer.joinDate ? new Date(customer.joinDate) : new Date(),
       membershipStartDate: customer.membershipStartDate ? new Date(customer.membershipStartDate) : new Date(),
       membershipEndDate: customer.membershipEndDate ? new Date(customer.membershipEndDate) : undefined,
       transactionDate: customer.transactionDate ? new Date(customer.transactionDate) : new Date(),
-      paymentMode: customer.paymentMode || 'cash',
+      paymentMode: (customer.paymentMode as 'cash' | 'card' | 'upi' | 'bank_transfer' | 'other') || 'cash',
       notes: customer.notes || '',
       birthday: customer.birthday ? new Date(customer.birthday) : undefined,
     }
   });
+
+  // Add effect to calculate end date when start date or duration changes
+  React.useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === 'membershipStartDate' || name === 'membershipDuration') {
+        const startDate = form.getValues('membershipStartDate');
+        const duration = form.getValues('membershipDuration');
+        
+        if (startDate && duration > 0) {
+          const endDate = new Date(startDate);
+          endDate.setMonth(endDate.getMonth() + duration);
+          form.setValue('membershipEndDate', endDate);
+        }
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
 
   const handleClose = () => {
     setIsDialogOpen(false);
@@ -239,8 +256,16 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
     try {
       setIsSubmitting(true);
       
-      // Format dates to ISO strings
-      const formattedData = {
+      // Calculate membershipEndDate based on startDate and duration
+      let calculatedEndDate = undefined;
+      if (values.membershipStartDate && values.membershipDuration && values.membershipDuration > 0) {
+        const endDate = new Date(values.membershipStartDate);
+        endDate.setMonth(endDate.getMonth() + values.membershipDuration);
+        calculatedEndDate = endDate;
+      }
+      
+      // Create data in the format expected by CustomerService
+      const formattedData: Partial<CustomerFormData> = {
         name: values.name,
         email: values.email,
         phone: values.phone || '',
@@ -249,25 +274,47 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
         membershipType: values.membershipType,
         membershipFees: Number(values.membershipFees),
         membershipDuration: Number(values.membershipDuration),
-        joinDate: values.joinDate.toISOString(),
-        membershipStartDate: values.membershipStartDate.toISOString(),
-        membershipEndDate: values.membershipEndDate ? values.membershipEndDate.toISOString() : undefined,
-        transactionDate: values.transactionDate.toISOString(),
+        joinDate: values.joinDate,
+        membershipStartDate: values.membershipStartDate,
+        membershipEndDate: calculatedEndDate,
+        transactionDate: values.transactionDate,
         paymentMode: values.paymentMode,
         notes: values.notes || '',
-        birthday: values.birthday ? values.birthday.toISOString() : undefined,
+        birthday: values.birthday,
         totalSpent: Number(values.membershipFees) // Ensure totalSpent is included
       };
 
-      const updatedCustomer = await CustomerService.updateCustomer(customer.id, formattedData);
+      const response = await CustomerService.updateCustomer(customer.id, formattedData);
 
-      if (updatedCustomer) {
+      if (response.success && response.customer) {
         toast({
           title: "Success",
           description: "Customer updated successfully",
         });
         await queryClient.invalidateQueries({ queryKey: ['customers'] });
         if (onCustomerUpdated) {
+          // Map the API response to Customer interface
+          const updatedCustomer: Customer = {
+            id: response.customer._id,
+            name: response.customer.name,
+            email: response.customer.email,
+            phone: response.customer.phone,
+            address: response.customer.address,
+            source: response.customer.source,
+            notes: response.customer.notes,
+            membershipType: response.customer.membershipType,
+            membershipFees: response.customer.membershipFees || 0,
+            membershipDuration: response.customer.membershipDuration || 0,
+            joinDate: response.customer.joinDate,
+            membershipStartDate: response.customer.membershipStartDate,
+            membershipEndDate: response.customer.membershipEndDate,
+            transactionDate: response.customer.transactionDate,
+            paymentMode: response.customer.paymentMode,
+            birthday: response.customer.birthday,
+            totalSpent: response.customer.totalSpent || 0,
+            createdAt: response.customer.createdAt,
+            updatedAt: response.customer.updatedAt
+          };
           onCustomerUpdated(updatedCustomer);
         }
         handleClose();
@@ -475,6 +522,7 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
                         placeholder="Pick birthday"
                         fromYear={1950}
                         toYear={new Date().getFullYear()}
+                        className=""
                       />
                     </FormControl>
                     <FormMessage />
@@ -492,6 +540,7 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
                         value={field.value}
                         onChange={field.onChange}
                         placeholder="Pick join date"
+                        className=""
                       />
                     </FormControl>
                     <FormMessage />
@@ -511,6 +560,7 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
                       value={field.value}
                       onChange={field.onChange}
                       placeholder="Pick start date"
+                      className=""
                     />
                   </FormControl>
                   <FormMessage />
@@ -523,7 +573,7 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
               name="membershipEndDate"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
-                  <FormLabel>Membership End Date (Optional)</FormLabel>
+                  <FormLabel>Membership End Date (Auto-calculated)</FormLabel>
                   <FormControl>
                     <EnhancedDatePicker
                       value={field.value}
@@ -531,6 +581,7 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
                       placeholder="Pick end date"
                       fromYear={new Date().getFullYear()}
                       toYear={new Date().getFullYear() + 5}
+                      className=""
                     />
                   </FormControl>
                   <FormMessage />
@@ -550,6 +601,7 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
                         value={field.value}
                         onChange={field.onChange}
                         placeholder="Pick transaction date"
+                        className=""
                       />
                     </FormControl>
                     <FormMessage />

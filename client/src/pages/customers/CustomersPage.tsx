@@ -610,7 +610,7 @@ export function CustomersPage() {
                     <div className="text-2xl font-bold">{customerInsights.totalCustomers}</div>
                     <p className="text-xs text-muted-foreground flex items-center">
                       <TrendingUp className="h-3 w-3 mr-1" />
-                      Active members
+                      Total members
                     </p>
                   </CardContent>
                 </Card>
@@ -961,7 +961,7 @@ export function CustomersPage() {
 
                     <div className="flex items-center gap-1">
                       {getPageNumbers().map((page, index) => (
-                        <React.Fragment key={index}>
+                        <div key={index}>
                           {page === '...' ? (
                             <span className="px-2 py-1 text-muted-foreground">...</span>
                           ) : (
@@ -974,7 +974,7 @@ export function CustomersPage() {
                               {page}
                             </Button>
                           )}
-                        </React.Fragment>
+                        </div>
                       ))}
                     </div>
 

@@ -234,10 +234,26 @@ router.put('/:id', async (req, res) => {
     if (membershipDuration !== undefined) customer.membershipDuration = membershipDuration;
     if (joinDate) customer.joinDate = joinDate;
     if (membershipStartDate) customer.membershipStartDate = membershipStartDate;
-    if (membershipEndDate !== undefined) customer.membershipEndDate = membershipEndDate;
     if (transactionDate) customer.transactionDate = transactionDate;
     if (paymentMode) customer.paymentMode = paymentMode;
     if (notes !== undefined) customer.notes = notes;
+
+    // Auto-calculate membershipEndDate if membershipStartDate or membershipDuration changed
+    if (membershipStartDate || membershipDuration !== undefined) {
+      const startDate = membershipStartDate || customer.membershipStartDate;
+      const duration = membershipDuration !== undefined ? membershipDuration : customer.membershipDuration;
+      
+      if (startDate && duration && duration > 0) {
+        const endDate = new Date(startDate);
+        endDate.setMonth(endDate.getMonth() + duration);
+        customer.membershipEndDate = endDate;
+      } else {
+        customer.membershipEndDate = undefined;
+      }
+    } else if (membershipEndDate !== undefined) {
+      // Only set membershipEndDate directly if startDate and duration weren't changed
+      customer.membershipEndDate = membershipEndDate;
+    }
 
     // Handle birthday update with validation
     if (birthday !== undefined) {

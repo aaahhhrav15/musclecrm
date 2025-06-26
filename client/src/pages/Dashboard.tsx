@@ -253,8 +253,14 @@ const Dashboard: React.FC = () => {
     };
 
     const totalMembers = customerData.length;
+    console.log('Total customers:', totalMembers);
+    console.log('Sample customer data:', customerData.slice(0, 3).map(c => ({
+      name: c.name,
+      membershipEndDate: c.membershipEndDate,
+      membershipType: c.membershipType
+    })));
 
-    // Active: membershipEndDate is today or in the future
+    // Active: membershipEndDate is today or in the future (>= current date)
     const activeMembers = customerData.filter(c => {
       if (!c.membershipEndDate) return false;
       const endDate = new Date(c.membershipEndDate);
@@ -265,7 +271,7 @@ const Dashboard: React.FC = () => {
       return endDate >= today;
     }).length;
 
-    // Inactive: membershipEndDate is before today or missing
+    // Inactive: membershipEndDate is before today (< current date)
     const inactiveMembers = customerData.filter(c => {
       if (!c.membershipEndDate) return true;
       const endDate = new Date(c.membershipEndDate);
@@ -274,6 +280,10 @@ const Dashboard: React.FC = () => {
       today.setHours(0,0,0,0);
       return endDate < today;
     }).length;
+
+    console.log('Active members:', activeMembers);
+    console.log('Inactive members:', inactiveMembers);
+    console.log('Today date:', new Date().toISOString().split('T')[0]);
 
     // Expiring today: expiry date is today
     const expiringToday = customerData.filter(c => {
@@ -499,9 +509,16 @@ const Dashboard: React.FC = () => {
           total = t;
           page++;
         } while (allCustomers.length < total);
-        data = allCustomers.filter(
-          (c) => !c.membershipType || c.membershipType === "none" || c.membershipType === "inactive" || (c.membershipEndDate && new Date(c.membershipEndDate) < new Date())
-        );
+        
+        // Use the same logic as dashboard metrics: inactive = membershipEndDate < today
+        data = allCustomers.filter(c => {
+          if (!c.membershipEndDate) return true; // No end date = inactive
+          const endDate = new Date(c.membershipEndDate);
+          const today = new Date();
+          endDate.setHours(0,0,0,0);
+          today.setHours(0,0,0,0);
+          return endDate < today; // End date before today = inactive
+        });
       } else if (type === "todayEnrolled") {
         const today = new Date();
         const { customers, total } = await CustomerService.getCustomers({ page: 1, limit: 10000 });
