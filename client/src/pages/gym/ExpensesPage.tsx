@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Plus, 
@@ -73,6 +73,7 @@ import { useRequireAuth } from '@/hooks/useRequireAuth';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Skeleton } from '@/components/ui/skeleton';
 import * as Papa from 'papaparse';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface Expense {
   _id: string;
@@ -92,16 +93,14 @@ interface FilterState {
 }
 
 const ExpensesPage: React.FC = () => {
-  const [allExpenses, setAllExpenses] = useState<Expense[]>([]);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
+  // **OPTIMIZATION 1: Use React Query for better data management**
+  const queryClient = useQueryClient();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [totalExpenses, setTotalExpenses] = useState(0);
   const { toast } = useToast();
   const { gym } = useGym();
   const { isLoading: isAuthLoading } = useRequireAuth();
@@ -124,16 +123,30 @@ const ExpensesPage: React.FC = () => {
     date: format(new Date(), 'yyyy-MM-dd'),
   });
 
-  // Client-side filtering function
-  const applyClientSideFilters = (expenseList: Expense[]) => {
+  // **OPTIMIZATION 2: Use React Query to fetch expenses**
+  const { data: allExpenses = [], isLoading, error } = useQuery({
+    queryKey: ['expenses', gym?._id],
+    queryFn: async () => {
+      if (!gym?._id) return [];
+      const response = await axiosInstance.get(`/gym/expenses?gymId=${gym._id}`);
+      return response.data || [];
+    },
+    enabled: !!gym?._id,
+    staleTime: 60000, // 1 minute
+    refetchOnWindowFocus: false,
+  });
+
+  // **OPTIMIZATION 3: Memoized client-side filtering function**
+  const applyClientSideFilters = useCallback((expenseList: Expense[]) => {
     let filtered = [...expenseList];
 
     // Apply search filter
     if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
       filtered = filtered.filter(expense => 
-        expense.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        expense.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        expense.amount.toString().includes(searchQuery.toLowerCase())
+        expense.description.toLowerCase().includes(query) ||
+        expense.category.toLowerCase().includes(query) ||
+        expense.amount.toString().includes(query)
       );
     }
 
@@ -242,58 +255,23 @@ const ExpensesPage: React.FC = () => {
     }
 
     return filtered;
-  };
+  }, [searchQuery, filters]);
 
-  useEffect(() => {
-    if (gym?._id) {
-      fetchAllExpenses();
-    }
-  }, [gym?._id]);
+  // **OPTIMIZATION 4: Memoized filtered expenses**
+  const filteredExpenses = useMemo(() => {
+    return applyClientSideFilters(allExpenses);
+  }, [allExpenses, applyClientSideFilters]);
 
-  // Apply filters when dependencies change
-  useEffect(() => {
-    const filteredExpenses = applyClientSideFilters(allExpenses);
-    
-    // Calculate pagination for filtered results
+  // **OPTIMIZATION 5: Memoized paginated expenses**
+  const paginatedExpenses = useMemo(() => {
     const startIndex = (currentPage - 1) * rowsPerPage;
     const endIndex = startIndex + rowsPerPage;
-    const paginatedExpenses = filteredExpenses.slice(startIndex, endIndex);
-    
-    setExpenses(paginatedExpenses);
-    setTotalExpenses(filteredExpenses.length);
-  }, [allExpenses, searchQuery, filters, currentPage, rowsPerPage]);
+    return filteredExpenses.slice(startIndex, endIndex);
+  }, [filteredExpenses, currentPage, rowsPerPage]);
 
-  // Reset page when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, filters, rowsPerPage]);
-
-  const fetchAllExpenses = async () => {
-    if (!gym?._id) return;
-    
-    setIsLoading(true);
-    try {
-      // Fetch all expenses (we'll filter client-side)
-      const response = await axiosInstance.get(`/gym/expenses?gymId=${gym._id}`);
-      setAllExpenses(response.data || []);
-      
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to fetch expenses',
-        variant: 'destructive',
-      });
-      setAllExpenses([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Calculate insights from filtered data
-  const insights = React.useMemo(() => {
-    const filteredForMetrics = applyClientSideFilters(allExpenses);
-    
-    if (!filteredForMetrics.length) return {
+  // **OPTIMIZATION 6: Memoized insights calculation**
+  const insights = useMemo(() => {
+    if (!filteredExpenses.length) return {
       totalAmount: 0,
       totalCount: 0,
       avgAmount: 0,
@@ -304,12 +282,12 @@ const ExpensesPage: React.FC = () => {
       monthlyGrowth: 0
     };
 
-    const totalAmount = filteredForMetrics.reduce((sum, expense) => sum + expense.amount, 0);
-    const totalCount = filteredForMetrics.length;
+    const totalAmount = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+    const totalCount = filteredExpenses.length;
     const avgAmount = totalAmount / totalCount;
     
-    const gymExpenses = filteredForMetrics.filter(e => e.category.toLowerCase() === 'gym').reduce((sum, e) => sum + e.amount, 0);
-    const retailExpenses = filteredForMetrics.filter(e => e.category.toLowerCase() === 'retail').reduce((sum, e) => sum + e.amount, 0);
+    const gymExpenses = filteredExpenses.filter(e => e.category.toLowerCase() === 'gym').reduce((sum, e) => sum + e.amount, 0);
+    const retailExpenses = filteredExpenses.filter(e => e.category.toLowerCase() === 'retail').reduce((sum, e) => sum + e.amount, 0);
     
     // Calculate this month and last month
     const now = new Date();
@@ -320,12 +298,12 @@ const ExpensesPage: React.FC = () => {
     const lastMonthStart = startOfMonth(lastMonth);
     const lastMonthEnd = endOfMonth(lastMonth);
     
-    const thisMonthExpenses = filteredForMetrics.filter(expense => {
+    const thisMonthExpenses = filteredExpenses.filter(expense => {
       const expenseDate = parseISO(expense.date);
       return isWithinInterval(expenseDate, { start: thisMonthStart, end: thisMonthEnd });
     }).reduce((sum, e) => sum + e.amount, 0);
     
-    const lastMonthExpenses = filteredForMetrics.filter(expense => {
+    const lastMonthExpenses = filteredExpenses.filter(expense => {
       const expenseDate = parseISO(expense.date);
       return isWithinInterval(expenseDate, { start: lastMonthStart, end: lastMonthEnd });
     }).reduce((sum, e) => sum + e.amount, 0);
@@ -342,43 +320,97 @@ const ExpensesPage: React.FC = () => {
       lastMonthExpenses,
       monthlyGrowth
     };
-  }, [allExpenses, searchQuery, filters]);
+  }, [filteredExpenses]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!gym?._id) return;
-    
-    setIsLoading(true);
-
-    try {
+  // **OPTIMIZATION 7: Mutations for CRUD operations**
+  const createExpenseMutation = useMutation({
+    mutationFn: async (data: any) => {
       const response = await axiosInstance.post('/gym/expenses', {
-        ...formData,
-        amount: parseFloat(formData.amount),
-        gymId: gym._id
+        ...data,
+        amount: parseFloat(data.amount),
+        gymId: gym?._id
       });
-      
-      if (response.data) {
-        // Add to allExpenses state
-        setAllExpenses(prev => [response.data, ...prev]);
-        toast({
-          title: 'Success',
-          description: 'Expense added successfully',
-        });
-        setIsAddDialogOpen(false);
-        resetForm();
-      }
-    } catch (error) {
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['expenses', gym?._id] });
+      toast({
+        title: 'Success',
+        description: 'Expense added successfully',
+      });
+      setIsAddDialogOpen(false);
+      resetForm();
+    },
+    onError: () => {
       toast({
         title: 'Error',
         description: 'Failed to add expense',
         variant: 'destructive',
       });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    },
+  });
 
-  const handleEdit = (expense: Expense) => {
+  const updateExpenseMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string, data: any }) => {
+      const response = await axiosInstance.put(`/gym/expenses/${id}?gymId=${gym?._id}`, {
+        ...data,
+        amount: parseFloat(data.amount),
+        gymId: gym?._id
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['expenses', gym?._id] });
+      toast({
+        title: 'Success',
+        description: 'Expense updated successfully',
+      });
+      setIsEditDialogOpen(false);
+      setEditingExpense(null);
+      resetForm();
+    },
+    onError: () => {
+      toast({
+        title: 'Error',
+        description: 'Failed to update expense',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const deleteExpenseMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await axiosInstance.delete(`/gym/expenses/${id}?gymId=${gym?._id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['expenses', gym?._id] });
+      toast({
+        title: 'Success',
+        description: 'Expense deleted successfully',
+      });
+    },
+    onError: () => {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete expense',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Reset page to 1 when filters or search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filters, rowsPerPage]);
+
+  // **OPTIMIZATION 8: Memoized event handlers**
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!gym?._id) return;
+    createExpenseMutation.mutate(formData);
+  }, [formData, gym?._id, createExpenseMutation]);
+
+  const handleEdit = useCallback((expense: Expense) => {
     setEditingExpense(expense);
     setFormData({
       amount: expense.amount.toString(),
@@ -387,82 +419,32 @@ const ExpensesPage: React.FC = () => {
       date: format(parseISO(expense.date), 'yyyy-MM-dd'),
     });
     setIsEditDialogOpen(true);
-  };
+  }, []);
 
-  const handleView = (expense: Expense) => {
+  const handleView = useCallback((expense: Expense) => {
     setViewingExpense(expense);
     setIsViewDialogOpen(true);
-  };
+  }, []);
 
-  const handleUpdate = async (e: React.FormEvent) => {
+  const handleUpdate = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!gym?._id || !editingExpense) return;
-    
-    setIsLoading(true);
+    updateExpenseMutation.mutate({ id: editingExpense._id, data: formData });
+  }, [formData, gym?._id, editingExpense, updateExpenseMutation]);
 
-    try {
-      const response = await axiosInstance.put(`/gym/expenses/${editingExpense._id}?gymId=${gym._id}`, {
-        ...formData,
-        amount: parseFloat(formData.amount),
-        gymId: gym._id
-      });
-      
-      if (response.data) {
-        // Update allExpenses state
-        setAllExpenses(prev => prev.map(exp => exp._id === editingExpense._id ? response.data : exp));
-        toast({
-          title: 'Success',
-          description: 'Expense updated successfully',
-        });
-        setIsEditDialogOpen(false);
-        setEditingExpense(null);
-        resetForm();
-      }
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to update expense',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleDeleteClick = (expenseId: string) => {
+  const handleDeleteClick = useCallback((expenseId: string) => {
     setExpenseToDelete(expenseId);
     setIsDeleteDialogOpen(true);
-  };
+  }, []);
 
-  const handleDeleteConfirm = async () => {
+  const handleDeleteConfirm = useCallback(async () => {
     if (!expenseToDelete || !gym?._id) return;
-    
-    setIsLoading(true);
-    try {
-      await axiosInstance.delete(`/gym/expenses/${expenseToDelete}?gymId=${gym._id}`);
-      
-      // Remove from allExpenses state
-      setAllExpenses(prev => prev.filter(exp => exp._id !== expenseToDelete));
-      toast({
-        title: 'Success',
-        description: 'Expense deleted successfully',
-      });
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to delete expense',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-      setIsDeleteDialogOpen(false);
-      setExpenseToDelete(null);
-    }
-  };
+    deleteExpenseMutation.mutate(expenseToDelete);
+    setIsDeleteDialogOpen(false);
+    setExpenseToDelete(null);
+  }, [expenseToDelete, gym?._id, deleteExpenseMutation]);
 
-  const handleExport = () => {
-    const filteredExpenses = applyClientSideFilters(allExpenses);
-    
+  const handleExport = useCallback(() => {
     if (!filteredExpenses || filteredExpenses.length === 0) {
       toast({
         title: "Info",
@@ -493,9 +475,9 @@ const ExpensesPage: React.FC = () => {
       title: "Success",
       description: `${filteredExpenses.length} expense records exported successfully!`,
     });
-  };
+  }, [filteredExpenses, toast]);
 
-  const clearAllFilters = () => {
+  const clearAllFilters = useCallback(() => {
     setFilters({
       category: 'all',
       dateRange: 'all',
@@ -504,31 +486,34 @@ const ExpensesPage: React.FC = () => {
       sortOrder: 'desc',
     });
     setSearchQuery('');
-  };
+  }, []);
 
-  const hasActiveFilters = 
-    searchQuery ||
-    (filters.category && filters.category !== 'all') ||
-    (filters.dateRange && filters.dateRange !== 'all') ||
-    (filters.amountRange && filters.amountRange !== 'all') ||
-    (filters.sortBy && filters.sortBy !== 'newest');
-
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setFormData({
       amount: '',
       description: '',
       category: '',
       date: format(new Date(), 'yyyy-MM-dd'),
     });
-  };
+  }, []);
 
-  // Pagination calculations
+  // **OPTIMIZATION 9: Memoized computed values**
+  const hasActiveFilters = useMemo(() => 
+    searchQuery ||
+    (filters.category && filters.category !== 'all') ||
+    (filters.dateRange && filters.dateRange !== 'all') ||
+    (filters.amountRange && filters.amountRange !== 'all') ||
+    (filters.sortBy && filters.sortBy !== 'newest'),
+    [searchQuery, filters]
+  );
+
+  const totalExpenses = filteredExpenses.length;
   const totalPages = Math.ceil(totalExpenses / rowsPerPage);
   const startItem = (currentPage - 1) * rowsPerPage + 1;
   const endItem = Math.min(currentPage * rowsPerPage, totalExpenses);
 
-  // Generate page numbers for pagination
-  const getPageNumbers = () => {
+  // **OPTIMIZATION 10: Memoized pagination calculation**
+  const pageNumbers = useMemo(() => {
     const pages = [];
     const maxVisiblePages = 5;
     
@@ -561,9 +546,10 @@ const ExpensesPage: React.FC = () => {
     }
     
     return pages;
-  };
+  }, [totalPages, currentPage]);
 
-  const getCategoryIcon = (category: string) => {
+  // **OPTIMIZATION 11: Memoized helper functions**
+  const getCategoryIcon = useCallback((category: string) => {
     switch (category.toLowerCase()) {
       case 'gym':
         return <Building className="h-4 w-4" />;
@@ -572,18 +558,18 @@ const ExpensesPage: React.FC = () => {
       default:
         return <FileText className="h-4 w-4" />;
     }
-  };
+  }, []);
 
-  const getCategoryBadgeVariant = (category: string) => {
+  const getCategoryBadgeVariant = useCallback((category: string) => {
     switch (category.toLowerCase()) {
       case 'gym':
-        return 'default';
+        return 'default' as const;
       case 'retail':
-        return 'secondary';
+        return 'secondary' as const;
       default:
-        return 'outline';
+        return 'outline' as const;
     }
-  };
+  }, []);
 
   if (isAuthLoading || isLoading) {
     return (
@@ -911,7 +897,7 @@ const ExpensesPage: React.FC = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {expenses.map((expense, index) => (
+                    {paginatedExpenses.map((expense, index) => (
                       <motion.tr
                         key={expense._id}
                         initial={{ opacity: 0, y: 10 }}
@@ -964,7 +950,7 @@ const ExpensesPage: React.FC = () => {
                         </TableCell>
                       </motion.tr>
                     ))}
-                    {(!expenses || expenses.length === 0) && (
+                    {(!paginatedExpenses || paginatedExpenses.length === 0) && (
                       <TableRow>
                         <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
                           <div className="flex flex-col items-center space-y-2">
@@ -1017,7 +1003,7 @@ const ExpensesPage: React.FC = () => {
                     </Button>
 
                     <div className="flex items-center gap-1">
-                      {getPageNumbers().map((page, index) => (
+                      {pageNumbers.map((page, index) => (
                         <React.Fragment key={index}>
                           {page === '...' ? (
                             <span className="px-2 py-1 text-muted-foreground">...</span>
@@ -1140,8 +1126,8 @@ const ExpensesPage: React.FC = () => {
                 <Button variant="outline" type="button" onClick={() => setIsAddDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? 'Adding...' : 'Add Expense'}
+                <Button type="submit" disabled={createExpenseMutation.isPending}>
+                  {createExpenseMutation.isPending ? 'Adding...' : 'Add Expense'}
                 </Button>
               </DialogFooter>
             </form>
@@ -1226,8 +1212,8 @@ const ExpensesPage: React.FC = () => {
                 <Button variant="outline" type="button" onClick={() => setIsEditDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? 'Updating...' : 'Update Expense'}
+                <Button type="submit" disabled={updateExpenseMutation.isPending}>
+                  {updateExpenseMutation.isPending ? 'Updating...' : 'Update Expense'}
                 </Button>
               </DialogFooter>
             </form>
