@@ -114,7 +114,6 @@ const NotificationsPage: React.FC = () => {
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedNotification) return;
-    
     setEditing(true);
     try {
       await updateNotificationMutation.mutateAsync({
@@ -122,7 +121,7 @@ const NotificationsPage: React.FC = () => {
         data: {
           title: form.title,
           message: form.message,
-          expiresAt: form.expiresAt || undefined
+          expiresAt: form.expiresAt ? new Date(form.expiresAt) : undefined
         }
       });
     } finally {
@@ -139,7 +138,7 @@ const NotificationsPage: React.FC = () => {
         title: form.title,
         message: form.message,
         type: 'broadcast',
-        expiresAt: form.expiresAt || undefined,
+        expiresAt: form.expiresAt ? new Date(form.expiresAt) : undefined,
         broadcast: true
       });
       toast.success('Notification sent successfully');
@@ -295,7 +294,7 @@ const NotificationsPage: React.FC = () => {
                               {notification.expiresAt && (
                                 <div className="flex items-center text-red-500">
                                   <Calendar className="h-3 w-3 mr-1" />
-                                  Expires: {format(new Date(notification.expiresAt), 'MMM d, yyyy h:mm a')}
+                                  Expires: {notification.expiresAt ? new Date(notification.expiresAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : ''}
                                 </div>
                               )}
                             </div>

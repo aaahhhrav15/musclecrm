@@ -149,6 +149,12 @@ export function CustomersPage() {
 
   // Helper functions for filtering
   const calculateExpiryDate = (customer: Customer) => {
+    // Use the actual membershipEndDate from the database if available
+    if (customer.membershipEndDate) {
+      return new Date(customer.membershipEndDate);
+    }
+    
+    // Fallback to calculation if membershipEndDate is not available
     if (!customer.membershipStartDate || !customer.membershipDuration) return null;
     const startDate = new Date(customer.membershipStartDate);
     return addMonths(startDate, customer.membershipDuration);
@@ -242,7 +248,7 @@ export function CustomersPage() {
             return !isExpired && !isExpiring;
           case 'expired':
             return isExpired;
-          case 'expiring':
+          case 'expiringSoon':
             return isExpiring && !isExpired;
           default:
             return true;
@@ -259,16 +265,18 @@ export function CustomersPage() {
         const daysUntilExpiry = differenceInDays(expiryDate, new Date());
         
         switch (filters.expiryFilter) {
-          case 'expired':
-            return daysUntilExpiry < 0;
-          case 'expiring_7days':
-            return daysUntilExpiry >= 0 && daysUntilExpiry <= 7;
-          case 'expiring_30days':
+          case '1day':
+            return daysUntilExpiry >= 0 && daysUntilExpiry <= 1;
+          case '2days':
+            return daysUntilExpiry >= 0 && daysUntilExpiry <= 2;
+          case '3days':
+            return daysUntilExpiry >= 0 && daysUntilExpiry <= 3;
+          case '5days':
+            return daysUntilExpiry >= 0 && daysUntilExpiry <= 5;
+          case '10days':
+            return daysUntilExpiry >= 0 && daysUntilExpiry <= 10;
+          case '30days':
             return daysUntilExpiry >= 0 && daysUntilExpiry <= 30;
-          case 'expiring_90days':
-            return daysUntilExpiry >= 0 && daysUntilExpiry <= 90;
-          case 'active_long':
-            return daysUntilExpiry > 90;
           default:
             return true;
         }

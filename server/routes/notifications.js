@@ -188,7 +188,11 @@ router.post('/gym', auth, async (req, res) => {
         message,
         type: 'broadcast',
         data: data || {},
-        expiresAt: expiresAt ? new Date(expiresAt) : undefined,
+        expiresAt: expiresAt
+          ? (typeof expiresAt === 'string' && !expiresAt.match(/Z|[+-]\d{2}:\d{2}$/)
+              ? new Date(expiresAt + ':00')
+              : new Date(expiresAt))
+          : undefined,
         broadcast: true
       });
       return res.status(201).json({ success: true, notification: newNotification });
@@ -200,7 +204,11 @@ router.post('/gym', auth, async (req, res) => {
       message,
       type,
       data: data || {},
-      expiresAt: expiresAt ? new Date(expiresAt) : undefined,
+      expiresAt: expiresAt
+        ? (typeof expiresAt === 'string' && !expiresAt.match(/Z|[+-]\d{2}:\d{2}$/)
+            ? new Date(expiresAt + ':00')
+            : new Date(expiresAt))
+        : undefined,
       broadcast: false
     });
     res.status(201).json({ success: true, notification: newNotification });
@@ -225,7 +233,11 @@ router.put('/:id', auth, async (req, res) => {
       {
         title,
         message,
-        expiresAt: expiresAt ? new Date(expiresAt) : undefined
+        expiresAt: expiresAt
+          ? (typeof expiresAt === 'string' && !expiresAt.match(/Z|[+-]\d{2}:\d{2}$/)
+              ? new Date(expiresAt + ':00')
+              : new Date(expiresAt))
+          : undefined
       },
       { new: true }
     );

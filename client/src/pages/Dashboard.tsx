@@ -109,11 +109,11 @@ const MetricCard: React.FC<MetricCardProps> = ({
             <div className="text-2xl font-bold">
               {format === "currency"
                 ? formatCurrency(
-                    typeof value === "string" ? parseFloat(value) : value
+                    typeof value === "string" ? parseFloat(value) : (value || 0)
                   )
                 : typeof value === "string"
                 ? value
-                : value.toLocaleString()}
+                : (value || 0).toLocaleString()}
             </div>
           )}
           <p className="text-xs text-muted-foreground flex items-center">
@@ -132,7 +132,7 @@ const defaultMetrics = {
     totalMembers: 0,
     activeMembers: 0,
     inactiveMembers: 0,
-    todayExpiry: 0,
+    expiringIn7Days: 0,
     todayEmployees: 0,
     todayEnrolled: 0,
     totalMemberAmount: 0,
@@ -230,18 +230,21 @@ const Dashboard: React.FC = () => {
     },
   });
 
-  // Helper functions for filtering (copied from CustomersPage)
-  const calculateExpiryDate = (customer: Customer) => {
-    if (!customer.membershipStartDate || !customer.membershipDuration) return null;
-    const startDate = new Date(customer.membershipStartDate);
-    return addMonths(startDate, customer.membershipDuration);
-  };
-
-  const isCustomerExpired = (customer: Customer) => {
-    const expiryDate = calculateExpiryDate(customer);
-    if (!expiryDate) return false;
-    return new Date() > expiryDate;
-  };
+  // Restore the correct expiringCustomers logic after customerData is defined and before memberMetrics
+  const expiringCustomers = React.useMemo(() => {
+    if (!customerData) return [];
+    const today = new Date();
+    const sevenDaysFromNow = new Date();
+    sevenDaysFromNow.setDate(today.getDate() + 7);
+    today.setHours(0,0,0,0);
+    sevenDaysFromNow.setHours(0,0,0,0);
+    return customerData.filter(c => {
+      if (!c.membershipEndDate) return false;
+      const endDate = new Date(c.membershipEndDate);
+      endDate.setHours(0,0,0,0);
+      return endDate >= today && endDate <= sevenDaysFromNow;
+    });
+  }, [customerData]);
 
   // Calculate member metrics from customer data
   const memberMetrics = React.useMemo(() => {
@@ -249,23 +252,15 @@ const Dashboard: React.FC = () => {
       totalMembers: 0,
       activeMembers: 0,
       inactiveMembers: 0,
-      expiringToday: 0,
+      expiringIn7Days: 0,
     };
 
     const totalMembers = customerData.length;
-    console.log('Total customers:', totalMembers);
-    console.log('Sample customer data:', customerData.slice(0, 3).map(c => ({
-      name: c.name,
-      membershipEndDate: c.membershipEndDate,
-      membershipType: c.membershipType
-    })));
-
     // Active: membershipEndDate is today or in the future (>= current date)
     const activeMembers = customerData.filter(c => {
       if (!c.membershipEndDate) return false;
       const endDate = new Date(c.membershipEndDate);
       const today = new Date();
-      // Set time to 00:00:00 for both dates to compare only the date part
       endDate.setHours(0,0,0,0);
       today.setHours(0,0,0,0);
       return endDate >= today;
@@ -281,27 +276,13 @@ const Dashboard: React.FC = () => {
       return endDate < today;
     }).length;
 
-    console.log('Active members:', activeMembers);
-    console.log('Inactive members:', inactiveMembers);
-    console.log('Today date:', new Date().toISOString().split('T')[0]);
-
-    // Expiring today: expiry date is today
-    const expiringToday = customerData.filter(c => {
-      if (!c.membershipEndDate) return false;
-      const endDate = new Date(c.membershipEndDate);
-      const today = new Date();
-      endDate.setHours(0,0,0,0);
-      today.setHours(0,0,0,0);
-      return endDate.getTime() === today.getTime();
-    }).length;
-
     return {
       totalMembers,
       activeMembers,
       inactiveMembers,
-      expiringToday,
+      expiringIn7Days: expiringCustomers.length,
     };
-  }, [customerData]);
+  }, [customerData, expiringCustomers.length]);
 
   const metrics = dashboardData || defaultMetrics;
 
@@ -313,7 +294,7 @@ const Dashboard: React.FC = () => {
       totalMembers: memberMetrics.totalMembers,
       activeMembers: memberMetrics.activeMembers,
       inactiveMembers: memberMetrics.inactiveMembers,
-      todayExpiry: memberMetrics.expiringToday,
+      expiringIn7Days: memberMetrics.expiringIn7Days,
     }
   };
 
@@ -451,6 +432,13 @@ const Dashboard: React.FC = () => {
   const [modalData, setModalData] = useState<Customer[] | Staff[] | Lead[]>([]);
   const [modalLoading, setModalLoading] = useState(false);
 
+  // 1. Calculate expiringCustomers ONCE at the top level
+  // (Replace any expiringIn7Days or similar with expiringCustomers.length)
+
+  // 2. Use expiringCustomers.length for the dashboard metric
+  // (Replace any expiringIn7Days or similar with expiringCustomers.length)
+
+  // 3. In handleOpenModal, use expiringCustomers for the modal
   const handleOpenModal = async (type: ModalType) => {
     setModalType(type);
     setModalOpen(true);
@@ -481,22 +469,10 @@ const Dashboard: React.FC = () => {
             s.dateOfBirth && s.dateOfBirth.slice(5, 10) === `${month}-${day}`
         );
       } else if (type === "expiring") {
-        // Fetch all customers for expiring modal
-        let allCustomers: Customer[] = [];
-        let page = 1;
-        const pageSize = 100;
-        let total = 0;
-        do {
-          const { customers, total: t } = await CustomerService.getCustomers({ page, limit: pageSize });
-          allCustomers = allCustomers.concat(customers);
-          total = t;
-          page++;
-        } while (allCustomers.length < total);
-        const todayStr = new Date().toISOString().slice(0, 10);
-        data = allCustomers.filter(
-          (c) =>
-            c.membershipEndDate && c.membershipEndDate.slice(0, 10) === todayStr
-        );
+        data = expiringCustomers;
+        setModalData(data);
+        setModalLoading(false);
+        return;
       } else if (type === "inactive") {
         // Fetch all customers for inactive modal
         let allCustomers: Customer[] = [];
@@ -578,10 +554,7 @@ const Dashboard: React.FC = () => {
     return (item as Staff).position !== undefined && !(item as Lead).source;
   }
   function isCustomer(item: Customer | Staff | Lead): item is Customer {
-    return (
-      typeof (item as Customer).id === "string" &&
-      typeof (item as Customer).email === "string"
-    );
+    return typeof (item as Customer).id === "string";
   }
 
   function hasFollowUpDate(
@@ -599,11 +572,12 @@ const Dashboard: React.FC = () => {
   }
 
   function getModalRowKey(item: Customer | Staff | Lead): string {
-    if (isCustomer(item) && item.id) return item.id;
-    if (isStaff(item) && item._id) return item._id;
-    if (isLead(item) && item._id) return item._id;
-    // Fallback: use name + Math.random() to guarantee uniqueness if no id
-    return `${item.name || "unknown"}-${Math.random()}`;
+    if (isCustomer(item) && item.id) return `customer-${item.id}`;
+    if (isStaff(item) && item._id) return `staff-${item._id}`;
+    if (isLead(item) && item._id) return `lead-${item._id}`;
+    // Fallback: use name and phone for uniqueness
+    const phone = (typeof (item as Customer | Staff | Lead & { phone?: string }).phone === 'string') ? (item as Customer | Staff | Lead & { phone?: string }).phone : 'no-phone';
+    return `${item.name || "unknown"}-${phone}`;
   }
 
   useEffect(() => {
@@ -691,8 +665,8 @@ const Dashboard: React.FC = () => {
               className="cursor-pointer hover:shadow-lg transition"
             />
             <MetricCard
-              title="Today's Expiring"
-              value={metrics.members.todayExpiry}
+              title="Expiring in 7 Days"
+              value={finalMetrics.members.expiringIn7Days}
               icon={<AlertCircle />}
               isLoading={isLoading}
               gradientFrom="orange-500"
@@ -704,7 +678,7 @@ const Dashboard: React.FC = () => {
             />
             <MetricCard
               title="Today Enrolled"
-              value={metrics.members.todayEnrolled}
+              value={finalMetrics.members.todayEnrolled}
               icon={<UserPlus />}
               isLoading={isLoading}
               gradientFrom="emerald-500"
@@ -716,7 +690,7 @@ const Dashboard: React.FC = () => {
             />
             <MetricCard
               title="Total Member Amount"
-              value={metrics.members.totalMemberAmount}
+              value={finalMetrics.members.totalMemberAmount}
               icon={<DollarSign />}
               format="currency"
               isLoading={isLoading}
@@ -727,7 +701,7 @@ const Dashboard: React.FC = () => {
             />
             <MetricCard
               title="Employee Birthdays"
-              value={metrics.members.todayEmployeeBirthdays}
+              value={finalMetrics.members.todayEmployeeBirthdays}
               icon={<Cake />}
               isLoading={isLoading}
               gradientFrom="pink-500"
@@ -739,7 +713,7 @@ const Dashboard: React.FC = () => {
             />
             <MetricCard
               title="Member Birthdays"
-              value={metrics.members.todayMemberBirthdays}
+              value={finalMetrics.members.todayMemberBirthdays}
               icon={<Gift />}
               isLoading={isLoading}
               gradientFrom="indigo-500"
@@ -751,7 +725,7 @@ const Dashboard: React.FC = () => {
             />
             <MetricCard
               title="Today Invoices"
-              value={metrics.members.todayInvoices}
+              value={finalMetrics.members.todayInvoices}
               icon={<BarChart3 />}
               isLoading={isLoading}
               gradientFrom="cyan-500"
@@ -761,7 +735,7 @@ const Dashboard: React.FC = () => {
             />
             <MetricCard
               title="Total Invoices"
-              value={metrics.members.totalInvoices}
+              value={finalMetrics.members.totalInvoices}
               icon={<BarChart3 />}
               isLoading={isLoading}
               gradientFrom="teal-500"
@@ -771,7 +745,7 @@ const Dashboard: React.FC = () => {
             />
             <MetricCard
               title="Today Due Amount"
-              value={metrics.members.todayDueAmount}
+              value={finalMetrics.members.todayDueAmount}
               icon={<AlertCircle />}
               format="currency"
               isLoading={isLoading}
@@ -815,7 +789,7 @@ const Dashboard: React.FC = () => {
             />
             <MetricCard
               title="Today Enquiry"
-              value={metrics.members.todayEnquiry}
+              value={finalMetrics.members.todayEnquiry}
               icon={<Users />}
               isLoading={isLoading}
               gradientFrom="lime-500"
@@ -827,7 +801,7 @@ const Dashboard: React.FC = () => {
             />
             <MetricCard
               title="Today Follow-Ups"
-              value={metrics.members.todayFollowUps}
+              value={finalMetrics.members.todayFollowUps}
               icon={<Target />}
               isLoading={isLoading}
               gradientFrom="sky-500"
@@ -849,7 +823,7 @@ const Dashboard: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <MetricCard
               title="Member Amount"
-              value={metrics.memberProfit.memberAmount}
+              value={finalMetrics.memberProfit.memberAmount}
               format="currency"
               icon={<DollarSign />}
               isLoading={isLoading}
@@ -892,7 +866,7 @@ const Dashboard: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             <MetricCard
               title="Today Purchase"
-              value={metrics.pos.todayPurchase}
+              value={finalMetrics.pos.todayPurchase}
               format="currency"
               icon={<ShoppingCart />}
               isLoading={isLoading}
@@ -903,7 +877,7 @@ const Dashboard: React.FC = () => {
             />
             <MetricCard
               title="Total Purchase"
-              value={metrics.pos.totalPurchase}
+              value={finalMetrics.pos.totalPurchase}
               format="currency"
               icon={<ShoppingCart />}
               isLoading={isLoading}
@@ -914,7 +888,7 @@ const Dashboard: React.FC = () => {
             />
             <MetricCard
               title="Total Stock Value"
-              value={metrics.pos.totalStockValue}
+              value={finalMetrics.pos.totalStockValue}
               format="currency"
               icon={<BarChart3 />}
               isLoading={isLoading}
@@ -925,7 +899,7 @@ const Dashboard: React.FC = () => {
             />
             <MetricCard
               title="Low Stock Value"
-              value={metrics.pos.lowStockValue}
+              value={finalMetrics.pos.lowStockValue}
               format="currency"
               icon={<AlertCircle />}
               isLoading={isLoading}
@@ -936,7 +910,7 @@ const Dashboard: React.FC = () => {
             />
             <MetricCard
               title="Total Clearing Amount"
-              value={metrics.pos.totalClearingAmount}
+              value={finalMetrics.pos.totalClearingAmount}
               format="currency"
               icon={<DollarSign />}
               isLoading={isLoading}
@@ -947,7 +921,7 @@ const Dashboard: React.FC = () => {
             />
             <MetricCard
               title="Today Sell"
-              value={metrics.pos.todaySell}
+              value={finalMetrics.pos.todaySell}
               format="currency"
               icon={<TrendingUp />}
               isLoading={isLoading}
@@ -958,7 +932,7 @@ const Dashboard: React.FC = () => {
             />
             <MetricCard
               title="Total Sell"
-              value={metrics.pos.totalSell}
+              value={finalMetrics.pos.totalSell}
               format="currency"
               icon={<TrendingUp />}
               isLoading={isLoading}
@@ -969,7 +943,7 @@ const Dashboard: React.FC = () => {
             />
             <MetricCard
               title="Total Sell Purchase Value"
-              value={metrics.pos.totalSellPurchaseValue}
+              value={finalMetrics.pos.totalSellPurchaseValue}
               format="currency"
               icon={<BarChart3 />}
               isLoading={isLoading}
@@ -980,7 +954,7 @@ const Dashboard: React.FC = () => {
             />
             <MetricCard
               title="Today Sell Invoice"
-              value={metrics.pos.todaySellInvoice}
+              value={finalMetrics.pos.todaySellInvoice}
               icon={<BarChart3 />}
               isLoading={isLoading}
               gradientFrom="pink-500"
@@ -990,7 +964,7 @@ const Dashboard: React.FC = () => {
             />
             <MetricCard
               title="Total Sell Invoice"
-              value={metrics.pos.totalSellInvoice}
+              value={finalMetrics.pos.totalSellInvoice}
               icon={<BarChart3 />}
               isLoading={isLoading}
               gradientFrom="rose-500"
@@ -1000,7 +974,7 @@ const Dashboard: React.FC = () => {
             />
             <MetricCard
               title="Sell Due Amount"
-              value={metrics.pos.sellDueAmount}
+              value={finalMetrics.pos.sellDueAmount}
               format="currency"
               icon={<AlertCircle />}
               isLoading={isLoading}
@@ -1011,7 +985,7 @@ const Dashboard: React.FC = () => {
             />
             <MetricCard
               title="Total POS Expense"
-              value={metrics.pos.totalPosExpense}
+              value={finalMetrics.pos.totalPosExpense}
               format="currency"
               icon={<DollarSign />}
               isLoading={isLoading}
@@ -1022,7 +996,7 @@ const Dashboard: React.FC = () => {
             />
             <MetricCard
               title="Today POS Expense"
-              value={metrics.pos.todayPosExpense}
+              value={finalMetrics.pos.todayPosExpense}
               format="currency"
               icon={<DollarSign />}
               isLoading={isLoading}
@@ -1160,13 +1134,52 @@ const Dashboard: React.FC = () => {
                 </thead>
                 <tbody>
                   {(modalData as (Customer | Staff | Lead)[]).map((item) => {
+                    if (isCustomer(item)) {
+                      console.log('Modal row (Customer):', item.name, item.membershipEndDate);
+                    } else {
+                      console.log('Modal row (Other):', item.name);
+                    }
                     if ((modalType === "expiring" || modalType === "inactive") && isCustomer(item)) {
+                      // Debug logging for expiring customers
+                      console.log('Modal customer data:', {
+                        name: item.name,
+                        email: item.email,
+                        phone: item.phone,
+                        membershipEndDate: item.membershipEndDate,
+                        membershipEndDateType: typeof item.membershipEndDate,
+                        id: item.id
+                      });
+                      
+                      // Additional debugging for date parsing
+                      if (item.membershipEndDate) {
+                        const testDate = new Date(item.membershipEndDate);
+                        console.log('Date parsing test for', item.name, ':', {
+                          original: item.membershipEndDate,
+                          parsed: testDate,
+                          isValid: !isNaN(testDate.getTime()),
+                          formatted: testDate.toLocaleDateString("en-GB")
+                        });
+                      }
+                      
                       return (
                         <tr key={getModalRowKey(item)} className="border-b">
                           <td className="p-2">{item.name}</td>
-                          <td className="p-2">{item.email || "-"}</td>
-                          <td className="p-2">{item.phone || "-"}</td>
-                          <td className="p-2">{item.membershipEndDate ? new Date(item.membershipEndDate).toLocaleDateString() : "-"}</td>
+                          <td className="p-2">{item.email || "Not Given"}</td>
+                          <td className="p-2">{item.phone || "Not Given"}</td>
+                          <td className="p-2" style={{ minWidth: '120px', whiteSpace: 'nowrap' }}>
+                            {(() => {
+                              const raw = item.membershipEndDate;
+                              console.log('Rendering End Date for', item.name, ':', raw);
+                              if (!raw) return "Not Given";
+                              try {
+                                const d = new Date(raw);
+                                if (isNaN(d.getTime())) return "Invalid Date";
+                                return d.toLocaleDateString("en-GB");
+                              } catch (error) {
+                                return "Invalid Date";
+                              }
+                            })()}
+                          </td>
                         </tr>
                       );
                     }
@@ -1185,8 +1198,8 @@ const Dashboard: React.FC = () => {
                     return (
                       <tr key={getModalRowKey(item)} className="border-b">
                         <td className="p-2">{item.name}</td>
-                        <td className="p-2">{isCustomer(item) ? item.email || "-" : isStaff(item) ? item.email || "-" : "-"}</td>
-                        <td className="p-2">{isCustomer(item) ? item.phone || "-" : isStaff(item) ? item.phone || "-" : "-"}</td>
+                        <td className="p-2">{item.email || "Not Given"}</td>
+                        <td className="p-2">{item.phone || "Not Given"}</td>
                         {modalType === "employeeBirthdays" && isStaff(item) && (
                           <td className="p-2">{item.position || "-"}</td>
                         )}
