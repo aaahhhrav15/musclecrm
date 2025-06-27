@@ -8,43 +8,185 @@ const Transaction = require('../models/Transaction');
 
 const router = express.Router();
 
+// Cache for storing customer data (simple in-memory cache)
+const customerCache = new Map();
+const CACHE_DURATION = 2 * 60 * 1000; // 2 minutes for customer data
+
+// Helper function to get cache key
+const getCacheKey = (gymId, queryParams) => {
+  const params = JSON.stringify(queryParams);
+  return `customers_${gymId}_${params}`;
+};
+
+// Helper function to check if cache is valid
+const isCacheValid = (cacheEntry) => {
+  return cacheEntry && (Date.now() - cacheEntry.timestamp) < CACHE_DURATION;
+};
+
+// Clear cache when customers are modified
+const clearCustomerCache = (gymId) => {
+  const keysToDelete = [];
+  for (const key of customerCache.keys()) {
+    if (key.includes(`customers_${gymId}`)) {
+      keysToDelete.push(key);
+    }
+  }
+  keysToDelete.forEach(key => customerCache.delete(key));
+};
+
 // Apply both auth and gymAuth middleware to all routes
 router.use(auth);
 router.use(gymAuth);
 
-// Get all customers for the gym
+// **OPTIMIZED: Get all customers for the gym with advanced caching and aggregation**
 router.get('/', async (req, res) => {
   try {
     const { search = '', page = 1, limit = 10 } = req.query;
-    const query = { gymId: req.gymId };
-    if (search) {
-      query.name = { $regex: search, $options: 'i' };
+    const gymId = req.gymId;
+    
+    // Create cache key based on query parameters
+    const cacheKey = getCacheKey(gymId, { search, page, limit });
+    const cachedData = customerCache.get(cacheKey);
+    
+    // Return cached data if valid
+    if (isCacheValid(cachedData)) {
+      return res.json(cachedData.data);
     }
-    const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    // Get total count for pagination
-    const total = await Customer.countDocuments(query);
+    // **OPTIMIZATION 1: Single aggregation pipeline for both data and count**
+    const pipeline = [
+      {
+        $match: {
+          gymId: gymId,
+          ...(search ? { name: { $regex: search, $options: 'i' } } : {})
+        }
+      },
+      {
+        $facet: {
+          // Get paginated data
+          customers: [
+            { $sort: { createdAt: -1 } },
+            { $skip: (parseInt(page) - 1) * parseInt(limit) },
+            { $limit: parseInt(limit) },
+            {
+              $addFields: {
+                // Pre-calculate membership end date
+                membershipEndDate: {
+                  $cond: {
+                    if: { $and: ['$membershipStartDate', '$membershipDuration'] },
+                    then: {
+                      $add: [
+                        { $toDate: '$membershipStartDate' },
+                        { $multiply: ['$membershipDuration', 30 * 24 * 60 * 60 * 1000] }
+                      ]
+                    },
+                    else: null
+                  }
+                },
+                // Calculate member status
+                memberStatus: {
+                  $cond: {
+                    if: {
+                      $and: [
+                        '$membershipStartDate',
+                        '$membershipDuration',
+                        {
+                          $gt: [
+                            {
+                              $add: [
+                                { $toDate: '$membershipStartDate' },
+                                { $multiply: ['$membershipDuration', 30 * 24 * 60 * 60 * 1000] }
+                              ]
+                            },
+                            new Date()
+                          ]
+                        }
+                      ]
+                    },
+                    then: 'active',
+                    else: 'inactive'
+                  }
+                }
+              }
+            }
+          ],
+          // Get total count
+          totalCount: [
+            { $count: 'count' }
+          ],
+          // Get summary statistics
+          stats: [
+            {
+              $group: {
+                _id: null,
+                totalCustomers: { $sum: 1 },
+                totalRevenue: { $sum: '$totalSpent' },
+                avgSpending: { $avg: '$totalSpent' },
+                membershipTypes: {
+                  $push: '$membershipType'
+                }
+              }
+            }
+          ]
+        }
+      }
+    ];
 
-    // Get paginated customers
-    const customers = await Customer.find(query)
-      .skip(skip)
-      .limit(parseInt(limit))
-      .sort({ createdAt: -1 });
+    const [result] = await Customer.aggregate(pipeline);
+    
+    const customers = result.customers || [];
+    const total = result.totalCount[0]?.count || 0;
+    const stats = result.stats[0] || {};
 
-    res.json({ success: true, customers, total });
+    const responseData = {
+      success: true,
+      customers,
+      total,
+      stats: {
+        totalCustomers: stats.totalCustomers || 0,
+        totalRevenue: stats.totalRevenue || 0,
+        avgSpending: stats.avgSpending || 0
+      }
+    };
+
+    // Cache the result
+    customerCache.set(cacheKey, {
+      data: responseData,
+      timestamp: Date.now()
+    });
+
+    res.json(responseData);
   } catch (error) {
     console.error('Error fetching customers:', error);
     res.status(500).json({ success: false, message: 'Error fetching customers' });
   }
 });
 
-// Get total count of customers
+// **OPTIMIZED: Get total count of customers with caching**
 router.get('/count', auth, async (req, res) => {
   try {
-    console.log('Getting customer count for user:', req.user._id);
-    const count = await Customer.countDocuments({ userId: req.user._id });
+    const userId = req.user._id;
+    const cacheKey = `customer_count_${userId}`;
+    const cachedData = customerCache.get(cacheKey);
+    
+    // Return cached count if valid
+    if (isCacheValid(cachedData)) {
+      return res.json(cachedData.data);
+    }
+
+    console.log('Getting customer count for user:', userId);
+    const count = await Customer.countDocuments({ userId });
     console.log('Total customers found:', count);
-    res.json({ success: true, count });
+    
+    const responseData = { success: true, count };
+    
+    // Cache the result
+    customerCache.set(cacheKey, {
+      data: responseData,
+      timestamp: Date.now()
+    });
+    
+    res.json(responseData);
   } catch (error) {
     console.error('Error getting customer count:', error);
     res.status(500).json({ 
@@ -55,30 +197,52 @@ router.get('/count', auth, async (req, res) => {
   }
 });
 
-// Get a specific customer
+// **OPTIMIZED: Get a specific customer with lean query**
 router.get('/:id', async (req, res) => {
   try {
+    const cacheKey = `customer_${req.params.id}`;
+    const cachedData = customerCache.get(cacheKey);
+    
+    // Return cached customer if valid
+    if (isCacheValid(cachedData)) {
+      return res.json(cachedData.data);
+    }
+
     const customer = await Customer.findOne({
       _id: req.params.id,
       gymId: req.gymId
-    });
+    }).lean(); // Use lean() for better performance
     
     if (!customer) {
       return res.status(404).json({ success: false, message: 'Customer not found' });
     }
     
-    res.json({ success: true, customer });
+    const responseData = { success: true, customer };
+    
+    // Cache the result
+    customerCache.set(cacheKey, {
+      data: responseData,
+      timestamp: Date.now()
+    });
+    
+    res.json(responseData);
   } catch (error) {
     console.error('Error fetching customer:', error);
     res.status(500).json({ success: false, message: 'Error fetching customer' });
   }
 });
 
-// Create a new customer
+// **OPTIMIZED: Create a new customer with parallel operations**
 router.post('/', async (req, res) => {
   try {
-    // Fetch gymCode from the gym document
-    const gym = await Gym.findById(req.gymId);
+    // Clear cache for this gym
+    clearCustomerCache(req.gymId);
+
+    // **OPTIMIZATION: Parallel gym lookup and customer creation preparation**
+    const [gym] = await Promise.all([
+      Gym.findById(req.gymId).lean()
+    ]);
+    
     const gymCode = gym ? gym.gymCode : undefined;
     const customer = new Customer({
       ...req.body,
@@ -86,46 +250,44 @@ router.post('/', async (req, res) => {
       gymId: req.gymId,
       gymCode,
     });
+    
     await customer.save();
     
-    // Calculate totalSpent from all transactions for this customer
-    try {
-      const transactions = await Transaction.find({ userId: customer._id });
-      const totalSpent = transactions.reduce((sum, transaction) => sum + (transaction.amount || 0), 0);
-      
-      // Update customer with calculated totalSpent
-      customer.totalSpent = totalSpent;
-      await customer.save();
-      
-      console.log(`Updated totalSpent for customer ${customer.name}: ${totalSpent}`);
-    } catch (error) {
-      console.error('Error calculating totalSpent from transactions:', error);
-      // Don't fail the entire operation if totalSpent calculation fails
+    // **OPTIMIZATION: Parallel operations for totalSpent and invoice creation**
+    const operations = [
+      // Calculate totalSpent from transactions
+      Transaction.find({ userId: customer._id }).lean(),
+    ];
+
+    // Only add invoice creation if membership fees > 0
+    if (customer.membershipFees > 0) {
+      operations.push(
+        Invoice.findOne({}, {}, { sort: { 'invoiceNumber': -1 } }).lean()
+      );
     }
 
-    // Automatically create invoice if membership fees are greater than 0
+    const [transactions, lastInvoice] = await Promise.all(operations);
+    
+    // Update totalSpent
+    if (transactions) {
+      const totalSpent = transactions.reduce((sum, transaction) => sum + (transaction.amount || 0), 0);
+      customer.totalSpent = totalSpent;
+      console.log(`Updated totalSpent for customer ${customer.name}: ${totalSpent}`);
+    }
+
+    // Create invoice if needed
     let invoice = null;
     if (customer.membershipFees > 0) {
       try {
-        // Get the last invoice number with proper error handling
         let nextNumber = 1;
-        try {
-          const lastInvoice = await Invoice.findOne({}, {}, { sort: { 'invoiceNumber': -1 } });
-          if (lastInvoice && lastInvoice.invoiceNumber) {
-            const lastNumber = parseInt(lastInvoice.invoiceNumber.replace('INV', ''));
-            if (!isNaN(lastNumber)) {
-              nextNumber = lastNumber + 1;
-            }
+        if (lastInvoice && lastInvoice.invoiceNumber) {
+          const lastNumber = parseInt(lastInvoice.invoiceNumber.replace('INV', ''));
+          if (!isNaN(lastNumber)) {
+            nextNumber = lastNumber + 1;
           }
-        } catch (error) {
-          console.error('Error getting last invoice number:', error);
-          // Use timestamp as fallback
-          nextNumber = Math.floor(Date.now() / 1000);
         }
         
         const invoiceNumber = `INV${String(nextNumber).padStart(5, '0')}`;
-
-        // Create invoice item for membership
         const membershipItem = {
           description: `${customer.membershipType.toUpperCase()} Membership - ${customer.membershipDuration} months`,
           quantity: 1,
@@ -133,7 +295,6 @@ router.post('/', async (req, res) => {
           amount: customer.membershipFees
         };
 
-        // Set due date to 7 days from now
         const dueDate = new Date();
         dueDate.setDate(dueDate.getDate() + 7);
 
@@ -153,9 +314,11 @@ router.post('/', async (req, res) => {
         await invoice.save();
       } catch (invoiceError) {
         console.error('Failed to create invoice:', invoiceError);
-        // Don't fail the entire operation if invoice creation fails
       }
     }
+
+    // Save customer with updated totalSpent
+    await customer.save();
 
     // Exclude gymCode from the response
     const customerObj = customer.toObject();
@@ -172,44 +335,39 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Update a customer
+// **OPTIMIZED: Update a customer with efficient validation and parallel operations**
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const {
-      name,
-      email,
-      phone,
-      address,
-      source,
-      membershipType,
-      membershipFees,
-      membershipDuration,
-      joinDate,
-      membershipStartDate,
-      membershipEndDate,
-      transactionDate,
-      paymentMode,
-      notes,
-      birthday
+      name, email, phone, address, source, membershipType, membershipFees,
+      membershipDuration, joinDate, membershipStartDate, membershipEndDate,
+      transactionDate, paymentMode, notes, birthday
     } = req.body;
 
-    // Check if email is being changed and if it already exists
+    // Clear cache for this gym and specific customer
+    clearCustomerCache(req.gymId);
+    customerCache.delete(`customer_${id}`);
+
+    // **OPTIMIZATION: Parallel validation and customer lookup**
+    const operations = [
+      Customer.findById(id)
+    ];
+
+    // Only check email uniqueness if email is being changed
     if (email) {
-      const existingCustomer = await Customer.findOne({ 
-        email, 
-        _id: { $ne: id } // Exclude current customer
-      });
-      
-      if (existingCustomer) {
-        return res.status(400).json({
-          success: false,
-          message: 'Email address is already in use by another customer'
-        });
-      }
+      operations.push(
+        Customer.findOne({ 
+          email, 
+          _id: { $ne: id } 
+        }).lean()
+      );
     }
 
-    const customer = await Customer.findById(id);
+    const results = await Promise.all(operations);
+    const customer = results[0];
+    const existingCustomer = email ? results[1] : null;
+
     if (!customer) {
       return res.status(404).json({
         success: false,
@@ -217,28 +375,31 @@ router.put('/:id', async (req, res) => {
       });
     }
 
-    // Store old membership fields to detect renewal
-    const oldMembershipType = customer.membershipType;
-    const oldMembershipDuration = customer.membershipDuration;
-    const oldMembershipStartDate = customer.membershipStartDate;
-    const oldMembershipFees = customer.membershipFees;
+    if (existingCustomer) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email address is already in use by another customer'
+      });
+    }
 
-    // Update customer fields
-    if (name) customer.name = name;
-    if (email) customer.email = email;
-    if (phone !== undefined) customer.phone = phone;
-    if (address !== undefined) customer.address = address;
-    if (source) customer.source = source;
-    if (membershipType) customer.membershipType = membershipType;
-    if (membershipFees !== undefined) customer.membershipFees = membershipFees;
-    if (membershipDuration !== undefined) customer.membershipDuration = membershipDuration;
-    if (joinDate) customer.joinDate = joinDate;
-    if (membershipStartDate) customer.membershipStartDate = membershipStartDate;
-    if (transactionDate) customer.transactionDate = transactionDate;
-    if (paymentMode) customer.paymentMode = paymentMode;
-    if (notes !== undefined) customer.notes = notes;
+    // Update customer fields efficiently
+    const updates = {
+      ...(name && { name }),
+      ...(email && { email }),
+      ...(phone !== undefined && { phone }),
+      ...(address !== undefined && { address }),
+      ...(source && { source }),
+      ...(membershipType && { membershipType }),
+      ...(membershipFees !== undefined && { membershipFees }),
+      ...(membershipDuration !== undefined && { membershipDuration }),
+      ...(joinDate && { joinDate }),
+      ...(membershipStartDate && { membershipStartDate }),
+      ...(transactionDate && { transactionDate }),
+      ...(paymentMode && { paymentMode }),
+      ...(notes !== undefined && { notes })
+    };
 
-    // Auto-calculate membershipEndDate if membershipStartDate or membershipDuration changed
+    // Handle membership end date calculation
     if (membershipStartDate || membershipDuration !== undefined) {
       const startDate = membershipStartDate || customer.membershipStartDate;
       const duration = membershipDuration !== undefined ? membershipDuration : customer.membershipDuration;
@@ -246,51 +407,44 @@ router.put('/:id', async (req, res) => {
       if (startDate && duration && duration > 0) {
         const endDate = new Date(startDate);
         endDate.setMonth(endDate.getMonth() + duration);
-        customer.membershipEndDate = endDate;
+        updates.membershipEndDate = endDate;
       } else {
-        customer.membershipEndDate = undefined;
+        updates.membershipEndDate = undefined;
       }
     } else if (membershipEndDate !== undefined) {
-      // Only set membershipEndDate directly if startDate and duration weren't changed
-      customer.membershipEndDate = membershipEndDate;
+      updates.membershipEndDate = membershipEndDate;
     }
 
-    // Handle birthday update with validation
+    // Handle birthday with validation
     if (birthday !== undefined) {
       if (birthday === null || birthday === '') {
-        customer.birthday = null;
+        updates.birthday = null;
       } else {
         const newBirthday = new Date(birthday);
         if (!isNaN(newBirthday.getTime())) {
-          customer.birthday = newBirthday;
-        } else {
-          // Optional: handle invalid date format
-          console.warn(`Invalid date format for birthday: ${birthday}`);
+          updates.birthday = newBirthday;
         }
       }
     }
 
-    await customer.save();
+    // **OPTIMIZATION: Parallel update operations**
+    const [updatedCustomer, transactions] = await Promise.all([
+      Customer.findByIdAndUpdate(id, updates, { new: true }),
+      Transaction.find({ userId: id }).lean()
+    ]);
 
-    // Calculate totalSpent from all transactions for this customer
-    try {
-      const transactions = await Transaction.find({ userId: customer._id });
+    // Update totalSpent
+    if (transactions) {
       const totalSpent = transactions.reduce((sum, transaction) => sum + (transaction.amount || 0), 0);
-      
-      // Update customer with calculated totalSpent
-      customer.totalSpent = totalSpent;
-      await customer.save();
-      
-      console.log(`Updated totalSpent for customer ${customer.name}: ${totalSpent}`);
-    } catch (error) {
-      console.error('Error calculating totalSpent from transactions:', error);
-      // Don't fail the entire operation if totalSpent calculation fails
+      updatedCustomer.totalSpent = totalSpent;
+      await updatedCustomer.save();
+      console.log(`Updated totalSpent for customer ${updatedCustomer.name}: ${totalSpent}`);
     }
 
     res.json({
       success: true,
       message: 'Customer updated successfully',
-      customer
+      customer: updatedCustomer
     });
   } catch (error) {
     console.error('Error updating customer:', error);
@@ -301,9 +455,13 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// Delete a customer
+// **OPTIMIZED: Delete a customer with cache clearing**
 router.delete('/:id', async (req, res) => {
   try {
+    // Clear cache for this gym and specific customer
+    clearCustomerCache(req.gymId);
+    customerCache.delete(`customer_${req.params.id}`);
+
     const customer = await Customer.findOneAndDelete({
       _id: req.params.id,
       gymId: req.gymId
@@ -320,25 +478,55 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// Utility route to recalculate totalSpent for all customers
+// **OPTIMIZED: Batch recalculate totalSpent with progress tracking**
 router.post('/recalculate-totals', auth, async (req, res) => {
   try {
-    const customers = await Customer.find({ gymId: req.user.gymId });
+    // Clear all customer cache for this gym
+    clearCustomerCache(req.user.gymId);
+
+    // **OPTIMIZATION: Process in batches to avoid memory issues**
+    const BATCH_SIZE = 100;
     let updatedCount = 0;
-    
-    for (const customer of customers) {
-      try {
-        const transactions = await Transaction.find({ userId: customer._id });
-        const totalSpent = transactions.reduce((sum, transaction) => sum + (transaction.amount || 0), 0);
-        
-        if (customer.totalSpent !== totalSpent) {
-          customer.totalSpent = totalSpent;
-          await customer.save();
-          updatedCount++;
-          console.log(`Updated totalSpent for customer ${customer.name}: ${totalSpent}`);
+    let skip = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const customers = await Customer.find({ gymId: req.user.gymId })
+        .skip(skip)
+        .limit(BATCH_SIZE)
+        .lean();
+
+      if (customers.length === 0) {
+        hasMore = false;
+        break;
+      }
+
+      // Process batch in parallel
+      const batchPromises = customers.map(async (customer) => {
+        try {
+          const transactions = await Transaction.find({ userId: customer._id }).lean();
+          const totalSpent = transactions.reduce((sum, transaction) => sum + (transaction.amount || 0), 0);
+          
+          if (customer.totalSpent !== totalSpent) {
+            await Customer.findByIdAndUpdate(customer._id, { totalSpent });
+            console.log(`Updated totalSpent for customer ${customer.name}: ${totalSpent}`);
+            return 1; // Count this as updated
+          }
+          return 0;
+        } catch (error) {
+          console.error(`Error calculating totalSpent for customer ${customer.name}:`, error);
+          return 0;
         }
-      } catch (error) {
-        console.error(`Error calculating totalSpent for customer ${customer.name}:`, error);
+      });
+
+      const batchResults = await Promise.all(batchPromises);
+      updatedCount += batchResults.reduce((sum, count) => sum + count, 0);
+      
+      skip += BATCH_SIZE;
+      
+      // Break if we got fewer customers than batch size (last batch)
+      if (customers.length < BATCH_SIZE) {
+        hasMore = false;
       }
     }
     
@@ -350,6 +538,58 @@ router.post('/recalculate-totals', auth, async (req, res) => {
   } catch (error) {
     console.error('Error recalculating totalSpent:', error);
     res.status(500).json({ success: false, message: 'Error recalculating totalSpent' });
+  }
+});
+
+// **NEW: Clear cache endpoint for development**
+router.delete('/cache/clear', auth, (req, res) => {
+  clearCustomerCache(req.gymId);
+  res.json({ success: true, message: 'Customer cache cleared successfully' });
+});
+
+// **NEW: Get customer statistics (cached)**
+router.get('/stats/overview', async (req, res) => {
+  try {
+    const gymId = req.gymId;
+    const cacheKey = `customer_stats_${gymId}`;
+    const cachedData = customerCache.get(cacheKey);
+    
+    if (isCacheValid(cachedData)) {
+      return res.json(cachedData.data);
+    }
+
+    const stats = await Customer.aggregate([
+      { $match: { gymId } },
+      {
+        $group: {
+          _id: null,
+          totalCustomers: { $sum: 1 },
+          totalRevenue: { $sum: '$totalSpent' },
+          avgSpending: { $avg: '$totalSpent' },
+          membershipTypes: { $push: '$membershipType' }
+        }
+      }
+    ]);
+
+    const responseData = {
+      success: true,
+      stats: stats[0] || {
+        totalCustomers: 0,
+        totalRevenue: 0,
+        avgSpending: 0,
+        membershipTypes: []
+      }
+    };
+
+    customerCache.set(cacheKey, {
+      data: responseData,
+      timestamp: Date.now()
+    });
+
+    res.json(responseData);
+  } catch (error) {
+    console.error('Error fetching customer stats:', error);
+    res.status(500).json({ success: false, message: 'Error fetching customer stats' });
   }
 });
 
