@@ -163,7 +163,10 @@ export function CustomersPage() {
   const isCustomerExpired = (customer: Customer) => {
     const expiryDate = calculateExpiryDate(customer);
     if (!expiryDate) return false;
-    return new Date() > expiryDate;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    expiryDate.setHours(0, 0, 0, 0);
+    return expiryDate < today;
   };
 
   const isCustomerExpiringSoon = (customer: Customer, days: number) => {

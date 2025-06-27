@@ -92,7 +92,7 @@ interface AttendanceHistoryApiResponse {
   };
 }
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://flexcrm-ui-suite-production.up.railway.app/api';
+const API_URL = import.meta.env.VITE_API_URL || 'https://flexcrm-ui-suite-production-ec9f.up.railway.app/api';
 
 const AttendancePage: React.FC = () => {
   const { user } = useAuth();

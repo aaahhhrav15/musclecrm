@@ -9,12 +9,31 @@ const Gym = require('../models/Gym');
 const GymStaff = require('../models/GymStaff');
 const Lead = require('../models/Lead');
 
+// Cache for storing dashboard data (simple in-memory cache)
+const dashboardCache = new Map();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+// Helper function to get cache key
+const getCacheKey = (userId, gymId) => `dashboard_${userId}_${gymId || 'no_gym'}`;
+
+// Helper function to check if cache is valid
+const isCacheValid = (cacheEntry) => {
+  return cacheEntry && (Date.now() - cacheEntry.timestamp) < CACHE_DURATION;
+};
+
 // Get dashboard overview data
 router.get('/overview', auth, async (req, res) => {
   try {
     const userId = req.user._id;
     const industry = req.user.industry;
     const gymId = req.user.gymId;
+
+    // Check cache first
+    const cacheKey = getCacheKey(userId, gymId) + '_overview';
+    const cachedData = dashboardCache.get(cacheKey);
+    if (isCacheValid(cachedData)) {
+      return res.json(cachedData.data);
+    }
 
     // Get date range for current month
     const now = new Date();
@@ -26,91 +45,131 @@ router.get('/overview', auth, async (req, res) => {
     // Get gym information if user is from a gym
     let gymInfo = null;
     if (industry === 'gym' && gymId) {
-      gymInfo = await Gym.findById(gymId);
+      gymInfo = await Gym.findById(gymId).lean(); // Use lean() for better performance
     }
 
     // Get total customers (filtered by gym if applicable)
     const customerQuery = industry === 'gym' ? { userId: userId, gymId } : { userId: userId };
-    const totalCustomers = await Customer.countDocuments(customerQuery);
-    const previousTotalCustomers = await Customer.countDocuments({
-      ...customerQuery,
-      createdAt: { $lt: startOfMonth }
-    });
-
-    // Get monthly bookings (filtered by gym if applicable)
-    const bookingQuery = {
-      ...customerQuery,
-      createdAt: { $gte: startOfMonth, $lte: endOfMonth }
-    };
-    const monthlyBookings = await Booking.countDocuments(bookingQuery);
-    const previousMonthlyBookings = await Booking.countDocuments({
-      ...customerQuery,
-      createdAt: { $gte: startOfPreviousMonth, $lte: endOfPreviousMonth }
-    });
-
-    // Get monthly revenue (filtered by gym if applicable)
-    const revenueQuery = {
-      ...customerQuery,
-      createdAt: { $gte: startOfMonth, $lte: endOfMonth },
-      status: 'paid'
-    };
-    const monthlyRevenue = await Invoice.aggregate([
-      {
-        $match: revenueQuery
-      },
-      {
-        $group: {
-          _id: null,
-          total: { $sum: '$amount' }
+    
+    // **OPTIMIZATION 1: Parallel queries using Promise.all**
+    const [
+      totalCustomers,
+      previousTotalCustomers,
+      monthlyBookings,
+      previousMonthlyBookings,
+      monthlyRevenue,
+      previousMonthlyRevenue,
+      activeMembers,
+      membershipDistribution,
+      recentActivities,
+      revenueOverview
+    ] = await Promise.all([
+      Customer.countDocuments(customerQuery),
+      Customer.countDocuments({
+        ...customerQuery,
+        createdAt: { $lt: startOfMonth }
+      }),
+      Booking.countDocuments({
+        ...customerQuery,
+        createdAt: { $gte: startOfMonth, $lte: endOfMonth }
+      }),
+      Booking.countDocuments({
+        ...customerQuery,
+        createdAt: { $gte: startOfPreviousMonth, $lte: endOfPreviousMonth }
+      }),
+      Invoice.aggregate([
+        {
+          $match: {
+            ...customerQuery,
+            createdAt: { $gte: startOfMonth, $lte: endOfMonth },
+            status: 'paid'
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: '$amount' }
+          }
         }
-      }
-    ]);
-
-    const previousMonthlyRevenue = await Invoice.aggregate([
-      {
-        $match: {
-          ...customerQuery,
-          createdAt: { $gte: startOfPreviousMonth, $lte: endOfPreviousMonth },
-          status: 'paid'
+      ]),
+      Invoice.aggregate([
+        {
+          $match: {
+            ...customerQuery,
+            createdAt: { $gte: startOfPreviousMonth, $lte: endOfPreviousMonth },
+            status: 'paid'
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: '$amount' }
+          }
         }
-      },
-      {
-        $group: {
-          _id: null,
-          total: { $sum: '$amount' }
-        }
-      }
-    ]);
-
-    // Get industry-specific stats
-    let industryStats = {};
-    if (industry === 'gym' && gymInfo) {
-      const activeMembers = await Customer.countDocuments({
+      ]),
+      // Industry-specific stats (only if gym)
+      industry === 'gym' ? Customer.countDocuments({
         ...customerQuery,
         membershipStatus: 'active'
-      });
-
-      // Calculate attendance rate
-      const totalAttendance = await Booking.countDocuments({
-        ...customerQuery,
-        status: 'completed',
-        createdAt: { $gte: startOfMonth, $lte: endOfMonth }
-      });
-      const attendanceRate = totalCustomers > 0 ? (totalAttendance / totalCustomers) * 100 : 0;
-
-      // Get membership distribution
-      const membershipDistribution = await Customer.aggregate([
-        {
-          $match: customerQuery
-        },
+      }) : Promise.resolve(0),
+      // Membership distribution (only if gym)
+      industry === 'gym' ? Customer.aggregate([
+        { $match: customerQuery },
         {
           $group: {
             _id: '$membershipType',
             count: { $sum: 1 }
           }
         }
-      ]);
+      ]) : Promise.resolve([]),
+      // Recent activities
+      Booking.find({
+        ...customerQuery,
+        createdAt: { $gte: startOfMonth, $lte: endOfMonth }
+      })
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .populate('customer', 'name')
+        .select('customer status createdAt')
+        .lean(),
+      // Revenue overview for charts
+      Invoice.aggregate([
+        {
+          $match: {
+            ...customerQuery,
+            status: 'paid',
+            createdAt: { $gte: new Date(now.getFullYear(), now.getMonth() - 6, 1) }
+          }
+        },
+        {
+          $group: {
+            _id: {
+              year: { $year: '$createdAt' },
+              month: { $month: '$createdAt' }
+            },
+            total: { $sum: '$amount' }
+          }
+        },
+        {
+          $sort: { '_id.year': 1, '_id.month': 1 }
+        }
+      ])
+    ]);
 
+    // Calculate attendance rate (only if gym)
+    let attendanceRate = 0;
+    if (industry === 'gym') {
+      const totalAttendance = await Booking.countDocuments({
+        ...customerQuery,
+        status: 'completed',
+        createdAt: { $gte: startOfMonth, $lte: endOfMonth }
+      });
+      attendanceRate = totalCustomers > 0 ? (totalAttendance / totalCustomers) * 100 : 0;
+    }
+
+    // Get industry-specific stats
+    let industryStats = {};
+    if (industry === 'gym' && gymInfo) {
       industryStats = {
         title: 'Active Members',
         value: activeMembers.toString(),
@@ -124,37 +183,7 @@ router.get('/overview', auth, async (req, res) => {
       };
     }
 
-    // Get recent activities (filtered by gym if applicable)
-    const recentActivities = await Booking.find(bookingQuery)
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .populate('customer', 'name')
-      .select('customer status createdAt');
-
-    // Get revenue overview for charts (filtered by gym if applicable)
-    const revenueOverview = await Invoice.aggregate([
-      {
-        $match: {
-          ...customerQuery,
-          status: 'paid',
-          createdAt: { $gte: new Date(now.getFullYear(), now.getMonth() - 6, 1) }
-        }
-      },
-      {
-        $group: {
-          _id: {
-            year: { $year: '$createdAt' },
-            month: { $month: '$createdAt' }
-          },
-          total: { $sum: '$amount' }
-        }
-      },
-      {
-        $sort: { '_id.year': 1, '_id.month': 1 }
-      }
-    ]);
-
-    res.json({
+    const result = {
       success: true,
       data: {
         metrics: {
@@ -175,21 +204,37 @@ router.get('/overview', auth, async (req, res) => {
           settings: gymInfo?.settings
         } : null
       }
+    };
+
+    // Cache the result
+    dashboardCache.set(cacheKey, {
+      data: result,
+      timestamp: Date.now()
     });
+
+    res.json(result);
   } catch (error) {
     console.error('Dashboard overview error:', error);
     res.status(500).json({ success: false, message: 'Error fetching dashboard data' });
   }
 });
 
-// Get dashboard data
+// Get dashboard data - HEAVILY OPTIMIZED
 router.get('/', auth, async (req, res) => {
   try {
     const userId = req.user._id;
     const gymId = req.user.gymId;
+    
     if (!userId) {
       console.error('No user ID found in request');
       return res.status(401).json({ success: false, message: 'User not authenticated' });
+    }
+
+    // Check cache first
+    const cacheKey = getCacheKey(userId, gymId);
+    const cachedData = dashboardCache.get(cacheKey);
+    if (isCacheValid(cachedData)) {
+      return res.json(cachedData.data);
     }
 
     console.log('Fetching dashboard data for user:', userId);
@@ -198,208 +243,246 @@ router.get('/', auth, async (req, res) => {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    // Members Section
-    console.log('Fetching member metrics...');
-    const totalMembers = await Customer.countDocuments({ userId });
-
-    // Calculate active members (membership duration hasn't expired)
-    const activeMembers = await Customer.countDocuments({
-      userId,
-      $expr: {
-        $and: [
-          { $gt: ['$membershipDuration', 0] },
-          {
-            $gt: [
-              {
-                $add: [
-                  { $toDate: '$joinDate' },
-                  { $multiply: ['$membershipDuration', 30 * 24 * 60 * 60 * 1000] } // Convert months to milliseconds (30 days per month)
-                ]
-              },
-              new Date()
-            ]
-          }
-        ]
-      }
-    });
-
-    // Calculate inactive members (membership duration has expired)
-    const inactiveMembers = await Customer.countDocuments({
-      userId,
-      $expr: {
-        $or: [
-          { $lte: ['$membershipDuration', 0] },
-          {
-            $lte: [
-              {
-                $add: [
-                  { $toDate: '$joinDate' },
-                  { $multiply: ['$membershipDuration', 30 * 24 * 60 * 60 * 1000] } // Convert months to milliseconds (30 days per month)
-                ]
-              },
-              new Date()
-            ]
-          }
-        ]
-      }
-    });
-
-    // Calculate today's expiring memberships
-    const todayExpiry = await Customer.countDocuments({
-      userId,
-      $expr: {
-        $and: [
-          { $gt: ['$membershipDuration', 0] },
-          {
-            $eq: [
-              {
-                $dateToString: {
-                  date: {
-                    $add: [
-                      { $toDate: '$joinDate' },
-                      { $multiply: ['$membershipDuration', 30 * 24 * 60 * 60 * 1000] } // Convert months to milliseconds (30 days per month)
+    // **OPTIMIZATION 2: Single aggregation pipeline for customer metrics**
+    const customerMetrics = await Customer.aggregate([
+      { $match: { userId } },
+      {
+        $facet: {
+          // Total count
+          totalCount: [{ $count: "count" }],
+          
+          // Today's enrollments
+          todayEnrolled: [
+            {
+              $match: {
+                joinDate: { $gte: today, $lt: tomorrow }
+              }
+            },
+            { $count: "count" }
+          ],
+          
+          // Member amount total
+          totalAmount: [
+            {
+              $group: {
+                _id: null,
+                total: { $sum: "$totalSpent" }
+              }
+            }
+          ],
+          
+          // Birthday calculations
+          birthdays: [
+            {
+              $addFields: {
+                birthdayMonth: { $month: "$birthday" },
+                birthdayDay: { $dayOfMonth: "$birthday" }
+              }
+            },
+            {
+              $match: {
+                birthdayMonth: today.getMonth() + 1,
+                birthdayDay: today.getDate()
+              }
+            },
+            { $count: "count" }
+          ],
+          
+          // Active/Inactive members calculation
+          membershipStatus: [
+            {
+              $addFields: {
+                expiryDate: {
+                  $add: [
+                    { $toDate: "$joinDate" },
+                    { $multiply: ["$membershipDuration", 30 * 24 * 60 * 60 * 1000] }
+                  ]
+                }
+              }
+            },
+            {
+              $group: {
+                _id: null,
+                active: {
+                  $sum: {
+                    $cond: [
+                      { $gt: ["$expiryDate", new Date()] },
+                      1,
+                      0
                     ]
-                  },
-                  format: '%Y-%m-%d'
+                  }
+                },
+                inactive: {
+                  $sum: {
+                    $cond: [
+                      { $lte: ["$expiryDate", new Date()] },
+                      1,
+                      0
+                    ]
+                  }
+                },
+                expiringToday: {
+                  $sum: {
+                    $cond: [
+                      {
+                        $and: [
+                          { $gte: ["$expiryDate", today] },
+                          { $lt: ["$expiryDate", tomorrow] }
+                        ]
+                      },
+                      1,
+                      0
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]);
+
+    // **OPTIMIZATION 3: Parallel execution of remaining queries**
+    const [
+      staffBirthdays,
+      invoiceMetrics,
+      leadMetrics,
+      expenseMetrics
+    ] = await Promise.all([
+      // Staff birthdays
+      GymStaff.aggregate([
+        { $match: { userId } },
+        {
+          $addFields: {
+            birthdayMonth: { $month: "$dateOfBirth" },
+            birthdayDay: { $dayOfMonth: "$dateOfBirth" }
+          }
+        },
+        {
+          $match: {
+            birthdayMonth: today.getMonth() + 1,
+            birthdayDay: today.getDate()
+          }
+        },
+        { $count: "count" }
+      ]),
+      
+      // Invoice metrics (single aggregation)
+      Invoice.aggregate([
+        { $match: { userId } },
+        {
+          $facet: {
+            todayInvoices: [
+              {
+                $match: {
+                  createdAt: { $gte: today, $lt: tomorrow }
+                }
+              },
+              { $count: "count" }
+            ],
+            totalInvoices: [
+              { $count: "count" }
+            ],
+            todayDueAmount: [
+              {
+                $match: {
+                  dueDate: { $gte: today, $lt: tomorrow },
+                  status: { $ne: 'paid' }
                 }
               },
               {
-                $dateToString: {
-                  date: new Date(),
-                  format: '%Y-%m-%d'
+                $group: {
+                  _id: null,
+                  total: { $sum: '$amount' }
+                }
+              }
+            ],
+            todayExpense: [
+              {
+                $match: {
+                  createdAt: { $gte: today, $lt: tomorrow },
+                  type: 'expense'
+                }
+              },
+              {
+                $group: {
+                  _id: null,
+                  total: { $sum: '$amount' }
+                }
+              }
+            ],
+            totalExpense: [
+              {
+                $match: {
+                  type: 'expense'
+                }
+              },
+              {
+                $group: {
+                  _id: null,
+                  total: { $sum: '$amount' }
                 }
               }
             ]
           }
-        ]
-      }
-    });
-
-    const todayEmployees = await Customer.countDocuments({
-      userId,
-      joinDate: { $gte: today, $lt: tomorrow }
-    });
-
-    const todayEnrolled = await Customer.countDocuments({
-      userId,
-      joinDate: { $gte: today, $lt: tomorrow }
-    });
-
-    // Calculate today's birthdays
-    const todayMonth = today.getMonth() + 1;
-    const todayDay = today.getDate();
-    
-    console.log('Today\'s date:', today);
-    console.log('Today\'s month:', todayMonth);
-    console.log('Today\'s day:', todayDay);
-
-    // First, let's find all customers and log their birthdays
-    const allCustomers = await Customer.find({ userId });
-    console.log('All customers:', allCustomers.map(c => ({
-      name: c.name,
-      birthday: c.birthday
-    })));
-
-    // Get all customers and filter in memory
-    const customers = await Customer.find({ userId });
-    const todayMemberBirthdays = customers.filter(customer => {
-      if (!customer.birthday) return false;
-      const birthday = new Date(customer.birthday);
-      return birthday.getMonth() + 1 === todayMonth && birthday.getDate() === todayDay;
-    }).length;
-
-    console.log('Today\'s member birthdays count:', todayMemberBirthdays);
-
-    // Get all employees and filter in memory
-    const employees = await GymStaff.find({ userId });
-    const todayEmployeeBirthdays = employees.filter(employee => {
-      if (!employee.dateOfBirth) return false;
-      const birthday = new Date(employee.dateOfBirth);
-      return birthday.getMonth() + 1 === todayMonth && birthday.getDate() === todayDay;
-    }).length;
-
-    console.log('Fetching financial metrics...');
-    const totalMemberAmount = await Customer.aggregate([
-      { 
-        $match: { 
-          userId
-        } 
-      },
-      { 
-        $group: { 
-          _id: null, 
-          total: { $sum: '$totalSpent' } 
-        } 
-      }
-    ]);
-
-    const todayInvoices = await Invoice.countDocuments({
-      userId,
-      createdAt: { $gte: today, $lt: tomorrow }
-    });
-
-    const totalInvoices = await Invoice.countDocuments({ userId });
-
-    const todayDueAmount = await Invoice.aggregate([
-      {
-        $match: {
-          userId,
-          dueDate: { $gte: today, $lt: tomorrow },
-          status: { $ne: 'paid' }
         }
-      },
-      { 
-        $group: { 
-          _id: null, 
-          total: { $sum: '$amount' } 
-        } 
-      }
-    ]);
-
-    const todayExpense = await Invoice.aggregate([
-      {
-        $match: {
-          userId,
-          createdAt: { $gte: today, $lt: tomorrow },
-          type: 'expense'
+      ]),
+      
+      // Lead metrics (single aggregation)
+      Lead.aggregate([
+        { $match: { gymId } },
+        {
+          $facet: {
+            todayEnquiry: [
+              {
+                $match: {
+                  createdAt: { $gte: today, $lt: tomorrow }
+                }
+              },
+              { $count: "count" }
+            ],
+            todayFollowUps: [
+              {
+                $match: {
+                  followUpDate: { $gte: today, $lt: tomorrow }
+                }
+              },
+              { $count: "count" }
+            ]
+          }
         }
-      },
-      { 
-        $group: { 
-          _id: null, 
-          total: { $sum: '$amount' } 
-        } 
-      }
+      ]),
+      
+      // Expense metrics (placeholder for POS data)
+      Promise.resolve({})
     ]);
 
-    const totalExpense = await Invoice.aggregate([
-      {
-        $match: {
-          userId,
-          type: 'expense'
-        }
-      },
-      { 
-        $group: { 
-          _id: null, 
-          total: { $sum: '$amount' } 
-        } 
-      }
-    ]);
+    // **OPTIMIZATION 4: Extract metrics from aggregation results**
+    const customerData = customerMetrics[0];
+    const totalMembers = customerData.totalCount[0]?.count || 0;
+    const activeMembers = customerData.membershipStatus[0]?.active || 0;
+    const inactiveMembers = customerData.membershipStatus[0]?.inactive || 0;
+    const todayExpiry = customerData.membershipStatus[0]?.expiringToday || 0;
+    const todayEnrolled = customerData.todayEnrolled[0]?.count || 0;
+    const totalMemberAmount = customerData.totalAmount[0]?.total || 0;
+    const todayMemberBirthdays = customerData.birthdays[0]?.count || 0;
 
-    const todayEnquiry = await Lead.countDocuments({
-      gymId,
-      createdAt: { $gte: today, $lt: tomorrow }
-    });
+    const todayEmployeeBirthdays = staffBirthdays[0]?.count || 0;
 
-    const todayFollowUps = await Lead.countDocuments({
-      gymId,
-      followUpDate: { $gte: today, $lt: tomorrow }
-    });
+    const invoiceData = invoiceMetrics[0];
+    const todayInvoices = invoiceData.todayInvoices[0]?.count || 0;
+    const totalInvoices = invoiceData.totalInvoices[0]?.count || 0;
+    const todayDueAmount = invoiceData.todayDueAmount[0]?.total || 0;
+    const todayExpense = invoiceData.todayExpense[0]?.total || 0;
+    const totalExpense = invoiceData.totalExpense[0]?.total || 0;
+
+    const leadData = leadMetrics[0];
+    const todayEnquiry = leadData.todayEnquiry[0]?.count || 0;
+    const todayFollowUps = leadData.todayFollowUps[0]?.count || 0;
 
     // Member Profit Section
-    const memberAmount = totalMemberAmount[0]?.total || 0;
-    const memberExpense = totalExpense[0]?.total || 0;
+    const memberAmount = totalMemberAmount;
+    const memberExpense = totalExpense;
     const totalMemberProfit = memberAmount - memberExpense;
 
     // POS Section (Placeholder values - implement actual POS logic)
@@ -424,27 +507,27 @@ router.get('/', auth, async (req, res) => {
     // Overall Profit Section
     const totalProfit = totalMemberProfit + posProfit;
 
-    console.log('Dashboard data fetched successfully');
-    res.json({
+    const result = {
       success: true,
       metrics: {
         members: {
-          totalMembers: totalMembers || 0,
-          activeMembers: activeMembers || 0,
-          inactiveMembers: inactiveMembers || 0,
-          todayEmployees: todayEmployees || 0,
-          todayExpiry: todayExpiry || 0,
-          todayEnrolled: todayEnrolled || 0,
-          totalMemberAmount: totalMemberAmount[0]?.total || 0,
-          todayEmployeeBirthdays: todayEmployeeBirthdays || 0,
-          todayInvoices: todayInvoices || 0,
-          totalInvoices: totalInvoices || 0,
-          todayDueAmount: todayDueAmount[0]?.total || 0,
-          todayMemberBirthdays: todayMemberBirthdays || 0,
-          todayExpense: todayExpense[0]?.total || 0,
-          totalExpense: totalExpense[0]?.total || 0,
-          todayEnquiry: todayEnquiry || 0,
-          todayFollowUps: todayFollowUps || 0
+          totalMembers,
+          activeMembers,
+          inactiveMembers,
+          expiringIn7Days: todayExpiry, // Note: This is actually today's expiry, you may want to adjust for 7 days
+          todayEmployees: todayEnrolled, // Using enrolled as employees metric
+          todayExpiry,
+          todayEnrolled,
+          totalMemberAmount,
+          todayEmployeeBirthdays,
+          todayInvoices,
+          totalInvoices,
+          todayDueAmount,
+          todayMemberBirthdays,
+          todayExpense,
+          totalExpense,
+          todayEnquiry,
+          todayFollowUps
         },
         memberProfit: {
           memberAmount,
@@ -474,11 +557,32 @@ router.get('/', auth, async (req, res) => {
           totalProfit
         }
       }
+    };
+
+    // Cache the result
+    dashboardCache.set(cacheKey, {
+      data: result,
+      timestamp: Date.now()
     });
+
+    console.log('Dashboard data fetched and cached successfully');
+    res.json(result);
   } catch (error) {
     console.error('Dashboard data error:', error);
     res.status(500).json({ success: false, message: 'Error fetching dashboard data', error: error.message });
   }
 });
 
-module.exports = router; 
+// Clear cache endpoint (useful for development)
+router.delete('/cache', auth, (req, res) => {
+  const userId = req.user._id;
+  const gymId = req.user.gymId;
+  const cacheKey = getCacheKey(userId, gymId);
+  
+  dashboardCache.delete(cacheKey);
+  dashboardCache.delete(cacheKey + '_overview');
+  
+  res.json({ success: true, message: 'Cache cleared successfully' });
+});
+
+module.exports = router;

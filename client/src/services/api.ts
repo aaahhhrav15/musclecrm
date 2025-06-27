@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'https://flexcrm-ui-suite-production.up.railway.app/api';
+const API_URL = 'https://flexcrm-ui-suite-production-ec9f.up.railway.app/api';
 
 const api = axios.create({
   baseURL: API_URL,

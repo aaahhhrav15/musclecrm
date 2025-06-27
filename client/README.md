@@ -35,7 +35,7 @@ JWT_SECRET=your_jwt_secret_key_here
 
 ### Frontend (.env.development)
 ```
-VITE_API_URL=https://flexcrm-ui-suite-production.up.railway.app/api
+VITE_API_URL=https://flexcrm-ui-suite-production-ec9f.up.railway.app/api
 ```
 
 ## API Routes
