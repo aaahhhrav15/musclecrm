@@ -211,7 +211,26 @@ type ModalType =
 const Dashboard: React.FC = () => {
   const { gym } = useGym();
   
-  // **OPTIMIZATION 1: Parallel API calls using useQueries**
+  // **OPTIMIZATION: Stabilize gym ID to prevent unnecessary re-renders**
+  const stableGymId = useMemo(() => gym?._id, [gym?._id]);
+  
+  // **OPTIMIZATION: Single expense query that gets all expense data**
+  const expenseQuery = useQuery({
+    queryKey: ["expenses", stableGymId],
+    queryFn: async () => {
+      if (!stableGymId) return [];
+      const response = await axiosInstance.get(`/gym/expenses?gymId=${stableGymId}`);
+      return response.data || [];
+    },
+    enabled: !!stableGymId,
+    staleTime: 300000, // 5 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: false, // Prevent refetch on mount if data exists
+    refetchInterval: false, // Disable automatic refetching
+    retry: 1, // Reduce retry attempts
+  });
+
+  // **OPTIMIZATION: Stabilized queries with better deduplication**
   const queries = useQueries({
     queries: [
       {
@@ -224,6 +243,9 @@ const Dashboard: React.FC = () => {
         },
         staleTime: 30000, // 30 seconds
         refetchOnWindowFocus: false,
+        refetchOnMount: false,
+        refetchInterval: false,
+        retry: 1,
       },
       {
         queryKey: ["customers"],
@@ -236,53 +258,71 @@ const Dashboard: React.FC = () => {
         },
         staleTime: 60000, // 1 minute
         refetchOnWindowFocus: false,
-      },
-      {
-        queryKey: ["monthlyExpense", gym?._id],
-        queryFn: async () => {
-          if (!gym?._id) return 0;
-          const now = new Date();
-          const month = now.getMonth() + 1;
-          const year = now.getFullYear();
-          const response = await axiosInstance.get(
-            `/gym/expenses?gymId=${gym._id}&month=${month}&year=${year}`
-          );
-          return Array.isArray(response.data)
-            ? response.data
-                .filter((e) => e.category === "gym")
-                .reduce((sum, expense) => sum + (expense.amount || 0), 0)
-            : 0;
-        },
-        enabled: !!gym?._id,
-        staleTime: 300000, // 5 minutes
-        refetchOnWindowFocus: false,
-      },
-      {
-        queryKey: ["totalExpense", gym?._id],
-        queryFn: async () => {
-          if (!gym?._id) return 0;
-          const response = await axiosInstance.get(
-            `/gym/expenses?gymId=${gym._id}`
-          );
-          const expenses = Array.isArray(response.data) ? response.data : [];
-          return expenses
-            .filter((e) => e.category === "gym")
-            .reduce((sum, expense) => sum + (expense.amount || 0), 0);
-        },
-        enabled: !!gym?._id,
-        staleTime: 300000, // 5 minutes
-        refetchOnWindowFocus: false,
+        refetchOnMount: false,
+        refetchInterval: false,
+        retry: 1,
       }
     ]
   });
 
-  const [dashboardQuery, customerQuery, monthlyExpenseQuery, totalExpenseQuery] = queries;
+  const [dashboardQuery, customerQuery] = queries;
 
-  // **OPTIMIZATION 2: Memoized calculations to prevent re-computation**
+  // **OPTIMIZATION: Calculate expense metrics from single expense query with stable dependencies**
+  const expenseMetrics = useMemo(() => {
+    if (!expenseQuery.data || !Array.isArray(expenseQuery.data)) {
+      return {
+        monthlyExpense: 0,
+        totalExpense: 0,
+        todayExpense: 0
+      };
+    }
+
+    const expenses = expenseQuery.data;
+    const today = new Date();
+    const month = today.getMonth() + 1;
+    const year = today.getFullYear();
+    
+    // Set today's date boundaries
+    const todayStart = new Date(today);
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(today);
+    todayEnd.setHours(23, 59, 59, 999);
+
+    // Filter and calculate all expense metrics in one pass
+    let monthlyExpense = 0;
+    let totalExpense = 0;
+    let todayExpense = 0;
+
+    expenses.forEach(expense => {
+      if (expense.category === "Gym" || expense.category === "gym") {
+        const expenseDate = new Date(expense.date);
+        
+        // Add to total
+        totalExpense += expense.amount || 0;
+        
+        // Check if it's this month
+        if (expenseDate.getMonth() + 1 === month && expenseDate.getFullYear() === year) {
+          monthlyExpense += expense.amount || 0;
+        }
+        
+        // Check if it's today
+        if (expenseDate >= todayStart && expenseDate <= todayEnd) {
+          todayExpense += expense.amount || 0;
+        }
+      }
+    });
+
+    return {
+      monthlyExpense,
+      totalExpense,
+      todayExpense
+    };
+  }, [expenseQuery.data, expenseQuery.dataUpdatedAt]); // Added dataUpdatedAt for stability
+
+  // **OPTIMIZATION: Memoized calculations using stored end dates from database**
   const { 
     memberMetrics, 
     expiringCustomers, 
-    todayExpense, 
     memberBirthdays, 
     todayEnrolled 
   } = useMemo(() => {
@@ -294,7 +334,6 @@ const Dashboard: React.FC = () => {
         expiringIn7Days: 0,
       },
       expiringCustomers: [],
-      todayExpense: 0,
       memberBirthdays: 0,
       todayEnrolled: 0,
     };
@@ -313,12 +352,11 @@ const Dashboard: React.FC = () => {
     let expiringCustomers: Customer[] = [];
     let memberBirthdays = 0;
     let todayEnrolled = 0;
-    let todayExpenseCalc = 0;
 
     customerData.forEach(customer => {
       totalMembers++;
 
-      // Active/Inactive status
+      // **OPTIMIZATION: Use stored membershipEndDate from database (no calculation needed)**
       if (customer.membershipEndDate) {
         const endDate = new Date(customer.membershipEndDate);
         endDate.setHours(0,0,0,0);
@@ -333,6 +371,7 @@ const Dashboard: React.FC = () => {
           inactiveMembers++;
         }
       } else {
+        // If no end date stored, consider inactive
         inactiveMembers++;
       }
 
@@ -355,13 +394,6 @@ const Dashboard: React.FC = () => {
       }
     });
 
-    // Calculate today's expense from total expenses
-    if (totalExpenseQuery.data) {
-      // This would need to be filtered by today's date from the expense data
-      // For now, we'll use a placeholder calculation
-      todayExpenseCalc = totalExpenseQuery.data * 0.01; // Rough estimate
-    }
-
     return {
       memberMetrics: {
         totalMembers,
@@ -370,13 +402,12 @@ const Dashboard: React.FC = () => {
         expiringIn7Days: expiringCustomers.length,
       },
       expiringCustomers,
-      todayExpense: todayExpenseCalc,
       memberBirthdays,
       todayEnrolled,
     };
-  }, [customerQuery.data, totalExpenseQuery.data]);
+  }, [customerQuery.data, customerQuery.dataUpdatedAt]); // Added dataUpdatedAt for stability
 
-  // **OPTIMIZATION 3: Simplified metrics object**
+  // **OPTIMIZATION: Simplified metrics object with stable dependencies**
   const metrics = useMemo(() => {
     const baseMetrics = dashboardQuery.data || defaultMetrics;
     return {
@@ -389,14 +420,23 @@ const Dashboard: React.FC = () => {
         expiringIn7Days: memberMetrics.expiringIn7Days,
         todayMemberBirthdays: memberBirthdays,
         todayEnrolled: todayEnrolled,
+        todayExpense: expenseMetrics.todayExpense,
+        totalExpense: expenseMetrics.totalExpense,
       }
     };
-  }, [dashboardQuery.data, memberMetrics, memberBirthdays, todayEnrolled]);
+  }, [
+    dashboardQuery.data, 
+    dashboardQuery.dataUpdatedAt,
+    memberMetrics, 
+    memberBirthdays, 
+    todayEnrolled, 
+    expenseMetrics
+  ]); // Added dataUpdatedAt and stabilized dependencies
 
-  // **OPTIMIZATION 4: Memoized profit calculations**
+  // **OPTIMIZATION: Memoized profit calculations using computed expense metrics**
   const profitMetrics = useMemo(() => {
     const memberAmount = metrics.memberProfit.memberAmount || 0;
-    const profitExpense = totalExpenseQuery.data || 0;
+    const profitExpense = expenseMetrics.totalExpense || 0;
     const totalGymProfit = memberAmount - profitExpense;
     
     const totalPosAmount = metrics.pos.totalSell || 0;
@@ -411,7 +451,7 @@ const Dashboard: React.FC = () => {
       overallTotalProfit,
       profitExpense,
     };
-  }, [metrics.memberProfit.memberAmount, metrics.pos.totalSell, metrics.pos.totalPosExpense, totalExpenseQuery.data]);
+  }, [metrics.memberProfit.memberAmount, metrics.pos.totalSell, metrics.pos.totalPosExpense, expenseMetrics.totalExpense]);
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -419,7 +459,7 @@ const Dashboard: React.FC = () => {
   const [modalData, setModalData] = useState<Customer[] | Staff[] | Lead[]>([]);
   const [modalLoading, setModalLoading] = useState(false);
 
-  // **OPTIMIZATION 5: Optimized modal handler with lazy loading**
+  // **OPTIMIZATION: Optimized modal handler with lazy loading**
   const handleOpenModal = React.useCallback(async (type: ModalType) => {
     setModalType(type);
     setModalOpen(true);
@@ -536,23 +576,28 @@ const Dashboard: React.FC = () => {
     return `${item.name || "unknown"}-${phone}`;
   }
 
-  // Loading state - show if any critical query is loading
-  const isLoading = dashboardQuery.isLoading || customerQuery.isLoading;
+  // **OPTIMIZATION: Stabilized loading state check**
+  const isLoading = useMemo(() => {
+    return dashboardQuery.isLoading || customerQuery.isLoading || expenseQuery.isLoading;
+  }, [dashboardQuery.isLoading, customerQuery.isLoading, expenseQuery.isLoading]);
+
+  // **OPTIMIZATION: Early return with memoized loading component**
+  const LoadingComponent = useMemo(() => (
+    <DashboardLayout>
+      <div className="space-y-6">
+        <Skeleton className="h-16 w-full" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[...Array(8)].map((_, i) => (
+            <Skeleton key={i} className="h-32 w-full" />
+          ))}
+        </div>
+        <Skeleton className="h-[300px] w-full" />
+      </div>
+    </DashboardLayout>
+  ), []);
 
   if (isLoading) {
-    return (
-      <DashboardLayout>
-        <div className="space-y-6">
-          <Skeleton className="h-16 w-full" />
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[...Array(8)].map((_, i) => (
-              <Skeleton key={i} className="h-32 w-full" />
-            ))}
-          </div>
-          <Skeleton className="h-[300px] w-full" />
-        </div>
-      </DashboardLayout>
-    );
+    return LoadingComponent;
   }
 
   return (
@@ -706,10 +751,10 @@ const Dashboard: React.FC = () => {
             />
             <MetricCard
               title="Today Expense"
-              value={todayExpense}
+              value={expenseMetrics.todayExpense}
               icon={<DollarSign />}
               format="currency"
-              isLoading={totalExpenseQuery.isLoading}
+              isLoading={expenseQuery.isLoading}
               gradientFrom="slate-500"
               gradientTo="slate-600"
               iconColor="slate-600"
@@ -717,10 +762,10 @@ const Dashboard: React.FC = () => {
             />
             <MetricCard
               title={`Monthly Expense (${format(new Date(), "MMMM yyyy")})`}
-              value={monthlyExpenseQuery.data || 0}
+              value={expenseMetrics.monthlyExpense}
               icon={<Calendar />}
               format="currency"
-              isLoading={monthlyExpenseQuery.isLoading}
+              isLoading={expenseQuery.isLoading}
               gradientFrom="violet-500"
               gradientTo="violet-600"
               iconColor="violet-600"
@@ -728,10 +773,10 @@ const Dashboard: React.FC = () => {
             />
             <MetricCard
               title="Total Expense"
-              value={totalExpenseQuery.data || 0}
+              value={expenseMetrics.totalExpense}
               icon={<TrendingUp />}
               format="currency"
-              isLoading={totalExpenseQuery.isLoading}
+              isLoading={expenseQuery.isLoading}
               gradientFrom="rose-500"
               gradientTo="rose-600"
               iconColor="rose-600"
@@ -787,7 +832,7 @@ const Dashboard: React.FC = () => {
               value={profitMetrics.profitExpense}
               format="currency"
               icon={<TrendingUp />}
-              isLoading={totalExpenseQuery.isLoading}
+              isLoading={expenseQuery.isLoading}
               gradientFrom="red-500"
               gradientTo="red-600"
               iconColor="red-600"
@@ -798,7 +843,7 @@ const Dashboard: React.FC = () => {
               value={profitMetrics.totalGymProfit}
               format="currency"
               icon={<Target />}
-              isLoading={isLoading || totalExpenseQuery.isLoading}
+              isLoading={isLoading || expenseQuery.isLoading}
               gradientFrom="green-500"
               gradientTo="green-600"
               iconColor="green-600"

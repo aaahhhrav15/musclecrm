@@ -34,6 +34,25 @@ const clearCustomerCache = (gymId) => {
   keysToDelete.forEach(key => customerCache.delete(key));
 };
 
+// **OPTIMIZATION: Calculate membership end date helper function**
+const calculateMembershipEndDate = (startDate, durationInMonths) => {
+  if (!startDate || !durationInMonths || durationInMonths <= 0) {
+    return null;
+  }
+  
+  const start = new Date(startDate);
+  if (isNaN(start.getTime())) {
+    return null;
+  }
+  
+  // Add months to start date and subtract 1 day
+  const endDate = new Date(start);
+  endDate.setMonth(endDate.getMonth() + durationInMonths);
+  endDate.setDate(endDate.getDate() - 1);
+  
+  return endDate;
+};
+
 // Apply both auth and gymAuth middleware to all routes
 router.use(auth);
 router.use(gymAuth);
@@ -70,37 +89,13 @@ router.get('/', async (req, res) => {
             { $limit: parseInt(limit) },
             {
               $addFields: {
-                // Pre-calculate membership end date
-                membershipEndDate: {
-                  $cond: {
-                    if: { $and: ['$membershipStartDate', '$membershipDuration'] },
-                    then: {
-                      $add: [
-                        { $toDate: '$membershipStartDate' },
-                        { $multiply: ['$membershipDuration', 30 * 24 * 60 * 60 * 1000] }
-                      ]
-                    },
-                    else: null
-                  }
-                },
-                // Calculate member status
+                // **OPTIMIZATION: membershipEndDate is now stored in database, no calculation needed**
                 memberStatus: {
                   $cond: {
                     if: {
                       $and: [
-                        '$membershipStartDate',
-                        '$membershipDuration',
-                        {
-                          $gt: [
-                            {
-                              $add: [
-                                { $toDate: '$membershipStartDate' },
-                                { $multiply: ['$membershipDuration', 30 * 24 * 60 * 60 * 1000] }
-                              ]
-                            },
-                            new Date()
-                          ]
-                        }
+                        '$membershipEndDate',
+                        { $gt: ['$membershipEndDate', new Date()] }
                       ]
                     },
                     then: 'active',
@@ -232,7 +227,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// **OPTIMIZED: Create a new customer with parallel operations**
+// **OPTIMIZED: Create a new customer with automatic end date calculation**
 router.post('/', async (req, res) => {
   try {
     // Clear cache for this gym
@@ -244,11 +239,22 @@ router.post('/', async (req, res) => {
     ]);
     
     const gymCode = gym ? gym.gymCode : undefined;
+    
+    // **OPTIMIZATION: Calculate membership end date automatically**
+    let membershipEndDate = null;
+    if (req.body.membershipStartDate && req.body.membershipDuration) {
+      membershipEndDate = calculateMembershipEndDate(
+        req.body.membershipStartDate, 
+        parseInt(req.body.membershipDuration)
+      );
+    }
+    
     const customer = new Customer({
       ...req.body,
       userId: req.user._id,
       gymId: req.gymId,
       gymCode,
+      membershipEndDate, // Store calculated end date in database
     });
     
     await customer.save();
@@ -335,7 +341,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-// **OPTIMIZED: Update a customer with efficient validation and parallel operations**
+// **OPTIMIZED: Update a customer with automatic end date calculation**
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -399,19 +405,19 @@ router.put('/:id', async (req, res) => {
       ...(notes !== undefined && { notes })
     };
 
-    // Handle membership end date calculation
+    // **OPTIMIZATION: Auto-calculate membership end date when start date or duration changes**
     if (membershipStartDate || membershipDuration !== undefined) {
       const startDate = membershipStartDate || customer.membershipStartDate;
       const duration = membershipDuration !== undefined ? membershipDuration : customer.membershipDuration;
       
       if (startDate && duration && duration > 0) {
-        const endDate = new Date(startDate);
-        endDate.setMonth(endDate.getMonth() + duration);
-        updates.membershipEndDate = endDate;
+        const calculatedEndDate = calculateMembershipEndDate(startDate, duration);
+        updates.membershipEndDate = calculatedEndDate;
       } else {
-        updates.membershipEndDate = undefined;
+        updates.membershipEndDate = null;
       }
     } else if (membershipEndDate !== undefined) {
+      // Only use provided end date if start date and duration are not being updated
       updates.membershipEndDate = membershipEndDate;
     }
 
@@ -589,7 +595,7 @@ router.get('/stats/overview', async (req, res) => {
     res.json(responseData);
   } catch (error) {
     console.error('Error fetching customer stats:', error);
-    res.status(500).json({ success: false, message: 'Error fetching customer stats' });
+    res.status(500).json({ message: 'Error fetching customer stats' });
   }
 });
 

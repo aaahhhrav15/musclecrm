@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Plus, 
@@ -103,6 +103,69 @@ function safeFormatDate(date: Date | null | undefined, fmt: string = 'MMM d, yyy
   return format(date, fmt);
 }
 
+// **OPTIMIZATION: Use stored membershipEndDate from database (no calculation needed)**
+const getStoredExpiryDate = (customer: Customer) => {
+  if (customer.membershipEndDate) {
+    return new Date(customer.membershipEndDate);
+  }
+  return null;
+};
+
+// **OPTIMIZATION: Updated helper functions using stored end dates**
+const isCustomerExpired = (customer: Customer) => {
+  const expiryDate = getStoredExpiryDate(customer);
+  if (!expiryDate) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  expiryDate.setHours(0, 0, 0, 0);
+  return expiryDate < today;
+};
+
+const isCustomerExpiringSoon = (customer: Customer, days: number) => {
+  const expiryDate = getStoredExpiryDate(customer);
+  if (!expiryDate) return false;
+  const daysUntilExpiry = differenceInDays(expiryDate, new Date());
+  return daysUntilExpiry >= 0 && daysUntilExpiry <= days;
+};
+
+const isBirthdayInRange = (customer: Customer, range: string) => {
+  if (!customer.birthday) return false;
+  const birthday = new Date(customer.birthday);
+  const today = new Date();
+
+  // Set birthday to current year for comparison
+  const currentYearBirthday = new Date(today.getFullYear(), birthday.getMonth(), birthday.getDate());
+
+  switch (range) {
+    case 'today':
+      return today.getDate() === birthday.getDate() && today.getMonth() === birthday.getMonth();
+    case 'tomorrow': {
+      const tomorrow = new Date(today);
+      tomorrow.setDate(today.getDate() + 1);
+      return tomorrow.getDate() === birthday.getDate() && tomorrow.getMonth() === birthday.getMonth();
+    }
+    case 'thisWeek': {
+      const start = startOfWeek(today);
+      const end = endOfWeek(today);
+      return currentYearBirthday >= start && currentYearBirthday <= end;
+    }
+    case 'thisMonth':
+      return today.getMonth() === birthday.getMonth();
+    case 'next7days': {
+      const next7Days = new Date(today);
+      next7Days.setDate(today.getDate() + 7);
+      return currentYearBirthday >= today && currentYearBirthday <= next7Days;
+    }
+    case 'next30days': {
+      const next30Days = new Date(today);
+      next30Days.setDate(today.getDate() + 30);
+      return currentYearBirthday >= today && currentYearBirthday <= next30Days;
+    }
+    default:
+      return false;
+  }
+};
+
 export function CustomersPage() {
   const { toast } = useToast();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -146,73 +209,6 @@ export function CustomersPage() {
       setAllCustomers(customersData);
     }
   }, [customersData]);
-
-  // Helper functions for filtering
-  const calculateExpiryDate = (customer: Customer) => {
-    // Use the actual membershipEndDate from the database if available
-    if (customer.membershipEndDate) {
-      return new Date(customer.membershipEndDate);
-    }
-    
-    // Fallback to calculation if membershipEndDate is not available
-    if (!customer.membershipStartDate || !customer.membershipDuration) return null;
-    const startDate = new Date(customer.membershipStartDate);
-    return addMonths(startDate, customer.membershipDuration);
-  };
-
-  const isCustomerExpired = (customer: Customer) => {
-    const expiryDate = calculateExpiryDate(customer);
-    if (!expiryDate) return false;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    expiryDate.setHours(0, 0, 0, 0);
-    return expiryDate < today;
-  };
-
-  const isCustomerExpiringSoon = (customer: Customer, days: number) => {
-    const expiryDate = calculateExpiryDate(customer);
-    if (!expiryDate) return false;
-    const daysUntilExpiry = differenceInDays(expiryDate, new Date());
-    return daysUntilExpiry >= 0 && daysUntilExpiry <= days;
-  };
-
-  const isBirthdayInRange = (customer: Customer, range: string) => {
-    if (!customer.birthday) return false;
-    const birthday = new Date(customer.birthday);
-    const today = new Date();
-
-    // Set birthday to current year for comparison
-    const currentYearBirthday = new Date(today.getFullYear(), birthday.getMonth(), birthday.getDate());
-
-    switch (range) {
-      case 'today':
-        return today.getDate() === birthday.getDate() && today.getMonth() === birthday.getMonth();
-      case 'tomorrow': {
-        const tomorrow = new Date(today);
-        tomorrow.setDate(today.getDate() + 1);
-        return tomorrow.getDate() === birthday.getDate() && tomorrow.getMonth() === birthday.getMonth();
-      }
-      case 'thisWeek': {
-        const start = startOfWeek(today);
-        const end = endOfWeek(today);
-        return currentYearBirthday >= start && currentYearBirthday <= end;
-      }
-      case 'thisMonth':
-        return today.getMonth() === birthday.getMonth();
-      case 'next7days': {
-        const next7Days = new Date(today);
-        next7Days.setDate(today.getDate() + 7);
-        return currentYearBirthday >= today && currentYearBirthday <= next7Days;
-      }
-      case 'next30days': {
-        const next30Days = new Date(today);
-        next30Days.setDate(today.getDate() + 30);
-        return currentYearBirthday >= today && currentYearBirthday <= next30Days;
-      }
-      default:
-        return false;
-    }
-  };
 
   // Client-side filtering function - now memoized
   const filteredCustomers = useMemo(() => {
@@ -262,7 +258,7 @@ export function CustomersPage() {
     // Apply expiry filter
     if (filters.expiryFilter && filters.expiryFilter !== 'none') {
       filtered = filtered.filter(customer => {
-        const expiryDate = calculateExpiryDate(customer);
+        const expiryDate = getStoredExpiryDate(customer);
         if (!expiryDate) return false; // Exclude customers without expiry dates
         
         const daysUntilExpiry = differenceInDays(expiryDate, new Date());
@@ -323,8 +319,8 @@ export function CustomersPage() {
             bValue = new Date(b.createdAt || 0).getTime();
             break;
           case 'expiryDate':
-            aValue = calculateExpiryDate(a)?.getTime() || 0;
-            bValue = calculateExpiryDate(b)?.getTime() || 0;
+            aValue = getStoredExpiryDate(a)?.getTime() || 0;
+            bValue = getStoredExpiryDate(b)?.getTime() || 0;
             break;
           default:
             return 0;
@@ -353,7 +349,7 @@ export function CustomersPage() {
     setCurrentPage(1);
   }, [searchQuery, filters, rowsPerPage]);
 
-  // Customer insights based on filtered customers
+  // **OPTIMIZATION: Customer insights using stored end dates**
   const customerInsights = useMemo(() => {
     if (!filteredCustomers.length) return {
       totalCustomers: 0,
@@ -381,9 +377,9 @@ export function CustomersPage() {
       new Date(c.createdAt || '') > thirtyDaysAgo
     ).length;
 
-    // Calculate expiring customers (next 7 days) - only those with expiry dates
+    // **OPTIMIZATION: Calculate expiring customers using stored end dates**
     const expiringCustomers = filteredCustomers.filter(c => {
-      const expiryDate = calculateExpiryDate(c);
+      const expiryDate = getStoredExpiryDate(c);
       return expiryDate && isCustomerExpiringSoon(c, 7);
     }).length;
 
@@ -392,9 +388,9 @@ export function CustomersPage() {
       return c.birthday && isBirthdayInRange(c, 'thisMonth');
     }).length;
 
-    // Calculate expired customers - only those with expiry dates
+    // **OPTIMIZATION: Calculate expired customers using stored end dates**
     const expiredCustomers = filteredCustomers.filter(c => {
-      const expiryDate = calculateExpiryDate(c);
+      const expiryDate = getStoredExpiryDate(c);
       return expiryDate && isCustomerExpired(c);
     }).length;
 
@@ -445,7 +441,8 @@ export function CustomersPage() {
     queryClient.invalidateQueries({ queryKey: ['customers'] });
   };
 
-  const handleExport = () => {
+  // **OPTIMIZATION: Updated export function using stored end dates**
+  const handleExport = useCallback(() => {
     if (!filteredCustomers || filteredCustomers.length === 0) {
       toast({
         title: "Info",
@@ -455,7 +452,7 @@ export function CustomersPage() {
     }
 
     const dataToExport = filteredCustomers.map(customer => {
-      const expiryDate = calculateExpiryDate(customer);
+      const expiryDate = getStoredExpiryDate(customer); // Use stored date
       return {
         "Name": customer.name,
         "Email": customer.email,
@@ -486,10 +483,10 @@ export function CustomersPage() {
       title: "Success",
       description: `${filteredCustomers.length} customer records exported successfully!`,
     });
-  };
+  }, [filteredCustomers, toast]);
 
   // Clear all filters
-  const clearAllFilters = () => {
+  const clearAllFilters = useCallback(() => {
     setFilters({
       membershipType: 'none',
       source: 'none',
@@ -500,17 +497,19 @@ export function CustomersPage() {
       statusFilter: 'none',
     });
     setSearchQuery('');
-  };
+  }, []);
 
   // Check if any filters are active
-  const hasActiveFilters = 
+  const hasActiveFilters = useMemo(() => 
     searchQuery ||
     (filters.membershipType && filters.membershipType !== 'none') ||
     (filters.source && filters.source !== 'none') ||
     (filters.sortBy && filters.sortBy !== 'none') ||
     (filters.statusFilter && filters.statusFilter !== 'none') ||
     (filters.expiryFilter && filters.expiryFilter !== 'none') ||
-    (filters.birthdayFilter && filters.birthdayFilter !== 'none');
+    (filters.birthdayFilter && filters.birthdayFilter !== 'none'),
+    [searchQuery, filters]
+  );
 
   // Calculate pagination
   const totalCustomers = filteredCustomers.length;
@@ -519,7 +518,7 @@ export function CustomersPage() {
   const endItem = Math.min(currentPage * rowsPerPage, totalCustomers);
 
   // Generate page numbers for pagination
-  const getPageNumbers = () => {
+  const getPageNumbers = useMemo(() => {
     const pages = [];
     const maxVisiblePages = 5;
     
@@ -552,7 +551,7 @@ export function CustomersPage() {
     }
     
     return pages;
-  };
+  }, [totalPages, currentPage]);
 
   if (isLoading) {
     return (
@@ -803,7 +802,7 @@ export function CustomersPage() {
                   </TableHeader>
                   <TableBody>
                     {paginatedCustomers.map((customer: Customer, index) => {
-                      const expiryDate = calculateExpiryDate(customer);
+                      const expiryDate = getStoredExpiryDate(customer); // Use stored date
                       const isExpired = isCustomerExpired(customer);
                       const isExpiringSoon = isCustomerExpiringSoon(customer, 7);
                       const daysUntilExpiry = expiryDate ? differenceInDays(expiryDate, new Date()) : null;
@@ -868,7 +867,7 @@ export function CustomersPage() {
                             {expiryDate ? (
                               <div className="space-y-1">
                                 <div className="text-sm font-medium">
-                                  {safeFormatDate(expiryDate, 'MMM d, yyyy')}
+                                  {format(expiryDate, 'MMM d, yyyy')}
                                 </div>
                                 <div className={`text-xs ${
                                   isExpired ? 'text-red-600' :
@@ -971,7 +970,7 @@ export function CustomersPage() {
                     </Button>
 
                     <div className="flex items-center gap-1">
-                      {getPageNumbers().map((page, index) => (
+                      {getPageNumbers.map((page, index) => (
                         <div key={index}>
                           {page === '...' ? (
                             <span className="px-2 py-1 text-muted-foreground">...</span>

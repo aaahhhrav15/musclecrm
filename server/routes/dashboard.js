@@ -107,10 +107,10 @@ router.get('/overview', auth, async (req, res) => {
           }
         }
       ]),
-      // Industry-specific stats (only if gym)
+      // **OPTIMIZATION: Use stored membershipEndDate instead of calculating**
       industry === 'gym' ? Customer.countDocuments({
         ...customerQuery,
-        membershipStatus: 'active'
+        membershipEndDate: { $gt: new Date() } // Active members using stored end date
       }) : Promise.resolve(0),
       // Membership distribution (only if gym)
       industry === 'gym' ? Customer.aggregate([
@@ -156,7 +156,7 @@ router.get('/overview', auth, async (req, res) => {
       ])
     ]);
 
-    // Calculate attendance rate (only if gym)
+    // **OPTIMIZATION: Calculate attendance rate using stored end dates**
     let attendanceRate = 0;
     if (industry === 'gym') {
       const totalAttendance = await Booking.countDocuments({
@@ -219,7 +219,7 @@ router.get('/overview', auth, async (req, res) => {
   }
 });
 
-// Get dashboard data - HEAVILY OPTIMIZED
+// Get dashboard data - HEAVILY OPTIMIZED with stored membershipEndDate
 router.get('/', auth, async (req, res) => {
   try {
     const userId = req.user._id;
@@ -243,7 +243,7 @@ router.get('/', auth, async (req, res) => {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    // **OPTIMIZATION 2: Single aggregation pipeline for customer metrics**
+    // **OPTIMIZATION 2: Single aggregation pipeline for customer metrics using stored membershipEndDate**
     const customerMetrics = await Customer.aggregate([
       { $match: { userId } },
       {
@@ -288,25 +288,20 @@ router.get('/', auth, async (req, res) => {
             { $count: "count" }
           ],
           
-          // Active/Inactive members calculation
+          // **OPTIMIZATION: Active/Inactive members using stored membershipEndDate**
           membershipStatus: [
-            {
-              $addFields: {
-                expiryDate: {
-                  $add: [
-                    { $toDate: "$joinDate" },
-                    { $multiply: ["$membershipDuration", 30 * 24 * 60 * 60 * 1000] }
-                  ]
-                }
-              }
-            },
             {
               $group: {
                 _id: null,
                 active: {
                   $sum: {
                     $cond: [
-                      { $gt: ["$expiryDate", new Date()] },
+                      { 
+                        $and: [
+                          "$membershipEndDate",
+                          { $gt: ["$membershipEndDate", new Date()] }
+                        ]
+                      },
                       1,
                       0
                     ]
@@ -315,7 +310,12 @@ router.get('/', auth, async (req, res) => {
                 inactive: {
                   $sum: {
                     $cond: [
-                      { $lte: ["$expiryDate", new Date()] },
+                      { 
+                        $or: [
+                          { $eq: ["$membershipEndDate", null] },
+                          { $lte: ["$membershipEndDate", new Date()] }
+                        ]
+                      },
                       1,
                       0
                     ]
@@ -326,8 +326,9 @@ router.get('/', auth, async (req, res) => {
                     $cond: [
                       {
                         $and: [
-                          { $gte: ["$expiryDate", today] },
-                          { $lt: ["$expiryDate", tomorrow] }
+                          "$membershipEndDate",
+                          { $gte: ["$membershipEndDate", today] },
+                          { $lt: ["$membershipEndDate", tomorrow] }
                         ]
                       },
                       1,
@@ -570,6 +571,52 @@ router.get('/', auth, async (req, res) => {
   } catch (error) {
     console.error('Dashboard data error:', error);
     res.status(500).json({ success: false, message: 'Error fetching dashboard data', error: error.message });
+  }
+});
+
+// **NEW: Get customers expiring in next 7 days using stored membershipEndDate**
+router.get('/expiring-customers', auth, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const gymId = req.user.gymId;
+    const cacheKey = `expiring_customers_${userId}_${gymId}`;
+    const cachedData = dashboardCache.get(cacheKey);
+    
+    if (isCacheValid(cachedData)) {
+      return res.json(cachedData.data);
+    }
+
+    const today = new Date();
+    const sevenDaysFromNow = new Date();
+    sevenDaysFromNow.setDate(today.getDate() + 7);
+    
+    // **OPTIMIZATION: Use stored membershipEndDate for expiring customers**
+    const expiringCustomers = await Customer.find({
+      userId,
+      gymId,
+      membershipEndDate: {
+        $gte: today,
+        $lte: sevenDaysFromNow
+      }
+    })
+    .select('name email phone membershipEndDate membershipType')
+    .sort({ membershipEndDate: 1 })
+    .lean();
+
+    const responseData = {
+      success: true,
+      customers: expiringCustomers
+    };
+
+    dashboardCache.set(cacheKey, {
+      data: responseData,
+      timestamp: Date.now()
+    });
+
+    res.json(responseData);
+  } catch (error) {
+    console.error('Error fetching expiring customers:', error);
+    res.status(500).json({ success: false, message: 'Error fetching expiring customers' });
   }
 });
 
