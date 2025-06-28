@@ -68,7 +68,7 @@ export interface TimeRangeData {
 }
 
 class AnalyticsService {
-  private baseURL = '/api/analytics';
+  private baseURL = '/analytics';
 
   /**
    * Get comprehensive analytics data
