@@ -27,6 +27,7 @@ import BookingsPage from "./pages/bookings/BookingsPage";
 import InvoicesPage from "./pages/invoices/InvoicesPage";
 import NotificationsPage from "./pages/notifications/NotificationsPage";
 import SettingsPage from "./pages/settings/SettingsPage";
+import AnalyticsPage from "./pages/AnalyticsPage";
 
 // Industry-specific Pages
 import WorkoutPlansPage from "./pages/workout-plans/WorkoutPlansPage";
@@ -103,6 +104,7 @@ const App = () => (
                     <Route path="/dashboard/bookings" element={<ProtectedRoute element={<BookingsPage />} />} />
                     <Route path="/dashboard/invoices" element={<ProtectedRoute element={<InvoicesPage />} />} />
                     <Route path="/dashboard/notifications" element={<ProtectedRoute element={<NotificationsPage />} />} />
+                    <Route path="/dashboard/analytics" element={<ProtectedRoute element={<AnalyticsPage />} />} />
                     <Route path="/dashboard/settings" element={<ProtectedRoute element={<SettingsPage />} />} />
                     
                     {/* Gym Module Routes */}

@@ -98,165 +98,6 @@ interface GymFormData {
   };
 }
 
-// **OPTIMIZATION: Memoized components for better performance**
-const LoadingState = React.memo(() => (
-  <div className="space-y-6">
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {[...Array(6)].map((_, i) => (
-        <Skeleton key={i} className="h-20 w-full" />
-      ))}
-    </div>
-    <Skeleton className="h-32 w-full" />
-  </div>
-));
-
-const LogoUploadSection = React.memo(({ 
-  logoPreview, 
-  isUploadingLogo, 
-  isEditing, 
-  onLogoChange, 
-  onRemoveLogo, 
-  fileInputRef 
-}: {
-  logoPreview: string | null;
-  isUploadingLogo: boolean;
-  isEditing: boolean;
-  onLogoChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onRemoveLogo: () => void;
-  fileInputRef: React.RefObject<HTMLInputElement>;
-}) => (
-  <Card className="relative overflow-hidden border-0 shadow-lg">
-    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-600/5" />
-    <CardHeader className="text-center pb-4">
-      <CardTitle className="flex items-center justify-center gap-2">
-        <ImageIcon className="h-5 w-5" />
-        Gym Logo
-      </CardTitle>
-      <CardDescription>
-        Upload your gym's logo to personalize your documents and QR codes
-      </CardDescription>
-    </CardHeader>
-    <CardContent className="space-y-4">
-      <div className="flex flex-col items-center">
-        <div className="relative w-32 h-32 mb-4">
-          {logoPreview ? (
-            <div className="relative group">
-              <img
-                src={logoPreview}
-                alt="Gym Logo"
-                className="w-full h-full object-contain rounded-lg border-2 border-border shadow-md"
-              />
-              {!isEditing && (
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="absolute -top-2 -right-2 rounded-full w-6 h-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={onRemoveLogo}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              )}
-            </div>
-          ) : (
-            <div className="w-full h-full rounded-lg border-2 border-dashed border-muted-foreground/25 flex items-center justify-center bg-muted/30">
-              <div className="text-center">
-                <Camera className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">No logo uploaded</p>
-              </div>
-            </div>
-          )}
-        </div>
-        
-        {!isEditing && (
-          <div className="flex gap-2">
-            <input
-              type="file"
-              ref={fileInputRef}
-              className="hidden"
-              accept="image/jpeg,image/png,image/gif,image/webp"
-              onChange={onLogoChange}
-            />
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploadingLogo}
-              className="shadow-sm"
-            >
-              {isUploadingLogo ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Upload className="h-4 w-4 mr-2" />
-              )}
-              {logoPreview ? 'Change Logo' : 'Upload Logo'}
-            </Button>
-          </div>
-        )}
-        
-        <div className="mt-3 text-center">
-          <p className="text-xs text-muted-foreground">
-            Maximum file size: 5MB
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Supported formats: JPEG, PNG, GIF, WebP
-          </p>
-        </div>
-      </div>
-    </CardContent>
-  </Card>
-));
-
-const QuickActionsCard = React.memo(({ 
-  onPreviewPDF, 
-  onDownloadPDF, 
-  isGeneratingPDF 
-}: {
-  onPreviewPDF: () => void;
-  onDownloadPDF: () => void;
-  isGeneratingPDF: boolean;
-}) => (
-  <Card className="relative overflow-hidden border-0 shadow-lg">
-    <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-blue-600/5" />
-    <CardHeader className="pb-4">
-      <CardTitle className="flex items-center gap-2">
-        <QrCode className="h-5 w-5" />
-        Quick Actions
-      </CardTitle>
-      <CardDescription>
-        Generate and manage your attendance QR code
-      </CardDescription>
-    </CardHeader>
-    <CardContent className="space-y-3">
-      <Button
-        variant="outline"
-        className="w-full shadow-sm"
-        onClick={onPreviewPDF}
-        disabled={isGeneratingPDF}
-      >
-        {isGeneratingPDF ? (
-          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-        ) : (
-          <Eye className="h-4 w-4 mr-2" />
-        )}
-        Preview QR Code
-      </Button>
-      <Button
-        variant="outline"
-        className="w-full shadow-sm"
-        onClick={onDownloadPDF}
-        disabled={isGeneratingPDF}
-      >
-        {isGeneratingPDF ? (
-          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-        ) : (
-          <Download className="h-4 w-4 mr-2" />
-        )}
-        Download PDF
-      </Button>
-    </CardContent>
-  </Card>
-));
-
 const SettingsPage: React.FC = () => {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -287,17 +128,37 @@ const SettingsPage: React.FC = () => {
     }
   });
 
-  // **OPTIMIZATION: Memoized fetch function**
+  // Test function to verify JavaScript is working
+  const testAlert = () => {
+    alert('JavaScript is working! Button clicked successfully.');
+    console.log('Test button clicked - JavaScript is working');
+  };
+
+  // Test backend connection
+  const testBackendConnection = async () => {
+    try {
+      console.log('Testing backend connection...');
+      const response = await axiosInstance.get('/gym/info');
+      console.log('Backend response:', response.data);
+      alert('Backend connection successful!');
+    } catch (error) {
+      console.error('Backend connection failed:', error);
+      alert('Backend connection failed! Check console for details.');
+    }
+  };
+
   const fetchGymInfo = useCallback(async () => {
     try {
       setIsLoading(true);
+      console.log('Fetching gym info...');
       const response = await axiosInstance.get('/gym/info');
+      console.log('Gym info response:', response.data);
+      
       if (response.data.success) {
         const gymData = response.data.gym;
         setGymInfo(gymData);
         setLogoPreview(gymData.logo);
         
-        // Reset form with fetched data
         personalForm.reset({
           name: gymData.name || '',
           contactInfo: {
@@ -329,10 +190,12 @@ const SettingsPage: React.FC = () => {
     fetchGymInfo();
   }, [fetchGymInfo]);
 
-  // **OPTIMIZATION: Debounced logo change handler**
   const handleLogoChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('Logo change handler called');
     const file = e.target.files?.[0];
     if (!file) return;
+
+    console.log('File selected:', file.name, file.size, file.type);
 
     // Validate file type
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
@@ -361,11 +224,14 @@ const SettingsPage: React.FC = () => {
       const formData = new FormData();
       formData.append('logo', file);
 
+      console.log('Uploading logo...');
       const response = await axiosInstance.put('/gym/logo', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
+
+      console.log('Logo upload response:', response.data);
 
       if (response.data.logo) {
         setLogoPreview(response.data.logo);
@@ -388,7 +254,6 @@ const SettingsPage: React.FC = () => {
       });
     } finally {
       setIsUploadingLogo(false);
-      // Clear the input value to allow re-uploading the same file
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -397,6 +262,7 @@ const SettingsPage: React.FC = () => {
 
   const handleRemoveLogo = useCallback(async () => {
     try {
+      console.log('Removing logo...');
       await axiosInstance.delete('/gym/logo');
       setLogoPreview(null);
       setGymInfo(prev => {
@@ -419,9 +285,72 @@ const SettingsPage: React.FC = () => {
     setShowDeleteDialog(false);
   }, [toast]);
 
+  const generatePDF = useCallback(async (preview: boolean = false) => {
+    try {
+      console.log('Generating PDF, preview:', preview);
+      setIsGeneratingPDF(true);
+      toast({
+        title: "Generating PDF",
+        description: "Please wait while we generate your PDF...",
+      });
+
+      const response = await axiosInstance.get('/gym/generate-pdf', {
+        responseType: 'blob'
+      });
+
+      console.log('PDF generated successfully');
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+
+      if (preview) {
+        const newWindow = window.open(url, '_blank');
+        if (!newWindow) {
+          toast({
+            title: "Popup Blocked",
+            description: "Please allow popups for this site to preview the PDF",
+            variant: "destructive",
+          });
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `${gymInfo?.name?.replace(/[^a-zA-Z0-9]/g, '_') || 'gym'}_qr_code.pdf`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+      } else {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${gymInfo?.name?.replace(/[^a-zA-Z0-9]/g, '_') || 'gym'}_qr_code.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+      }, 1000);
+
+      toast({
+        title: "Success",
+        description: preview ? "PDF preview opened in new window" : "PDF downloaded successfully",
+      });
+    } catch (error: unknown) {
+      const err = error as AxiosError;
+      console.error('Error generating PDF:', err);
+      toast({
+        title: "Error",
+        description: "Failed to generate PDF. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  }, [gymInfo?.name, toast]);
+
   const handleSaveGymInfo = useCallback(async (data: GymFormData) => {
     try {
       setIsSaving(true);
+      console.log('Saving gym info:', data);
       const response = await axiosInstance.put('/gym/info', {
         name: data.name.trim(),
         contactInfo: {
@@ -436,6 +365,8 @@ const SettingsPage: React.FC = () => {
           country: data.address.country.trim()
         }
       });
+
+      console.log('Save response:', response.data);
 
       if (response.data.success) {
         setGymInfo(response.data.gym);
@@ -458,51 +389,6 @@ const SettingsPage: React.FC = () => {
     }
   }, [toast]);
 
-  const generatePDF = useCallback(async (preview: boolean = false) => {
-    try {
-      setIsGeneratingPDF(true);
-      toast({
-        title: "Generating PDF",
-        description: "Please wait while we generate your PDF...",
-      });
-
-      const response = await axiosInstance.get('/gym/generate-pdf', {
-        responseType: 'blob'
-      });
-
-      const blob = new Blob([response.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-
-      if (preview) {
-        window.open(url, '_blank');
-      } else {
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `${gymInfo?.name?.replace(/[^a-zA-Z0-9]/g, '_') || 'gym'}_qr_code.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
-
-      window.URL.revokeObjectURL(url);
-
-      toast({
-        title: "Success",
-        description: preview ? "PDF preview opened in new window" : "PDF downloaded successfully",
-      });
-    } catch (error: unknown) {
-      const err = error as AxiosError;
-      console.error('Error generating PDF:', err);
-      toast({
-        title: "Error",
-        description: "Failed to generate PDF. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsGeneratingPDF(false);
-    }
-  }, [gymInfo?.name, toast]);
-
   const handleCancelEdit = useCallback(() => {
     setIsEditing(false);
     if (gymInfo) {
@@ -523,7 +409,6 @@ const SettingsPage: React.FC = () => {
     }
   }, [gymInfo, personalForm]);
 
-  // **OPTIMIZATION: Memoized computed values**
   const formattedDates = useMemo(() => {
     if (!gymInfo) return { created: '', updated: '' };
     return {
@@ -557,7 +442,14 @@ const SettingsPage: React.FC = () => {
             <Skeleton className="h-9 w-48" />
             <Skeleton className="h-10 w-32" />
           </div>
-          <LoadingState />
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {[...Array(6)].map((_, i) => (
+                <Skeleton key={i} className="h-20 w-full" />
+              ))}
+            </div>
+            <Skeleton className="h-32 w-full" />
+          </div>
         </div>
       </DashboardLayout>
     );
@@ -863,24 +755,151 @@ const SettingsPage: React.FC = () => {
 
           {/* Right Column - Logo and Actions */}
           <div className="xl:col-span-1 space-y-6">
-            <LogoUploadSection
-              logoPreview={logoPreview}
-              isUploadingLogo={isUploadingLogo}
-              isEditing={isEditing}
-              onLogoChange={handleLogoChange}
-              onRemoveLogo={() => setShowDeleteDialog(true)}
-              fileInputRef={fileInputRef}
-            />
+            {/* Logo Upload Section */}
+            <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-shadow duration-200">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-600/5 pointer-events-none" />
+              <CardHeader className="text-center pb-4 relative z-10">
+                <CardTitle className="flex items-center justify-center gap-2">
+                  <ImageIcon className="h-5 w-5" />
+                  Gym Logo
+                </CardTitle>
+                <CardDescription>
+                  {isEditing ? 'Upload or change your gym logo' : 'Your gym\'s current logo'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4 relative z-10">
+                <div className="flex flex-col items-center">
+                  <div className="relative w-32 h-32 mb-4">
+                    {logoPreview ? (
+                      <div className="relative group">
+                        <img
+                          src={logoPreview}
+                          alt="Gym Logo"
+                          className="w-full h-full object-contain rounded-lg border-2 border-border shadow-md transition-transform duration-200"
+                        />
+                        {isEditing && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              console.log('Remove logo clicked');
+                              handleRemoveLogo();
+                            }}
+                            className="absolute -top-2 -right-2 rounded-full w-6 h-6 bg-red-500 text-white cursor-pointer hover:bg-red-600 flex items-center justify-center transition-colors hover:scale-110"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <div 
+                        className={`w-full h-full rounded-lg border-2 border-dashed border-muted-foreground/25 flex items-center justify-center bg-muted/30 transition-colors duration-200 ${
+                          isEditing ? 'hover:bg-muted/50 cursor-pointer' : ''
+                        }`}
+                        onClick={isEditing ? () => {
+                          console.log('Logo placeholder clicked');
+                          fileInputRef.current?.click();
+                        } : undefined}
+                      >
+                        <div className="text-center">
+                          <Camera className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                          <p className="text-sm text-muted-foreground">
+                            {isEditing ? 'Click to upload' : 'No logo uploaded'}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {isEditing && (
+                    <div className="flex gap-2">
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        className="hidden"
+                        accept="image/jpeg,image/png,image/gif,image/webp"
+                        onChange={handleLogoChange}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          console.log('Upload logo button clicked');
+                          fileInputRef.current?.click();
+                        }}
+                        disabled={isUploadingLogo}
+                        className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 rounded-md shadow-sm bg-white hover:bg-blue-50 hover:shadow-md transition-all duration-200 hover:scale-105 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isUploadingLogo ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Upload className="h-4 w-4" />
+                        )}
+                        {logoPreview ? 'Change Logo' : 'Upload Logo'}
+                      </button>
+                    </div>
+                  )}
+                  
+                  <div className="mt-3 text-center">
+                    <p className="text-xs text-muted-foreground">
+                      Maximum file size: 5MB
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Supported formats: JPEG, PNG, GIF, WebP
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
             
-            <QuickActionsCard
-              onPreviewPDF={() => generatePDF(true)}
-              onDownloadPDF={() => generatePDF(false)}
-              isGeneratingPDF={isGeneratingPDF}
-            />
+            {/* Quick Actions Card */}
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-200">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2">
+                  <QrCode className="h-5 w-5" />
+                  Quick Actions
+                </CardTitle>
+                <CardDescription>
+                  Generate and manage your attendance QR code
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    console.log('Preview QR Code clicked');
+                    generatePDF(true);
+                  }}
+                  disabled={isGeneratingPDF}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-md shadow-sm bg-white hover:bg-blue-50 hover:shadow-md transition-all duration-200 hover:scale-105 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isGeneratingPDF ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                  Preview QR Code
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => {
+                    console.log('Download PDF clicked');
+                    generatePDF(false);
+                  }}
+                  disabled={isGeneratingPDF}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-md shadow-sm bg-white hover:bg-green-50 hover:shadow-md transition-all duration-200 hover:scale-105 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isGeneratingPDF ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4" />
+                  )}
+                  Download PDF
+                </button>
+              </CardContent>
+            </Card>
             
             {/* Status Card */}
-            <Card className="relative overflow-hidden border-0 shadow-lg">
-              <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-pink-600/5" />
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-200">
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center gap-2">
                   <CheckCircle className="h-5 w-5 text-green-600" />
@@ -924,9 +943,8 @@ const SettingsPage: React.FC = () => {
               </CardContent>
             </Card>
 
-            {/* Help Card */}
-            <Card className="relative overflow-hidden border-0 shadow-lg">
-              <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-orange-600/5" />
+            {/* Help Card
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-200">
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center gap-2">
                   <FileText className="h-5 w-5" />
@@ -937,12 +955,19 @@ const SettingsPage: React.FC = () => {
                 <p className="text-sm text-muted-foreground">
                   Having trouble with your gym settings? Check out our help center for guides and tutorials.
                 </p>
-                <Button variant="outline" size="sm" className="w-full shadow-sm">
-                  <FileText className="h-4 w-4 mr-2" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    console.log('Help button clicked');
+                    window.open('https://docs.example.com/gym-settings', '_blank');
+                  }}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm border border-gray-300 rounded-md shadow-sm bg-white hover:bg-amber-50 hover:shadow-md transition-all duration-200 hover:scale-105 cursor-pointer"
+                >
+                  <FileText className="h-4 w-4" />
                   View Documentation
-                </Button>
+                </button>
               </CardContent>
-            </Card>
+            </Card> */}
           </div>
         </div>
       </motion.div>

@@ -16,6 +16,7 @@ const bookingsRoutes = require('./routes/bookings');
 const customersRoutes = require('./routes/customers');
 const notificationsRoutes = require('./routes/notifications');
 const dashboardRoutes = require('./routes/dashboard');
+const analyticsRoutes = require('./routes/analytics');
 const workoutPlansRoutes = require('./routes/workoutPlans');
 const trainersRouter = require('./routes/trainers');
 const classSchedulesRouter = require('./routes/classSchedules');
@@ -135,6 +136,7 @@ app.get('/uploads/logos/:filename', (req, res) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/analytics', analyticsRoutes);
 app.use('/api/gym', gymRoutes);
 // app.use('/api/gym/members', membersRoutes);
 app.use('/api/gym/staff', staffRoutes);
