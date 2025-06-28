@@ -98,8 +98,7 @@ router.get('/comprehensive', auth, async (req, res) => {
       totalBookings,
       previousTotalBookings,
       totalExpenses,
-      previousTotalExpenses,
-      profitMargin
+      previousTotalExpenses
     ] = await Promise.all([
       // Current period revenue
       Invoice.aggregate([
