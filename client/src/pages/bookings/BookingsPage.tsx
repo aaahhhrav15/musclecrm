@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
@@ -20,7 +20,9 @@ import {
   Dumbbell,
   GraduationCap,
   Wrench,
-  Search
+  Search,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import DashboardLayout from "@/components/layouts/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -79,18 +81,36 @@ const BookingsPage: React.FC = () => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [bookingToDelete, setBookingToDelete] = useState<Booking | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [allBookings, setAllBookings] = useState<Booking[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [filters, setFilters] = useState<BookingFilters>({
     page: 1,
-    limit: 10,
+    limit: 10000, // Fetch all bookings
   });
 
   const navigate = useNavigate();
 
-  // Fetch bookings
+  // Fetch all bookings once using React Query
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["bookings", filters],
-    queryFn: () => BookingService.getBookings(filters),
+    queryKey: ["bookings"],
+    queryFn: async () => {
+      const response = await BookingService.getBookings({
+        page: 1,
+        limit: 10000 // Large enough to get all bookings
+      });
+      return response.bookings || [];
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
   });
+
+  // Update allBookings when data changes
+  useEffect(() => {
+    if (data) {
+      setAllBookings(data);
+    }
+  }, [data]);
 
   // Fetch calendar data
   const { data: calendarData } = useQuery({
@@ -107,167 +127,174 @@ const BookingsPage: React.FC = () => {
       ),
   });
 
-  // Calculate booking insights
-  const bookingInsights = React.useMemo(() => {
-    if (!data?.bookings) return {
-      totalBookings: 0,
-      scheduledBookings: 0,
-      completedBookings: 0,
-      cancelledBookings: 0,
-      totalRevenue: 0,
-      todayBookings: 0,
-      classBookings: 0,
-      personalTrainingBookings: 0,
-      equipmentBookings: 0
-    };
+  // Calculate metrics from all bookings
+  const metrics = useMemo(() => {
+    if (!allBookings.length) {
+      return {
+        totalBookings: 0,
+        completedBookings: 0,
+        upcomingBookings: 0,
+        totalRevenue: 0,
+        averageBookingValue: 0
+      };
+    }
 
-    const bookings = data.bookings;
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
+    const completedBookings = allBookings.filter(b => b.status === 'completed').length;
+    const upcomingBookings = allBookings.filter(b => b.status === 'scheduled').length;
+    const totalRevenue = allBookings
+      .filter(b => b.status === 'completed')
+      .reduce((sum, b) => sum + (b.price || 0), 0);
+    const averageBookingValue = completedBookings > 0 ? totalRevenue / completedBookings : 0;
 
     return {
-      totalBookings: bookings.length,
-      scheduledBookings: bookings.filter(b => b.status === 'scheduled').length,
-      completedBookings: bookings.filter(b => b.status === 'completed').length,
-      cancelledBookings: bookings.filter(b => b.status === 'cancelled' || b.status === 'no_show').length,
-      totalRevenue: bookings.reduce((sum, b) => sum + (b.price || 0), 0),
-      todayBookings: bookings.filter(b => 
-        new Date(b.startTime).toISOString().split('T')[0] === todayStr
-      ).length,
-      classBookings: bookings.filter(b => b.type === 'class').length,
-      personalTrainingBookings: bookings.filter(b => b.type === 'personal_training').length,
-      equipmentBookings: bookings.filter(b => b.type === 'equipment').length
+      totalBookings: allBookings.length,
+      completedBookings,
+      upcomingBookings,
+      totalRevenue,
+      averageBookingValue
     };
-  }, [data?.bookings]);
+  }, [allBookings]);
 
-  // Filter bookings based on search query
-  const filteredBookings = data?.bookings.filter(booking => {
-    const query = searchQuery.toLowerCase();
-    const customerName = typeof booking.customerId === 'object' 
-      ? booking.customerId?.name?.toLowerCase() || '' 
-      : '';
-    const serviceName = (
-      booking.className || 
-      booking.trainerName || 
-      booking.equipmentName || 
-      ''
-    ).toLowerCase();
+  // Client-side filtering
+  const filteredBookings = useMemo(() => {
+    if (!allBookings.length) return [];
+
+    return allBookings.filter(booking => {
+      const matchesSearch = searchQuery === '' || 
+        (typeof booking.customerId === 'object' && booking.customerId?.name?.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        booking.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (booking.className && booking.className.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (booking.trainerName && booking.trainerName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (booking.equipmentName && booking.equipmentName.toLowerCase().includes(searchQuery.toLowerCase()));
+
+      return matchesSearch;
+    });
+  }, [allBookings, searchQuery]);
+
+  // Pagination calculations
+  const totalBookings = filteredBookings.length;
+  const totalPages = Math.ceil(totalBookings / rowsPerPage);
+  const startItem = (currentPage - 1) * rowsPerPage + 1;
+  const endItem = Math.min(currentPage * rowsPerPage, totalBookings);
+  
+  // Get current page data
+  const currentPageBookings = filteredBookings.slice(
+    (currentPage - 1) * rowsPerPage,
+    currentPage * rowsPerPage
+  );
+
+  // Generate page numbers for pagination
+  const getPageNumbers = useMemo(() => {
+    const pages = [];
+    const maxVisiblePages = 5;
     
-    return (
-      customerName.includes(query) ||
-      booking.type.toLowerCase().includes(query) ||
-      serviceName.includes(query)
-    );
-  }) || [];
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) {
+          pages.push(i);
+        }
+        pages.push('...');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1);
+        pages.push('...');
+        for (let i = totalPages - 3; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        pages.push(1);
+        pages.push('...');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          pages.push(i);
+        }
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+    
+    return pages;
+  }, [totalPages, currentPage]);
 
-  const handleFilterChange = (newFilters: BookingFilters) => {
-    setFilters((prev) => ({ ...prev, ...newFilters, page: 1 }));
-    setShowFilterModal(false);
+  const handleFilterChange = (newFilters: Partial<BookingFilters>) => {
+    setFilters(prev => ({ ...prev, ...newFilters }));
+    setCurrentPage(1); // Reset to first page when filters change
   };
 
-  const handleCreateBooking = async (
-    bookingData: CreateBookingData
-  ): Promise<{ success: boolean; message?: string }> => {
+  const handleCreateBooking = async (data: CreateBookingData) => {
     try {
-      console.log("Creating booking with data:", bookingData);
-      const response = await BookingService.createBooking(bookingData);
-      console.log("Booking creation response:", response);
-
+      const response = await BookingService.createBooking(data);
       if (response.success) {
+        await refetch();
         setShowBookingForm(false);
-        await refetch(); // Wait for the refetch to complete
-        toast.success(response.message || "Booking created successfully");
-        return { success: true, message: response.message };
+        toast.success("Booking created successfully!");
       } else {
         toast.error(response.message || "Failed to create booking");
-        return { success: false, message: response.message };
       }
     } catch (error) {
       console.error("Error creating booking:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to create booking";
-      toast.error(errorMessage);
-      return { success: false, message: errorMessage };
+      toast.error("Failed to create booking");
     }
   };
 
-  const handleUpdateBooking = async (
-    bookingData: UpdateBookingData
-  ): Promise<{ success: boolean; message?: string }> => {
-    if (!selectedBooking?._id) {
-      const message = "No booking selected for update";
-      toast.error(message);
-      return { success: false, message };
-    }
+  const handleUpdateBooking = async (data: UpdateBookingData) => {
+    if (!selectedBooking) return;
 
     try {
-      const response = await BookingService.updateBooking(
-        selectedBooking._id,
-        bookingData
-      );
-      setSelectedBooking(null);
-      setShowBookingForm(false);
-      refetch();
-      toast.success("Booking updated successfully");
-      return { success: true, message: "Booking updated successfully" };
+      const response = await BookingService.updateBooking(selectedBooking._id, data);
+      if (response.success) {
+        await refetch();
+        setShowBookingForm(false);
+        setSelectedBooking(null);
+        toast.success("Booking updated successfully!");
+      } else {
+        toast.error(response.message || "Failed to update booking");
+      }
     } catch (error) {
       console.error("Error updating booking:", error);
-      const message = "Failed to update booking";
-      toast.error(message);
-      return { success: false, message };
+      toast.error("Failed to update booking");
     }
   };
 
   const handleDeleteBooking = async (bookingId: string) => {
-    if (!bookingId) {
-      toast.error("Invalid booking selected for deletion");
-      return;
-    }
-    const booking = data?.bookings.find((b) => b._id === bookingId);
-    if (!booking) {
-      toast.error("Booking not found");
-      return;
-    }
-    setBookingToDelete(booking);
-    setShowDeleteDialog(true);
-  };
-
-  const confirmDeleteBooking = async () => {
-    if (!bookingToDelete?._id) {
-      toast.error("Invalid booking selected for deletion");
-      return;
-    }
-
     try {
-      await BookingService.deleteBooking(bookingToDelete._id);
-      refetch();
-      toast.success("Booking deleted successfully");
+      const response = await BookingService.deleteBooking(bookingId);
+      if (response.success) {
+        await refetch();
+        toast.success("Booking deleted successfully!");
+      } else {
+        toast.error(response.message || "Failed to delete booking");
+      }
     } catch (error) {
       console.error("Error deleting booking:", error);
       toast.error("Failed to delete booking");
-    } finally {
-      setShowDeleteDialog(false);
-      setBookingToDelete(null);
     }
   };
 
   const handleStatusChange = async (
     bookingId: string,
-    newStatus: "scheduled" | "completed" | "cancelled" | "no_show"
+    status: "scheduled" | "completed" | "cancelled" | "no_show"
   ) => {
     try {
-      await BookingService.updateBooking(bookingId, { status: newStatus });
-      toast.success("Booking status updated successfully");
-      refetch();
+      const response = await BookingService.updateBooking(bookingId, { status });
+      if (response.success) {
+        await refetch();
+        toast.success("Booking status updated successfully!");
+      } else {
+        toast.error(response.message || "Failed to update booking status");
+      }
     } catch (error) {
       console.error("Error updating booking status:", error);
       toast.error("Failed to update booking status");
     }
   };
 
-  const handleExport = () => {
-    if (!filteredBookings || filteredBookings.length === 0) {
-      toast("No data to export.");
+  const exportToCSV = () => {
+    if (!filteredBookings.length) {
+      toast.error("No booking data to export");
       return;
     }
 
@@ -337,183 +364,145 @@ const BookingsPage: React.FC = () => {
               Schedule and manage gym bookings, classes, and training sessions.
             </p>
           </div>
-          <div className="flex gap-3">
-            <Button onClick={() => setShowBookingForm(true)} size="lg" className="shadow-sm">
-              <Plus className="mr-2 h-5 w-5" /> New Booking
+          <div className="flex items-center gap-3">
+            <Button variant="outline" onClick={exportToCSV}>
+              <Download className="w-4 h-4 mr-2" />
+              Export
             </Button>
-            <Button variant="outline" size="lg" className="shadow-sm" onClick={handleExport}>
-              <Download className="mr-2 h-5 w-5" /> Export Data
+            <Button onClick={() => setShowBookingForm(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              New Booking
             </Button>
           </div>
         </div>
 
-        {/* Insights Dashboard */}
-        <div className="grid grid-cols-1 xl:grid-cols-6 gap-6">
-          {/* Left Column - Main Metrics */}
-          <div className="xl:col-span-4 space-y-6">
-            {/* Primary Metrics Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-              >
-                <Card className="relative overflow-hidden border-0 shadow-lg">
-                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-blue-600/5" />
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Total Bookings</CardTitle>
-                    <div className="h-10 w-10 rounded-full bg-blue-500/10 flex items-center justify-center">
-                      <CalendarCheck className="h-5 w-5 text-blue-600" />
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-1">
-                    <div className="text-2xl font-bold">{bookingInsights.totalBookings}</div>
-                    <p className="text-xs text-muted-foreground flex items-center">
-                      <TrendingUp className="h-3 w-3 mr-1" />
-                      All bookings
-                    </p>
-                  </CardContent>
-                </Card>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-              >
-                <Card className="relative overflow-hidden border-0 shadow-lg">
-                  <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-green-600/5" />
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Total Revenue</CardTitle>
-                    <div className="h-10 w-10 rounded-full bg-green-500/10 flex items-center justify-center">
-                      <DollarSign className="h-5 w-5 text-green-600" />
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-1">
-                    <div className="text-2xl font-bold">{formatCurrency(bookingInsights.totalRevenue)}</div>
-                    <p className="text-xs text-muted-foreground">From bookings</p>
-                  </CardContent>
-                </Card>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-              >
-                <Card className="relative overflow-hidden border-0 shadow-lg">
-                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-purple-600/5" />
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Scheduled</CardTitle>
-                    <div className="h-10 w-10 rounded-full bg-purple-500/10 flex items-center justify-center">
-                      <Clock className="h-5 w-5 text-purple-600" />
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-1">
-                    <div className="text-2xl font-bold">{bookingInsights.scheduledBookings}</div>
-                    <p className="text-xs text-muted-foreground">Upcoming sessions</p>
-                  </CardContent>
-                </Card>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-              >
-                <Card className="relative overflow-hidden border-0 shadow-lg">
-                  <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-orange-600/5" />
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Today's Bookings</CardTitle>
-                    <div className="h-10 w-10 rounded-full bg-orange-500/10 flex items-center justify-center">
-                      <Calendar className="h-5 w-5 text-orange-600" />
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-1">
-                    <div className="text-2xl font-bold">{bookingInsights.todayBookings}</div>
-                    <p className="text-xs text-muted-foreground">Today's schedule</p>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </div>
-
-            {/* Search Bar */}
-            <div className="w-full">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by customer name, service, or booking type..."
-                  className="pl-10 h-11 shadow-sm border-muted-foreground/20 focus:ring-2 focus:ring-primary/20"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
+        {/* Metrics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Card className="relative overflow-hidden border-0 shadow-lg">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-blue-600/5" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Total Bookings
+              </CardTitle>
+              <CalendarCheck className="h-5 w-5 text-blue-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-blue-700">
+                {metrics.totalBookings}
               </div>
-            </div>
+              <p className="text-xs text-muted-foreground">
+                All time bookings
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="relative overflow-hidden border-0 shadow-lg">
+            <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-green-600/5" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Completed
+              </CardTitle>
+              <Users className="h-5 w-5 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-green-700">
+                {metrics.completedBookings}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Successfully completed
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="relative overflow-hidden border-0 shadow-lg">
+            <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-orange-600/5" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Upcoming
+              </CardTitle>
+              <Clock className="h-5 w-5 text-orange-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-orange-700">
+                {metrics.upcomingBookings}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Scheduled bookings
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="relative overflow-hidden border-0 shadow-lg">
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-purple-600/5" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Total Revenue
+              </CardTitle>
+              <DollarSign className="h-5 w-5 text-purple-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-purple-700">
+                {formatCurrency(metrics.totalRevenue)}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                From completed bookings
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Search and Filters */}
+        <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              placeholder="Search bookings..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1); // Reset to first page when searching
+              }}
+              className="pl-10"
+            />
           </div>
-
-          {/* Right Column - Booking Types & Status Breakdown */}
-          <div className="xl:col-span-2 space-y-6">
-            {/* Booking Types */}
-            <Card className="shadow-lg border-0">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg font-semibold flex items-center">
-                  <Users className="h-5 w-5 mr-2" />
-                  Booking Types
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-blue-500/10 to-blue-600/5">
-                    <div className="flex items-center space-x-2">
-                      <GraduationCap className="h-4 w-4 text-blue-600" />
-                      <span className="font-medium">Classes</span>
-                    </div>
-                    <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                      {bookingInsights.classBookings}
-                    </Badge>
-                  </div>
-                  
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-green-500/10 to-green-600/5">
-                    <div className="flex items-center space-x-2">
-                      <Dumbbell className="h-4 w-4 text-green-600" />
-                      <span className="font-medium">Personal Training</span>
-                    </div>
-                    <Badge variant="secondary" className="bg-green-100 text-green-800">
-                      {bookingInsights.personalTrainingBookings}
-                    </Badge>
-                  </div>
-                  
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-purple-500/10 to-purple-600/5">
-                    <div className="flex items-center space-x-2">
-                      <Wrench className="h-4 w-4 text-purple-600" />
-                      <span className="font-medium">Equipment</span>
-                    </div>
-                    <Badge variant="secondary" className="bg-purple-100 text-purple-800">
-                      {bookingInsights.equipmentBookings}
-                    </Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-
+          <div className="flex items-center gap-3">
+            <Badge variant="secondary" className="text-sm px-3 py-1">
+              {filteredBookings.length} bookings
+            </Badge>
+            <Button variant="outline" onClick={() => setShowFilterModal(true)}>
+              <Filter className="w-4 h-4 mr-2" />
+              Filter
+            </Button>
           </div>
         </div>
 
-        {/* Table Section */}
-        <div className="mt-8">
+        {/* Bookings Table */}
+        <div className="space-y-4">
           <Card className="shadow-lg border-0">
             <CardHeader className="border-b bg-muted/30">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-xl font-semibold">Booking Directory</CardTitle>
-                <div className="flex items-center gap-3">
-                  <Badge variant="secondary" className="text-sm px-3 py-1">
-                    {filteredBookings?.length || 0} bookings
-                  </Badge>
-                  <Button variant="outline" onClick={() => setShowFilterModal(true)}>
-                    <Filter className="w-4 h-4 mr-2" />
-                    Filter
-                  </Button>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">
+                    Showing {startItem}-{endItem} of {totalBookings}
+                  </span>
+                  <Select
+                    value={rowsPerPage.toString()}
+                    onValueChange={(value) => {
+                      setRowsPerPage(Number(value));
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="25">25</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </CardHeader>
@@ -532,7 +521,7 @@ const BookingsPage: React.FC = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredBookings.map((booking, index) => (
+                    {currentPageBookings.map((booking, index) => (
                       <motion.tr
                         key={booking._id}
                         initial={{ opacity: 0, y: 10 }}
@@ -597,21 +586,17 @@ const BookingsPage: React.FC = () => {
                                       : "outline"
                                   }
                                 >
-                                  {booking.status.charAt(0).toUpperCase() +
-                                    booking.status.slice(1).replace("_", " ")}
+                                  {booking.status === "no_show"
+                                    ? "No Show"
+                                    : booking.status.charAt(0).toUpperCase() +
+                                      booking.status.slice(1)}
                                 </Badge>
                               </SelectValue>
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="scheduled">
-                                Scheduled
-                              </SelectItem>
-                              <SelectItem value="completed">
-                                Completed
-                              </SelectItem>
-                              <SelectItem value="cancelled">
-                                Cancelled
-                              </SelectItem>
+                              <SelectItem value="scheduled">Scheduled</SelectItem>
+                              <SelectItem value="completed">Completed</SelectItem>
+                              <SelectItem value="cancelled">Cancelled</SelectItem>
                               <SelectItem value="no_show">No Show</SelectItem>
                             </SelectContent>
                           </Select>
@@ -619,7 +604,7 @@ const BookingsPage: React.FC = () => {
                         <TableCell>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-muted">
+                              <Button variant="ghost" className="h-8 w-8 p-0">
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
@@ -653,7 +638,7 @@ const BookingsPage: React.FC = () => {
                         </TableCell>
                       </motion.tr>
                     ))}
-                    {(!filteredBookings || filteredBookings.length === 0) && (
+                    {(!currentPageBookings || currentPageBookings.length === 0) && (
                       <TableRow>
                         <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
                           <div className="flex flex-col items-center space-y-2">
@@ -669,6 +654,55 @@ const BookingsPage: React.FC = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-muted-foreground">
+                Showing {startItem} to {endItem} of {totalBookings} bookings
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </Button>
+                
+                <div className="flex items-center space-x-1">
+                  {getPageNumbers.map((page, index) => (
+                    <React.Fragment key={index}>
+                      {page === '...' ? (
+                        <span className="px-2 py-1 text-muted-foreground">...</span>
+                      ) : (
+                        <Button
+                          variant={currentPage === page ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setCurrentPage(page as number)}
+                          className="w-8 h-8 p-0"
+                        >
+                          {page}
+                        </Button>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </motion.div>
 
@@ -694,18 +728,27 @@ const BookingsPage: React.FC = () => {
         />
       )}
 
+      {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
               This action cannot be undone. This will permanently delete the
-              booking.
+              booking and remove the data from our servers.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteBooking}>
+            <AlertDialogAction
+              onClick={() => {
+                if (bookingToDelete) {
+                  handleDeleteBooking(bookingToDelete._id);
+                  setShowDeleteDialog(false);
+                  setBookingToDelete(null);
+                }
+              }}
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

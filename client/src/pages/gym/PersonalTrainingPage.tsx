@@ -520,7 +520,7 @@ const PersonalTrainingPage: React.FC = () => {
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 pb-4 border-b">
           <div className="space-y-2">
             <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent flex items-center gap-2">
-              <Users className="w-8 h-8" /> Personal Training Assignments
+              Personal Training Assignments
             </h1>
             <p className="text-muted-foreground text-lg">
               Assign personal trainers to customers and manage all personal training assignments.
