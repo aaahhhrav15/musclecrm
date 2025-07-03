@@ -73,6 +73,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useQueryClient } from '@tanstack/react-query';
+import RenewPersonalTrainingModal from '@/components/personal-training/RenewPersonalTrainingModal';
 
 interface Assignment {
   _id?: string;
@@ -165,6 +167,9 @@ const PersonalTrainingPage: React.FC = () => {
   const [editAssignment, setEditAssignment] = useState<Assignment | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const queryClient = useQueryClient();
+  const [renewAssignment, setRenewAssignment] = useState<Assignment | null>(null);
+  const [isRenewModalOpen, setIsRenewModalOpen] = useState(false);
 
   // Helper functions for assignment status
   const getAssignmentStatus = (assignment: Assignment) => {
@@ -277,7 +282,7 @@ const PersonalTrainingPage: React.FC = () => {
     // Sorting
     if (filters.sortBy && filters.sortBy !== 'none') {
       filtered.sort((a, b) => {
-        let aValue: any, bValue: any;
+        let aValue: string | number, bValue: string | number;
         
         switch (filters.sortBy) {
           case 'customer':
@@ -416,6 +421,8 @@ const PersonalTrainingPage: React.FC = () => {
       // Refresh assignments
       const res = await axios.get(`/personal-training?gymId=${gymId}`);
       setAssignments(Array.isArray(res.data) ? res.data : res.data.assignments || []);
+      // Invalidate customers query so customer section updates
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
     } catch (error: unknown) {
       console.error('Error creating assignment:', error);
       toast({
@@ -431,7 +438,7 @@ const PersonalTrainingPage: React.FC = () => {
     const dataToExport = filteredAssignments.map(assignment => {
       const endDate = new Date(assignment.endDate);
       const daysUntilExpiry = differenceInDays(endDate, new Date());
-      
+      // For display, add +1 to match badge logic
       return {
         "Customer Name": assignment.customerId?.name || '',
         "Customer Phone": assignment.customerId?.phone || '',
@@ -443,7 +450,7 @@ const PersonalTrainingPage: React.FC = () => {
         "Duration (Months)": assignment.duration,
         "Fees": assignment.fees,
         "Status": getAssignmentStatus(assignment),
-        "Days Until Expiry": daysUntilExpiry,
+        "Days Until Expiry": daysUntilExpiry + 1, // +1 for user-facing display
       };
     });
 
@@ -493,7 +500,7 @@ const PersonalTrainingPage: React.FC = () => {
       case 'expired':
         return <Badge variant="destructive">Expired</Badge>;
       case 'expiring-soon':
-        return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">Expires in {daysUntilExpiry} days</Badge>;
+        return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">Expires in {daysUntilExpiry + 1} days</Badge>;
       case 'active':
         return <Badge variant="secondary" className="bg-green-100 text-green-800">Active</Badge>;
       default:
@@ -913,12 +920,23 @@ const PersonalTrainingPage: React.FC = () => {
                                 Edit
                               </DropdownMenuItem>
                               <DropdownMenuItem
+                                onClick={() => {
+                                  setRenewAssignment(assignment);
+                                  setIsRenewModalOpen(true);
+                                }}
+                              >
+                                <Crown className="mr-2 h-4 w-4 text-yellow-600" />
+                                Renew
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
                                 onClick={async () => {
                                   if (confirm('Are you sure you want to delete this assignment?')) {
                                     try {
                                       await axios.delete(`/personal-training/${assignment._id}`);
                                       const res = await axios.get(`/personal-training?gymId=${gymId}`);
                                       setAssignments(Array.isArray(res.data) ? res.data : res.data.assignments || []);
+                                      // Invalidate customers query so customer section updates
+                                      queryClient.invalidateQueries({ queryKey: ['customers'] });
                                       toast({
                                         title: "Success",
                                         description: "Assignment deleted successfully",
@@ -1195,6 +1213,8 @@ const PersonalTrainingPage: React.FC = () => {
                 // Refresh assignments
                 const res = await axios.get(`/personal-training?gymId=${gymId}`);
                 setAssignments(Array.isArray(res.data) ? res.data : res.data.assignments || []);
+                // Invalidate customers query so customer section updates
+                queryClient.invalidateQueries({ queryKey: ['customers'] });
                 
                 toast({
                   title: "Success",
@@ -1303,6 +1323,24 @@ const PersonalTrainingPage: React.FC = () => {
           </CommandList>
         </Command>
       </CommandDialog>
+
+      {/* Renew Assignment Modal */}
+      {renewAssignment && (
+        <RenewPersonalTrainingModal
+          isOpen={isRenewModalOpen}
+          onClose={() => {
+            setIsRenewModalOpen(false);
+            setRenewAssignment(null);
+          }}
+          assignment={renewAssignment}
+          onRenewed={async () => {
+            // Refresh assignments after renewal
+            const res = await axios.get(`/personal-training?gymId=${gymId}`);
+            setAssignments(Array.isArray(res.data) ? res.data : res.data.assignments || []);
+            queryClient.invalidateQueries({ queryKey: ['customers'] });
+          }}
+        />
+      )}
     </DashboardLayout>
   );
 };

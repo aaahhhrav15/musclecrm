@@ -167,4 +167,79 @@ exports.deleteAssignment = async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+};
+
+// Renew an assignment
+exports.renewAssignment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { startDate, duration, endDate, fees, gymId, paymentMode, transactionDate } = req.body;
+    if (!startDate || !duration || !endDate || !fees || !gymId) {
+      return res.status(400).json({ error: 'All fields are required.' });
+    }
+
+    // Update the assignment
+    const assignment = await PersonalTrainingAssignment.findByIdAndUpdate(
+      id,
+      {
+        startDate: new Date(startDate),
+        duration,
+        endDate: new Date(endDate),
+        fees
+      },
+      { new: true }
+    ).populate('customerId', 'name email phone')
+     .populate('trainerId', 'name email');
+
+    if (!assignment) {
+      return res.status(404).json({ error: 'Assignment not found.' });
+    }
+
+    // Generate invoice for renewal
+    const invoice = new Invoice({
+      userId: req.user._id,
+      gymId,
+      customerId: assignment.customerId._id || assignment.customerId,
+      amount: fees,
+      currency: 'INR',
+      dueDate: new Date(endDate),
+      items: [{
+        description: `Personal Training Renewal (${duration} month(s))`,
+        quantity: duration,
+        unitPrice: fees / duration,
+        amount: fees
+      }],
+      notes: `Personal training renewal starting ${new Date(startDate).toLocaleDateString()}`
+    });
+    await invoice.save();
+
+    // Create transaction record
+    const txn = new Transaction({
+      userId: assignment.customerId._id || assignment.customerId,
+      gymId,
+      invoiceId: invoice._id,
+      transactionType: 'PERSONAL_TRAINING_RENEWAL',
+      transactionDate: transactionDate ? new Date(transactionDate) : new Date(),
+      amount: fees,
+      paymentMode: paymentMode || 'cash',
+      membershipType: 'none',
+      description: `Personal training renewal for ${duration} month(s)` ,
+      status: 'SUCCESS'
+    });
+    await txn.save();
+
+    // Update customer's totalSpent
+    await Customer.findByIdAndUpdate(assignment.customerId._id || assignment.customerId, {
+      $inc: { totalSpent: fees }
+    });
+
+    res.status(200).json({
+      assignment,
+      invoice,
+      transaction: txn
+    });
+  } catch (err) {
+    console.error('Error renewing assignment:', err);
+    res.status(500).json({ error: err.message });
+  }
 }; 

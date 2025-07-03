@@ -12,6 +12,9 @@ router.post('/', auth, personalTrainingController.createAssignment);
 // Update an assignment
 router.put('/:id', auth, personalTrainingController.updateAssignment);
 
+// Renew an assignment
+router.post('/:id/renew', auth, personalTrainingController.renewAssignment);
+
 // Delete an assignment
 router.delete('/:id', auth, personalTrainingController.deleteAssignment);
 
