@@ -227,64 +227,51 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({ userId }
   }
 
   return (
-    <>
-      <Card>
-        <CardHeader>
-          <CardTitle>Transaction History</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Payment Mode</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Personal Training Assignment</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {transactions.map((txn) => (
-                <TableRow key={txn._id}>
-                  <TableCell>{format(new Date(txn.transactionDate), 'PPP')}</TableCell>
-                  <TableCell>{txn.transactionType ? txn.transactionType.replace('_', ' ') : 'N/A'}</TableCell>
-                  <TableCell>{formatCurrency(txn.amount)}</TableCell>
-                  <TableCell>{txn.paymentMode}</TableCell>
-                  <TableCell>{txn.status}</TableCell>
-                  <TableCell>{txn.description}</TableCell>
-                  <TableCell>
-                    {txn.personalTrainingAssignment && (
-                      <div className="text-xs text-muted-foreground">
-                        <div><b>Trainer:</b> {txn.personalTrainingAssignment.trainerId?.name}</div>
-                        <div><b>Duration:</b> {txn.personalTrainingAssignment.duration} months</div>
-                        <div><b>Fees:</b> {formatCurrency(txn.personalTrainingAssignment.fees)}</div>
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Button size="sm" variant="outline" onClick={() => handleEdit(txn)}><Edit className="h-4 w-4" /></Button>
-                    <Button size="sm" variant="destructive" onClick={() => handleDelete(txn)}><Trash2 className="h-4 w-4" /></Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {transactions.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground">
-                    No transactions found
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+    <div className="py-2">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Date</TableHead>
+            <TableHead>Type</TableHead>
+            <TableHead>Amount</TableHead>
+            <TableHead>Payment Mode</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead className="max-w-xs break-words">Description</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {transactions.map((transaction: Transaction) => (
+            <TableRow key={transaction._id}>
+              <TableCell>{format(new Date(transaction.transactionDate), 'PPP')}</TableCell>
+              <TableCell>{transaction.transactionType}</TableCell>
+              <TableCell>{formatCurrency(transaction.amount)}</TableCell>
+              <TableCell>{transaction.paymentMode}</TableCell>
+              <TableCell>{transaction.status}</TableCell>
+              <TableCell className="max-w-xs break-words">{transaction.description}</TableCell>
+              <TableCell>
+                <Button variant="ghost" size="icon" onClick={() => handleEdit(transaction)}>
+                  <Edit className="h-4 w-4" />
+                </Button>
+                <Button variant="destructive" size="icon" onClick={() => handleDelete(transaction)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+          {transactions.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={7} className="text-center text-muted-foreground">
+                No transactions found
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
 
       {/* Edit Transaction Modal */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="max-w-full w-[90vw] sm:max-w-3xl px-2">
           <DialogHeader>
             <DialogTitle>Edit Transaction</DialogTitle>
           </DialogHeader>
@@ -427,7 +414,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({ userId }
 
       {/* Delete Confirmation Modal */}
       <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent className="max-w-full w-[90vw] sm:max-w-2xl px-2">
           <DialogHeader>
             <DialogTitle>Delete Transaction</DialogTitle>
           </DialogHeader>
@@ -458,6 +445,6 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({ userId }
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 }; 

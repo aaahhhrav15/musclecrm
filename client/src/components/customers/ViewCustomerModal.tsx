@@ -438,7 +438,7 @@ export const ViewCustomerModal: React.FC<ViewCustomerModalProps> = ({
       />
 
       <Dialog open={isTransactionModalOpen} onOpenChange={setIsTransactionModalOpen}>
-        <DialogContent className="sm:max-w-[800px]">
+        <DialogContent className="max-w-full w-[98vw] sm:max-w-5xl px-2">
           <DialogHeader>
             <DialogTitle>Transaction History</DialogTitle>
           </DialogHeader>
