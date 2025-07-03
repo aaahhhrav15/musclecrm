@@ -55,7 +55,11 @@ import {
   Calendar as CalendarIcon,
   ArrowUpDown,
   Download,
-  Eye
+  Eye,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -88,9 +92,18 @@ const RetailSalesPage: React.FC = () => {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
   useEffect(() => {
     fetchSales();
   }, []);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, dateFilter, sortBy, sortOrder, itemsPerPage]);
 
   const fetchSales = async () => {
     try {
@@ -184,6 +197,19 @@ const RetailSalesPage: React.FC = () => {
           return 0;
       }
     });
+
+  // Pagination calculations
+  const totalItems = filteredSales.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentSales = filteredSales.slice(startIndex, endIndex);
+  
+  // Pagination controls
+  const goToFirstPage = () => setCurrentPage(1);
+  const goToLastPage = () => setCurrentPage(totalPages);
+  const goToPreviousPage = () => setCurrentPage(prev => Math.max(prev - 1, 1));
+  const goToNextPage = () => setCurrentPage(prev => Math.min(prev + 1, totalPages));
 
   const totalAmount = filteredSales.reduce((sum, sale) => sum + sale.totalAmount, 0);
   const totalQuantity = filteredSales.reduce((sum, sale) => sum + sale.quantity, 0);
@@ -484,9 +510,29 @@ const RetailSalesPage: React.FC = () => {
                 <ShoppingCart className="h-5 w-5 mr-2" />
                 Sales Management
               </CardTitle>
-              <Badge variant="secondary" className="text-sm px-3 py-1">
-                {filteredSales.length} sales
-              </Badge>
+              <div className="flex items-center gap-4">
+                <Badge variant="secondary" className="text-sm px-3 py-1">
+                  {totalItems} total sales
+                </Badge>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Show:</span>
+                  <Select
+                    value={itemsPerPage.toString()}
+                    onValueChange={(value) => setItemsPerPage(Number(value))}
+                  >
+                    <SelectTrigger className="w-20 h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-sm text-muted-foreground">per page</span>
+                </div>
+              </div>
             </div>
           </CardHeader>
           <CardContent className="p-0">
@@ -509,69 +555,149 @@ const RetailSalesPage: React.FC = () => {
                 )}
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="hover:bg-muted/50">
-                      <TableHead className="font-semibold">Product</TableHead>
-                      <TableHead className="font-semibold">Quantity</TableHead>
-                      <TableHead className="font-semibold">Unit Price</TableHead>
-                      <TableHead className="font-semibold">Total Amount</TableHead>
-                      <TableHead className="font-semibold">Sale Date</TableHead>
-                      <TableHead className="font-semibold w-[100px]">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredSales.map((sale, index) => (
-                      <motion.tr
-                        key={sale._id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                        className="hover:bg-muted/30 transition-colors"
+              <>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="hover:bg-muted/50">
+                        <TableHead className="font-semibold">Product</TableHead>
+                        <TableHead className="font-semibold">Quantity</TableHead>
+                        <TableHead className="font-semibold">Unit Price</TableHead>
+                        <TableHead className="font-semibold">Total Amount</TableHead>
+                        <TableHead className="font-semibold">Sale Date</TableHead>
+                        <TableHead className="font-semibold w-[100px]">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {currentSales.map((sale, index) => (
+                        <motion.tr
+                          key={sale._id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          className="hover:bg-muted/30 transition-colors"
+                        >
+                          <TableCell className="font-medium text-foreground">
+                            {sale.productName}
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            <Badge variant="outline">{sale.quantity}</Badge>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            ₹{sale.price.toFixed(2)}
+                          </TableCell>
+                          <TableCell className="font-semibold">
+                            ₹{sale.totalAmount.toFixed(2)}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {format(new Date(sale.saleDate), 'MMM d, yyyy')}
+                          </TableCell>
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-muted">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuItem onClick={() => handleOpenDialog(sale)}>
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Edit Sale
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="text-red-600 focus:text-red-600"
+                                  onClick={() => handleDelete(sale._id)}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Delete Sale
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </motion.tr>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t bg-muted/20">
+                    <div className="text-sm text-muted-foreground">
+                      Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of {totalItems} results
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={goToFirstPage}
+                        disabled={currentPage === 1}
+                        className="h-8 w-8 p-0"
                       >
-                        <TableCell className="font-medium text-foreground">
-                          {sale.productName}
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          <Badge variant="outline">{sale.quantity}</Badge>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          ₹{sale.price.toFixed(2)}
-                        </TableCell>
-                        <TableCell className="font-semibold">
-                          ₹{sale.totalAmount.toFixed(2)}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {format(new Date(sale.saleDate), 'MMM d, yyyy')}
-                        </TableCell>
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-muted">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48">
-                              <DropdownMenuItem onClick={() => handleOpenDialog(sale)}>
-                                <Edit className="h-4 w-4 mr-2" />
-                                Edit Sale
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                className="text-red-600 focus:text-red-600"
-                                onClick={() => handleDelete(sale._id)}
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Delete Sale
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </motion.tr>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                        <ChevronsLeft className="h-4 w-4" />
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={goToPreviousPage}
+                        disabled={currentPage === 1}
+                        className="h-8 w-8 p-0"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                          let pageNumber;
+                          if (totalPages <= 5) {
+                            pageNumber = i + 1;
+                          } else if (currentPage <= 3) {
+                            pageNumber = i + 1;
+                          } else if (currentPage >= totalPages - 2) {
+                            pageNumber = totalPages - 4 + i;
+                          } else {
+                            pageNumber = currentPage - 2 + i;
+                          }
+                          
+                          return (
+                            <Button
+                              key={pageNumber}
+                              variant={currentPage === pageNumber ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setCurrentPage(pageNumber)}
+                              className="h-8 w-8 p-0"
+                            >
+                              {pageNumber}
+                            </Button>
+                          );
+                        })}
+                      </div>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={goToNextPage}
+                        disabled={currentPage === totalPages}
+                        className="h-8 w-8 p-0"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={goToLastPage}
+                        disabled={currentPage === totalPages}
+                        className="h-8 w-8 p-0"
+                      >
+                        <ChevronsRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>

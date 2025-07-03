@@ -60,7 +60,7 @@ interface Meal {
   items: FoodItem[];
 }
 
-interface NutritionPlan {
+export interface NutritionPlan {
   _id: string;
   user_id: string;
   plan_name: string;

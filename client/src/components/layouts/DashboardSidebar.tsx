@@ -280,47 +280,25 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen, setIsOpen }
 
   // Function to get industry-specific modules
   const getIndustryModules = () => {
-    switch (selectedIndustry) {
-      case 'gym':
-        return [
-          { icon: <User className="w-5 h-5" />, label: 'Staff Management', href: '/dashboard/gym/staff' },
-          { icon: <TrendingUp className="w-5 h-5" />, label: 'Leads', href: '/dashboard/gym/leads' },
-          { icon: <DollarSign className="w-5 h-5" />, label: 'Finance & Billing', href: '/dashboard/gym/finance' },
-          { icon: <QrCode className="w-5 h-5" />, label: 'Attendance System', href: '/dashboard/gym/attendance' },
-          { icon: <Dumbbell className="w-5 h-5" />, label: 'Workout Plans', href: '/dashboard/gym/workout-plans' },
-          { icon: <CalendarIcon className="w-5 h-5" />, label: 'Class Schedule', href: '/dashboard/gym/class-schedule' },
-          { icon: <FileText className="w-5 h-5" />, label: 'Membership Plans', href: '/dashboard/gym/membership-plans' },
-          { icon: <UserPlus className="w-5 h-5" />, label: 'Personal Trainers', href: '/dashboard/gym/trainers' },
-          { icon: <Users className="w-5 h-5" />, label: 'Personal Training', href: '/dashboard/gym/personal-training' },
-          { icon: <FileText className="w-5 h-5" />, label: 'Nutrition Plans', href: '/dashboard/gym/nutrition-plans' },
-          { icon: <MessageSquare className="w-5 h-5" />, label: 'Member Communications', href: '/dashboard/gym/communications' },
-          { icon: <File className="w-5 h-5" />, label: 'Health Assessments', href: '/dashboard/gym/health-assessments' },
-          { icon: <CalendarIcon className="w-5 h-5" />, label: 'Events & Workshops', href: '/dashboard/gym/events-workshops' },
-          { icon: <DollarSign className="w-5 h-5" />, label: 'Retail Sales', href: '/dashboard/gym/retail-sales' },
-          { icon: <DollarSign className="w-5 h-5" />, label: 'Expenses', href: '/dashboard/gym/expenses' },
-          { icon: <FileText className="w-5 h-5" />, label: 'Waiver Forms', href: '/dashboard/gym/waiver-forms' }
-        ];
-      case 'spa':
-        return [
-          { icon: <Waves className="w-5 h-5" />, label: 'Services', href: '/dashboard/services' },
-          { icon: <CalendarIcon className="w-5 h-5" />, label: 'Therapist Calendar', href: '/dashboard/therapist-calendar' },
-          { icon: <Users className="w-5 h-5" />, label: 'Slot Booking', href: '/dashboard/slot-booking' }
-        ];
-      case 'hotel':
-        return [
-          { icon: <Hotel className="w-5 h-5" />, label: 'Room Management', href: '/dashboard/room-management' },
-          { icon: <Users className="w-5 h-5" />, label: 'Housekeeping', href: '/dashboard/housekeeping' },
-          { icon: <CalendarIcon className="w-5 h-5" />, label: 'Check-in/Check-out', href: '/dashboard/checkin-checkout' }
-        ];
-      case 'club':
-        return [
-          { icon: <Users className="w-5 h-5" />, label: 'Memberships', href: '/dashboard/memberships' },
-          { icon: <GlassWater className="w-5 h-5" />, label: 'Events', href: '/dashboard/events' },
-          { icon: <Users className="w-5 h-5" />, label: 'Guest Passes', href: '/dashboard/guest-passes' }
-        ];
-      default:
-        return [];
-    }
+    // Only gym modules remain
+    return [
+      { icon: <User className="w-5 h-5" />, label: 'Staff Management', href: '/dashboard/gym/staff' },
+      { icon: <TrendingUp className="w-5 h-5" />, label: 'Leads', href: '/dashboard/gym/leads' },
+      { icon: <DollarSign className="w-5 h-5" />, label: 'Finance & Billing', href: '/dashboard/gym/finance' },
+      { icon: <QrCode className="w-5 h-5" />, label: 'Attendance System', href: '/dashboard/gym/attendance' },
+      { icon: <Dumbbell className="w-5 h-5" />, label: 'Workout Plans', href: '/dashboard/gym/workout-plans' },
+      { icon: <CalendarIcon className="w-5 h-5" />, label: 'Class Schedule', href: '/dashboard/gym/class-schedule' },
+      { icon: <FileText className="w-5 h-5" />, label: 'Membership Plans', href: '/dashboard/gym/membership-plans' },
+      { icon: <UserPlus className="w-5 h-5" />, label: 'Personal Trainers', href: '/dashboard/gym/trainers' },
+      { icon: <Users className="w-5 h-5" />, label: 'Personal Training', href: '/dashboard/gym/personal-training' },
+      { icon: <FileText className="w-5 h-5" />, label: 'Nutrition Plans', href: '/dashboard/gym/nutrition-plans' },
+      { icon: <MessageSquare className="w-5 h-5" />, label: 'Member Communications', href: '/dashboard/gym/communications' },
+      { icon: <File className="w-5 h-5" />, label: 'Health Assessments', href: '/dashboard/gym/health-assessments' },
+      { icon: <CalendarIcon className="w-5 h-5" />, label: 'Events & Workshops', href: '/dashboard/gym/events-workshops' },
+      { icon: <DollarSign className="w-5 h-5" />, label: 'Retail Sales', href: '/dashboard/gym/retail-sales' },
+      { icon: <DollarSign className="w-5 h-5" />, label: 'Expenses', href: '/dashboard/gym/expenses' },
+      { icon: <FileText className="w-5 h-5" />, label: 'Waiver Forms', href: '/dashboard/gym/waiver-forms' }
+    ];
   };
 
   const industryModules = getIndustryModules();

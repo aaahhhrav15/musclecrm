@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 
-export type IndustryType = 'gym' | 'spa' | 'hotel' | 'club' | null;
+export type IndustryType = 'gym' | null;
 
 interface IndustryContextType {
   selectedIndustry: IndustryType;
@@ -15,7 +15,7 @@ export const IndustryProvider = ({ children }: { children: ReactNode }) => {
   // Initialize state from localStorage if available
   const [selectedIndustry, setSelectedIndustry] = useState<IndustryType>(() => {
     const saved = localStorage.getItem('selectedIndustry');
-    return (saved as IndustryType) || null;
+    return saved === 'gym' ? 'gym' : null;
   });
   
   const [isSetupComplete, setIsSetupComplete] = useState(() => {

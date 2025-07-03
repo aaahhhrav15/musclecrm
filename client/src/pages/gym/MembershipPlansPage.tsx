@@ -7,7 +7,11 @@ import {
   XCircle,
   Search,
   MoreHorizontal,
-  Clock
+  Clock,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight
 } from 'lucide-react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -79,6 +83,10 @@ const MembershipPlansPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const { toast } = useToast();
 
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(12); // Good for card grids
+
   // Form state
   const [formData, setFormData] = useState({
     name: '',
@@ -92,6 +100,11 @@ const MembershipPlansPage: React.FC = () => {
   useEffect(() => {
     fetchPlans();
   }, []);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, itemsPerPage]);
 
   const fetchPlans = async () => {
     setIsLoading(true);
@@ -265,6 +278,19 @@ const MembershipPlansPage: React.FC = () => {
                          (statusFilter === 'inactive' && !plan.isActive);
     return matchesSearch && matchesStatus;
   });
+
+  // Pagination calculations
+  const totalItems = filteredPlans.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentPlans = filteredPlans.slice(startIndex, endIndex);
+  
+  // Pagination controls
+  const goToFirstPage = () => setCurrentPage(1);
+  const goToLastPage = () => setCurrentPage(totalPages);
+  const goToPreviousPage = () => setCurrentPage(prev => Math.max(prev - 1, 1));
+  const goToNextPage = () => setCurrentPage(prev => Math.min(prev + 1, totalPages));
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -486,6 +512,41 @@ const MembershipPlansPage: React.FC = () => {
           </div>
         </div>
 
+        {/* Plans Header with Pagination Controls */}
+        <Card className="shadow-lg border-0">
+          <CardHeader className="border-b bg-muted/30">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xl font-semibold flex items-center">
+                <Plus className="h-5 w-5 mr-2" />
+                Membership Plans Management
+              </CardTitle>
+              <div className="flex items-center gap-4">
+                <Badge variant="secondary" className="text-sm px-3 py-1">
+                  {totalItems} total plans
+                </Badge>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Show:</span>
+                  <Select
+                    value={itemsPerPage.toString()}
+                    onValueChange={(value) => setItemsPerPage(Number(value))}
+                  >
+                    <SelectTrigger className="w-20 h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="6">6</SelectItem>
+                      <SelectItem value="12">12</SelectItem>
+                      <SelectItem value="24">24</SelectItem>
+                      <SelectItem value="48">48</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-sm text-muted-foreground">per page</span>
+                </div>
+              </div>
+            </div>
+          </CardHeader>
+        </Card>
+
         {/* Plans Grid */}
         {filteredPlans.length === 0 ? (
           <div className="text-center py-16">
@@ -508,157 +569,241 @@ const MembershipPlansPage: React.FC = () => {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredPlans.map((plan, index) => (
-              <motion.div
-                key={plan._id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-              >
-                <Card className="group h-full flex flex-col bg-white border-0 shadow-sm hover:shadow-lg transition-all duration-300 rounded-xl overflow-hidden">
-                  {/* Colored top border */}
-                  <div className={`h-1 ${
-                    plan.name.toLowerCase().includes('premium') || plan.name.toLowerCase().includes('platinum') 
-                      ? 'bg-gradient-to-r from-amber-400 to-orange-500' 
-                      : plan.name.toLowerCase().includes('pro') || plan.name.toLowerCase().includes('elite')
-                      ? 'bg-gradient-to-r from-purple-500 to-pink-500'
-                      : 'bg-gradient-to-r from-blue-500 to-cyan-500'
-                  }`} />
-                  
-                  <CardHeader className="pb-4 relative">
-                    {/* Background pattern */}
-                    <div className="absolute top-0 right-0 w-32 h-32 opacity-5">
-                      <div className={`w-full h-full rounded-full ${
-                        plan.name.toLowerCase().includes('premium') || plan.name.toLowerCase().includes('platinum') 
-                          ? 'bg-amber-400' 
-                          : plan.name.toLowerCase().includes('pro') || plan.name.toLowerCase().includes('elite')
-                          ? 'bg-purple-500'
-                          : 'bg-blue-500'
-                      } transform translate-x-16 -translate-y-16`} />
-                    </div>
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {currentPlans.map((plan, index) => (
+                <motion.div
+                  key={plan._id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                >
+                  <Card className="group h-full flex flex-col bg-white border-0 shadow-sm hover:shadow-lg transition-all duration-300 rounded-xl overflow-hidden">
+                    {/* Colored top border */}
+                    <div className={`h-1 ${
+                      plan.name.toLowerCase().includes('premium') || plan.name.toLowerCase().includes('platinum') 
+                        ? 'bg-gradient-to-r from-amber-400 to-orange-500' 
+                        : plan.name.toLowerCase().includes('pro') || plan.name.toLowerCase().includes('elite')
+                        ? 'bg-gradient-to-r from-purple-500 to-pink-500'
+                        : 'bg-gradient-to-r from-blue-500 to-cyan-500'
+                    }`} />
                     
-                    <div className="flex items-start justify-between relative">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${
-                            plan.name.toLowerCase().includes('premium') || plan.name.toLowerCase().includes('platinum') 
-                              ? 'bg-amber-50 text-amber-600' 
-                              : plan.name.toLowerCase().includes('pro') || plan.name.toLowerCase().includes('elite')
-                              ? 'bg-purple-50 text-purple-600'
-                              : 'bg-blue-50 text-blue-600'
-                          }`}>
-                            <span className="text-lg font-bold">
-                              {plan.name.charAt(0).toUpperCase()}
-                            </span>
-                          </div>
-                          <div>
-                            <CardTitle className="text-lg font-semibold text-gray-900 mb-1">
-                              {plan.name}
-                            </CardTitle>
-                            <div className="flex items-center gap-1 text-sm text-gray-500">
-                              <Clock className="h-3 w-3" />
-                              <span>{plan.duration} {plan.duration === 1 ? 'month' : 'months'}</span>
+                    <CardHeader className="pb-4 relative">
+                      {/* Background pattern */}
+                      <div className="absolute top-0 right-0 w-32 h-32 opacity-5">
+                        <div className={`w-full h-full rounded-full ${
+                          plan.name.toLowerCase().includes('premium') || plan.name.toLowerCase().includes('platinum') 
+                            ? 'bg-amber-400' 
+                            : plan.name.toLowerCase().includes('pro') || plan.name.toLowerCase().includes('elite')
+                            ? 'bg-purple-500'
+                            : 'bg-blue-500'
+                        } transform translate-x-16 -translate-y-16`} />
+                      </div>
+                      
+                      <div className="flex items-start justify-between relative">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${
+                              plan.name.toLowerCase().includes('premium') || plan.name.toLowerCase().includes('platinum') 
+                                ? 'bg-amber-50 text-amber-600' 
+                                : plan.name.toLowerCase().includes('pro') || plan.name.toLowerCase().includes('elite')
+                                ? 'bg-purple-50 text-purple-600'
+                                : 'bg-blue-50 text-blue-600'
+                            }`}>
+                              <span className="text-lg font-bold">
+                                {plan.name.charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                            <div>
+                              <CardTitle className="text-lg font-semibold text-gray-900 mb-1">
+                                {plan.name}
+                              </CardTitle>
+                              <div className="flex items-center gap-1 text-sm text-gray-500">
+                                <Clock className="h-3 w-3" />
+                                <span>{plan.duration} {plan.duration === 1 ? 'month' : 'months'}</span>
+                              </div>
                             </div>
                           </div>
+                          
+                          <p className="text-sm text-gray-600 leading-relaxed">
+                            {plan.description}
+                          </p>
                         </div>
                         
-                        <p className="text-sm text-gray-600 leading-relaxed">
-                          {plan.description}
-                        </p>
-                      </div>
-                      
-                      {/* Direct Edit/Delete Buttons */}
-                      <div className="flex gap-2 ml-4">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEdit(plan)}
-                          className="h-8 w-8 p-0 text-gray-400 hover:text-blue-600 hover:bg-blue-50"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeletePlan(plan._id)}
-                          className="h-8 w-8 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardHeader>
-
-                  <CardContent className="flex-grow pt-0">
-                    {/* Pricing Section */}
-                    <div className={`p-4 rounded-lg mb-6 ${
-                      plan.name.toLowerCase().includes('premium') || plan.name.toLowerCase().includes('platinum') 
-                        ? 'bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100' 
-                        : plan.name.toLowerCase().includes('pro') || plan.name.toLowerCase().includes('elite')
-                        ? 'bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-100'
-                        : 'bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-100'
-                    }`}>
-                      <div className="text-center">
-                        <div className="text-3xl font-bold text-gray-900 mb-1">
-                          {formatCurrency(plan.price)}
-                        </div>
-                        <div className="text-sm text-gray-600 font-medium">
-                          per {plan.duration} {plan.duration === 1 ? 'month' : 'months'}
+                        {/* Direct Edit/Delete Buttons */}
+                        <div className="flex gap-2 ml-4">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEdit(plan)}
+                            className="h-8 w-8 p-0 text-gray-400 hover:text-blue-600 hover:bg-blue-50"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeletePlan(plan._id)}
+                            className="h-8 w-8 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </div>
-                    </div>
+                    </CardHeader>
 
-                    {/* Status and Features */}
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                          Plan Features
-                        </span>
-                        <Badge 
-                          variant={plan.isActive ? "default" : "secondary"} 
-                          className={`text-xs ${plan.isActive ? 
-                            plan.name.toLowerCase().includes('premium') || plan.name.toLowerCase().includes('platinum') 
-                              ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' 
-                              : plan.name.toLowerCase().includes('pro') || plan.name.toLowerCase().includes('elite')
-                              ? 'bg-purple-100 text-purple-800 hover:bg-purple-200'
-                              : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
-                            : ''
-                          }`}
-                        >
-                          {plan.isActive ? "Active" : "Inactive"}
-                        </Badge>
+                    <CardContent className="flex-grow pt-0">
+                      {/* Pricing Section */}
+                      <div className={`p-4 rounded-lg mb-6 ${
+                        plan.name.toLowerCase().includes('premium') || plan.name.toLowerCase().includes('platinum') 
+                          ? 'bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100' 
+                          : plan.name.toLowerCase().includes('pro') || plan.name.toLowerCase().includes('elite')
+                          ? 'bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-100'
+                          : 'bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-100'
+                      }`}>
+                        <div className="text-center">
+                          <div className="text-3xl font-bold text-gray-900 mb-1">
+                            {formatCurrency(plan.price)}
+                          </div>
+                          <div className="text-sm text-gray-600 font-medium">
+                            per {plan.duration} {plan.duration === 1 ? 'month' : 'months'}
+                          </div>
+                        </div>
                       </div>
-                      
-                      <div className="space-y-3">
-                        {plan.features.slice(0, 5).map((feature, idx) => (
-                          <div key={idx} className="flex items-start gap-3 group/item">
-                            <div className={`h-2 w-2 rounded-full mt-2 flex-shrink-0 ${
+
+                      {/* Status and Features */}
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                            Plan Features
+                          </span>
+                          <Badge 
+                            variant={plan.isActive ? "default" : "secondary"} 
+                            className={`text-xs ${plan.isActive ? 
                               plan.name.toLowerCase().includes('premium') || plan.name.toLowerCase().includes('platinum') 
-                                ? 'bg-amber-400' 
+                                ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' 
                                 : plan.name.toLowerCase().includes('pro') || plan.name.toLowerCase().includes('elite')
-                                ? 'bg-purple-400'
-                                : 'bg-blue-400'
-                            }`} />
-                            <span className="text-sm text-gray-700 leading-relaxed group-hover/item:text-gray-900 transition-colors">
-                              {feature}
-                            </span>
-                          </div>
-                        ))}
-                        {plan.features.length > 5 && (
-                          <div className="flex items-center gap-3 pl-5">
-                            <span className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded-full">
-                              +{plan.features.length - 5} more features
-                            </span>
-                          </div>
-                        )}
+                                ? 'bg-purple-100 text-purple-800 hover:bg-purple-200'
+                                : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+                              : ''
+                            }`}
+                          >
+                            {plan.isActive ? "Active" : "Inactive"}
+                          </Badge>
+                        </div>
+                        
+                        <div className="space-y-3">
+                          {plan.features.slice(0, 5).map((feature, idx) => (
+                            <div key={idx} className="flex items-start gap-3 group/item">
+                              <div className={`h-2 w-2 rounded-full mt-2 flex-shrink-0 ${
+                                plan.name.toLowerCase().includes('premium') || plan.name.toLowerCase().includes('platinum') 
+                                  ? 'bg-amber-400' 
+                                  : plan.name.toLowerCase().includes('pro') || plan.name.toLowerCase().includes('elite')
+                                  ? 'bg-purple-400'
+                                  : 'bg-blue-400'
+                              }`} />
+                              <span className="text-sm text-gray-700 leading-relaxed group-hover/item:text-gray-900 transition-colors">
+                                {feature}
+                              </span>
+                            </div>
+                          ))}
+                          {plan.features.length > 5 && (
+                            <div className="flex items-center gap-3 pl-5">
+                              <span className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded-full">
+                                +{plan.features.length - 5} more features
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <Card className="shadow-lg border-0">
+                <CardContent className="p-0">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-muted/20">
+                    <div className="text-sm text-muted-foreground">
+                      Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of {totalItems} results
                     </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={goToFirstPage}
+                        disabled={currentPage === 1}
+                        className="h-8 w-8 p-0"
+                      >
+                        <ChevronsLeft className="h-4 w-4" />
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={goToPreviousPage}
+                        disabled={currentPage === 1}
+                        className="h-8 w-8 p-0"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                          let pageNumber;
+                          if (totalPages <= 5) {
+                            pageNumber = i + 1;
+                          } else if (currentPage <= 3) {
+                            pageNumber = i + 1;
+                          } else if (currentPage >= totalPages - 2) {
+                            pageNumber = totalPages - 4 + i;
+                          } else {
+                            pageNumber = currentPage - 2 + i;
+                          }
+                          
+                          return (
+                            <Button
+                              key={pageNumber}
+                              variant={currentPage === pageNumber ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setCurrentPage(pageNumber)}
+                              className="h-8 w-8 p-0"
+                            >
+                              {pageNumber}
+                            </Button>
+                          );
+                        })}
+                      </div>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={goToNextPage}
+                        disabled={currentPage === totalPages}
+                        className="h-8 w-8 p-0"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={goToLastPage}
+                        disabled={currentPage === totalPages}
+                        className="h-8 w-8 p-0"
+                      >
+                        <ChevronsRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </>
         )}
       </motion.div>
     </DashboardLayout>

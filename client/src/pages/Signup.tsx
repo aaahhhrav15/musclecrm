@@ -95,13 +95,13 @@ const Signup: React.FC = () => {
         values.gymName,
         values.email,
         values.password,
-        values.industry,
+        'gym',
         values.gymName,
         values.phone
       );
       
       // Set the industry and navigate
-      setSelectedIndustry(values.industry as any);
+      setSelectedIndustry('gym');
       
       toast({
         title: 'Account created',
@@ -274,30 +274,6 @@ const Signup: React.FC = () => {
                     )}
                   />
                   
-                  <FormField
-                    control={form.control}
-                    name="industry"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Industry</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select your industry" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="gym">Gym</SelectItem>
-                            <SelectItem value="spa">Spa</SelectItem>
-                            <SelectItem value="hotel">Hotel</SelectItem>
-                            <SelectItem value="club">Club</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
                   <FormField
                     control={form.control}
                     name="logo"

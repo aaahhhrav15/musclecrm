@@ -46,7 +46,11 @@ import {
   Phone,
   Mail,
   Star,
-  Calendar
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
@@ -73,6 +77,10 @@ const TrainersPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [specializationFilter, setSpecializationFilter] = useState('all');
   const { toast } = useToast();
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const fetchTrainers = async () => {
     if (!user?.gymId) {
@@ -130,6 +138,11 @@ const TrainersPage: React.FC = () => {
     fetchTrainers();
   }, [user?.gymId]);
 
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, specializationFilter, itemsPerPage]);
+
   const handleDelete = async (trainerId: string) => {
     if (!confirm('Are you sure you want to delete this trainer?')) return;
 
@@ -172,6 +185,19 @@ const TrainersPage: React.FC = () => {
     
     return matchesSearch && matchesStatus && matchesSpecialization;
   });
+
+  // Pagination calculations
+  const totalItems = filteredTrainers.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentTrainers = filteredTrainers.slice(startIndex, endIndex);
+  
+  // Pagination controls
+  const goToFirstPage = () => setCurrentPage(1);
+  const goToLastPage = () => setCurrentPage(totalPages);
+  const goToPreviousPage = () => setCurrentPage(prev => Math.max(prev - 1, 1));
+  const goToNextPage = () => setCurrentPage(prev => Math.min(prev + 1, totalPages));
 
   // Calculate metrics
   const metrics = {
@@ -385,9 +411,29 @@ const TrainersPage: React.FC = () => {
                 <Users className="h-5 w-5 mr-2" />
                 Trainers Management
               </CardTitle>
-              <Badge variant="secondary" className="text-sm px-3 py-1">
-                {filteredTrainers.length} trainers
-              </Badge>
+              <div className="flex items-center gap-4">
+                <Badge variant="secondary" className="text-sm px-3 py-1">
+                  {totalItems} total trainers
+                </Badge>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Show:</span>
+                  <Select
+                    value={itemsPerPage.toString()}
+                    onValueChange={(value) => setItemsPerPage(Number(value))}
+                  >
+                    <SelectTrigger className="w-20 h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-sm text-muted-foreground">per page</span>
+                </div>
+              </div>
             </div>
           </CardHeader>
           <CardContent className="p-0">
@@ -410,108 +456,188 @@ const TrainersPage: React.FC = () => {
                 )}
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="hover:bg-muted/50">
-                      <TableHead className="font-semibold">Trainer Details</TableHead>
-                      <TableHead className="font-semibold">Contact Info</TableHead>
-                      <TableHead className="font-semibold">Specialization</TableHead>
-                      <TableHead className="font-semibold">Experience</TableHead>
-                      <TableHead className="font-semibold">Status</TableHead>
-                      <TableHead className="font-semibold w-[100px]">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredTrainers.map((trainer, index) => {
-                      const experienceLevel = getExperienceLevel(trainer.experience);
-                      
-                      return (
-                        <motion.tr
-                          key={trainer._id}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: index * 0.05 }}
-                          className="hover:bg-muted/30 transition-colors"
-                        >
-                          <TableCell>
-                            <div className="flex items-center gap-3">
-                              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                                <span className="text-primary font-semibold">
-                                  {trainer.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                                </span>
-                              </div>
-                              <div>
-                                <div className="font-medium text-foreground">{trainer.name}</div>
-                                <div className="text-sm text-muted-foreground">
-                                  {trainer.clients ? `${trainer.clients} clients` : 'No clients yet'}
+              <>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="hover:bg-muted/50">
+                        <TableHead className="font-semibold">Trainer Details</TableHead>
+                        <TableHead className="font-semibold">Contact Info</TableHead>
+                        <TableHead className="font-semibold">Specialization</TableHead>
+                        <TableHead className="font-semibold">Experience</TableHead>
+                        <TableHead className="font-semibold">Status</TableHead>
+                        <TableHead className="font-semibold w-[100px]">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {currentTrainers.map((trainer, index) => {
+                        const experienceLevel = getExperienceLevel(trainer.experience);
+                        
+                        return (
+                          <motion.tr
+                            key={trainer._id}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.05 }}
+                            className="hover:bg-muted/30 transition-colors"
+                          >
+                            <TableCell>
+                              <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                  <span className="text-primary font-semibold">
+                                    {trainer.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                                  </span>
+                                </div>
+                                <div>
+                                  <div className="font-medium text-foreground">{trainer.name}</div>
+                                  <div className="text-sm text-muted-foreground">
+                                    {trainer.clients ? `${trainer.clients} clients` : 'No clients yet'}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2 text-sm">
-                                <Mail className="h-3 w-3 text-muted-foreground" />
-                                <span>{trainer.email}</span>
+                            </TableCell>
+                            <TableCell>
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2 text-sm">
+                                  <Mail className="h-3 w-3 text-muted-foreground" />
+                                  <span>{trainer.email}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                  <Phone className="h-3 w-3" />
+                                  <span>{trainer.phone}</span>
+                                </div>
                               </div>
-                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <Phone className="h-3 w-3" />
-                                <span>{trainer.phone}</span>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Star className="h-4 w-4 text-amber-500" />
+                                <span className="font-medium">{trainer.specialization}</span>
                               </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Star className="h-4 w-4 text-amber-500" />
-                              <span className="font-medium">{trainer.specialization}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="space-y-1">
-                              <div className="font-medium">{trainer.experience} years</div>
-                              <div className={`text-xs font-medium ${experienceLevel.color}`}>
-                                {experienceLevel.label}
+                            </TableCell>
+                            <TableCell>
+                              <div className="space-y-1">
+                                <div className="font-medium">{trainer.experience} years</div>
+                                <div className={`text-xs font-medium ${experienceLevel.color}`}>
+                                  {experienceLevel.label}
+                                </div>
                               </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={getStatusBadgeVariant(trainer.status)}>
-                              {trainer.status.charAt(0).toUpperCase() + trainer.status.slice(1)}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-muted">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-48">
-                                <DropdownMenuItem onClick={() => navigate(`/dashboard/gym/trainers/${trainer._id}`)}>
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  View Details
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => navigate(`/dashboard/gym/trainers/${trainer._id}/edit`)}>
-                                  <Edit className="h-4 w-4 mr-2" />
-                                  Edit Trainer
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  className="text-red-600 focus:text-red-600"
-                                  onClick={() => handleDelete(trainer._id)}
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Delete Trainer
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </motion.tr>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={getStatusBadgeVariant(trainer.status)}>
+                                {trainer.status.charAt(0).toUpperCase() + trainer.status.slice(1)}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-muted">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-48">
+                                  <DropdownMenuItem onClick={() => navigate(`/dashboard/gym/trainers/${trainer._id}`)}>
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    View Details
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => navigate(`/dashboard/gym/trainers/${trainer._id}/edit`)}>
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    Edit Trainer
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    className="text-red-600 focus:text-red-600"
+                                    onClick={() => handleDelete(trainer._id)}
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete Trainer
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          </motion.tr>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t bg-muted/20">
+                    <div className="text-sm text-muted-foreground">
+                      Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of {totalItems} results
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={goToFirstPage}
+                        disabled={currentPage === 1}
+                        className="h-8 w-8 p-0"
+                      >
+                        <ChevronsLeft className="h-4 w-4" />
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={goToPreviousPage}
+                        disabled={currentPage === 1}
+                        className="h-8 w-8 p-0"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                          let pageNumber;
+                          if (totalPages <= 5) {
+                            pageNumber = i + 1;
+                          } else if (currentPage <= 3) {
+                            pageNumber = i + 1;
+                          } else if (currentPage >= totalPages - 2) {
+                            pageNumber = totalPages - 4 + i;
+                          } else {
+                            pageNumber = currentPage - 2 + i;
+                          }
+                          
+                          return (
+                            <Button
+                              key={pageNumber}
+                              variant={currentPage === pageNumber ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setCurrentPage(pageNumber)}
+                              className="h-8 w-8 p-0"
+                            >
+                              {pageNumber}
+                            </Button>
+                          );
+                        })}
+                      </div>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={goToNextPage}
+                        disabled={currentPage === totalPages}
+                        className="h-8 w-8 p-0"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={goToLastPage}
+                        disabled={currentPage === totalPages}
+                        className="h-8 w-8 p-0"
+                      >
+                        <ChevronsRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>

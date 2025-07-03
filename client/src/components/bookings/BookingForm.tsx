@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -29,7 +29,7 @@ import axios from 'axios';
 import { API_URL } from '@/config';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Check, ChevronsUpDown } from 'lucide-react';
+import { Check, ChevronsUpDown, Search, X } from 'lucide-react';
 import { cn, formatCurrency } from '@/lib/utils';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -154,19 +154,101 @@ const BookingForm: React.FC<BookingFormProps> = ({
   onSubmit,
 }) => {
   const queryClient = useQueryClient();
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [trainers, setTrainers] = useState<Trainer[]>([]);
-  const [classes, setClasses] = useState<Class[]>([]);
-  const [equipment, setEquipment] = useState<Equipment[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [openCustomerPopover, setOpenCustomerPopover] = useState(false);
+  const [customers, setCustomers] = React.useState<Customer[]>([]);
+  const [trainers, setTrainers] = React.useState<Trainer[]>([]);
+  const [classes, setClasses] = React.useState<Class[]>([]);
+  const [equipment, setEquipment] = React.useState<Equipment[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [openCustomerPopover, setOpenCustomerPopover] = React.useState(false);
+  const [customerDropdownOpen, setCustomerDropdownOpen] = React.useState(false);
+  const [customerSearch, setCustomerSearch] = React.useState('');
+  const customerDropdownRef = React.useRef<HTMLDivElement | null>(null);
+  const filteredCustomers = React.useMemo(() => {
+    if (!customerSearch.trim()) return customers;
+    const search = customerSearch.toLowerCase();
+    return customers.filter(customer =>
+      customer.name.toLowerCase().includes(search) ||
+      customer.email.toLowerCase().includes(search)
+    );
+  }, [customers, customerSearch]);
 
-  useEffect(() => {
+  React.useEffect(() => {
+    if (!customerDropdownOpen) return;
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        customerDropdownRef.current &&
+        !customerDropdownRef.current.contains(event.target as Node)
+      ) {
+        setCustomerDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [customerDropdownOpen]);
+
+  const [trainerDropdownOpen, setTrainerDropdownOpen] = React.useState(false);
+  const [trainerSearch, setTrainerSearch] = React.useState('');
+  const trainerDropdownRef = React.useRef<HTMLDivElement | null>(null);
+  const filteredTrainers = React.useMemo(() => {
+    if (!trainerSearch.trim()) return trainers;
+    const search = trainerSearch.toLowerCase();
+    return trainers.filter(trainer =>
+      trainer.name.toLowerCase().includes(search) ||
+      trainer.email.toLowerCase().includes(search)
+    );
+  }, [trainers, trainerSearch]);
+
+  React.useEffect(() => {
+    if (!trainerDropdownOpen) return;
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        trainerDropdownRef.current &&
+        !trainerDropdownRef.current.contains(event.target as Node)
+      ) {
+        setTrainerDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [trainerDropdownOpen]);
+
+  const [classDropdownOpen, setClassDropdownOpen] = React.useState(false);
+  const [classSearch, setClassSearch] = React.useState('');
+  const classDropdownRef = React.useRef<HTMLDivElement | null>(null);
+  const filteredClasses = React.useMemo(() => {
+    if (!classSearch.trim()) return classes;
+    const search = classSearch.toLowerCase();
+    return classes.filter(cls =>
+      cls.name.toLowerCase().includes(search)
+    );
+  }, [classes, classSearch]);
+
+  React.useEffect(() => {
+    if (!classDropdownOpen) return;
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        classDropdownRef.current &&
+        !classDropdownRef.current.contains(event.target as Node)
+      ) {
+        setClassDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [classDropdownOpen]);
+
+  React.useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
         const [customersResponse, trainersResponse, classesResponse] = await Promise.all([
-          axios.get(`${API_URL}/customers`, { withCredentials: true }),
+          axios.get(`${API_URL}/customers`, { params: { limit: 10000 }, withCredentials: true }),
           axios.get(`${API_URL}/gym/staff`, { 
             params: { position: 'Personal Trainer' },
             withCredentials: true 
@@ -248,7 +330,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
   const selectedClass = Array.isArray(classes) ? classes.find((cls) => cls._id === selectedClassId) : undefined;
 
   // Add effect to handle class selection
-  useEffect(() => {
+  React.useEffect(() => {
     if (selectedClass) {
       // Set the start and end time from the class schedule
       const startTime = new Date(selectedClass.startTime);
@@ -365,23 +447,79 @@ const BookingForm: React.FC<BookingFormProps> = ({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Customer</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a customer" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {customers.map((customer) => (
-                        <SelectItem key={customer._id} value={customer._id}>
-                          {customer.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="space-y-2" ref={customerDropdownRef}>
+                    {selectedCustomer ? (
+                      <div className="flex items-center justify-between p-3 border rounded-md bg-green-50">
+                        <div>
+                          <p className="font-medium">{selectedCustomer.name}</p>
+                          <p className="text-sm text-muted-foreground">{selectedCustomer.email}</p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            form.setValue('customerId', '');
+                            setCustomerSearch('');
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            placeholder="Search customers by name or email..."
+                            value={customerSearch}
+                            onChange={e => setCustomerSearch(e.target.value)}
+                            onFocus={() => setCustomerDropdownOpen(true)}
+                            className="pl-10"
+                          />
+                        </div>
+                        {customerDropdownOpen && (
+                          <div className="relative border rounded-md bg-background shadow-lg max-h-80 overflow-hidden z-20">
+                            <div className="max-h-80 overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent">
+                              {filteredCustomers.length > 0 ? (
+                                <>
+                                  <div className="sticky top-0 bg-muted/80 backdrop-blur-sm px-3 py-2 text-xs text-muted-foreground border-b">
+                                    {filteredCustomers.length} customer{filteredCustomers.length !== 1 ? 's' : ''} found
+                                  </div>
+                                  {filteredCustomers.map((customer, index) => (
+                                    <div
+                                      key={customer._id}
+                                      className={`p-3 hover:bg-muted cursor-pointer border-b last:border-b-0 transition-colors ${index % 2 === 0 ? 'bg-background' : 'bg-muted/30'}`}
+                                      onClick={() => {
+                                        form.setValue('customerId', customer._id);
+                                        setCustomerDropdownOpen(false);
+                                        setCustomerSearch('');
+                                      }}
+                                    >
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex-1 min-w-0">
+                                          <p className="font-medium truncate">{customer.name}</p>
+                                          <p className="text-sm text-muted-foreground truncate">{customer.email}</p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </>
+                              ) : (
+                                <div className="p-6 text-center text-muted-foreground">
+                                  <p className="font-medium">No customers found</p>
+                                  <p className="text-sm">Try adjusting your search: "{customerSearch}"</p>
+                                </div>
+                              )}
+                            </div>
+                            {filteredCustomers.length > 8 && (
+                              <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}

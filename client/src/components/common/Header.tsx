@@ -90,15 +90,6 @@ const Header: React.FC<HeaderProps> = ({ transparent = false }) => {
           <Link to="/industries/gym" className="text-sm font-medium transition-colors hover:text-primary">
             Gym
           </Link>
-          <Link to="/industries/spa" className="text-sm font-medium transition-colors hover:text-primary">
-            Spa
-          </Link>
-          <Link to="/industries/hotel" className="text-sm font-medium transition-colors hover:text-primary">
-            Hotel
-          </Link>
-          <Link to="/industries/club" className="text-sm font-medium transition-colors hover:text-primary">
-            Club
-          </Link>
           <Link to="/pricing" className="text-sm font-medium transition-colors hover:text-primary">
             Pricing
           </Link>
@@ -234,27 +225,6 @@ const Header: React.FC<HeaderProps> = ({ transparent = false }) => {
                   onClick={() => setIsMenuOpen(false)}
                 >
                   Gym
-                </Link>
-                <Link 
-                  to="/industries/spa" 
-                  className="text-xl font-medium hover:text-primary"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  Spa
-                </Link>
-                <Link 
-                  to="/industries/hotel" 
-                  className="text-xl font-medium hover:text-primary"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  Hotel
-                </Link>
-                <Link 
-                  to="/industries/club" 
-                  className="text-xl font-medium hover:text-primary"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  Club
                 </Link>
                 <Link 
                   to="/pricing" 

@@ -10,6 +10,7 @@ import { GymProvider } from './context/GymContext';
 import { ToastProvider } from './context/ToastContext';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import ScrollToTop from './components/common/ScrollToTop';
 
 // Pages
 import Home from "./pages/Home";
@@ -90,6 +91,7 @@ const App = () => (
                 <Toaster />
                 <Sonner />
                 <BrowserRouter>
+                  <ScrollToTop />
                   <Routes>
                     {/* Public routes */}
                     <Route path="/" element={<Home />} />
