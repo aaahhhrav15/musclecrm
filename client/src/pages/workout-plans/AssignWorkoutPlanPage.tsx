@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -40,7 +40,9 @@ import {
   Target,
   Award,
   Activity,
-  User
+  User,
+  Search,
+  X
 } from 'lucide-react';
 
 interface Customer {
@@ -69,11 +71,17 @@ type FormData = z.infer<typeof formSchema>;
 
 const AssignWorkoutPlanPage: React.FC = () => {
   const navigate = useNavigate();
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [workoutPlans, setWorkoutPlans] = useState<WorkoutPlan[]>([]);
+  const [allCustomers, setAllCustomers] = useState<Customer[]>([]);
+  const [allWorkoutPlans, setAllWorkoutPlans] = useState<WorkoutPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState<WorkoutPlan | null>(null);
   const [selectedMember, setSelectedMember] = useState<Customer | null>(null);
+  
+  // Search states
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [planSearch, setPlanSearch] = useState('');
+  const [customerDropdownOpen, setCustomerDropdownOpen] = useState(false);
+  const [planDropdownOpen, setPlanDropdownOpen] = useState(false);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -85,22 +93,59 @@ const AssignWorkoutPlanPage: React.FC = () => {
     },
   });
 
+  // Filter customers based on search
+  const filteredCustomers = useMemo(() => {
+    if (!customerSearch.trim()) return allCustomers;
+    
+    const search = customerSearch.toLowerCase();
+    return allCustomers.filter(customer => 
+      customer.name.toLowerCase().includes(search) ||
+      customer.email?.toLowerCase().includes(search) ||
+      customer.membershipType?.toLowerCase().includes(search)
+    );
+  }, [allCustomers, customerSearch]);
+
+  // Filter workout plans based on search
+  const filteredWorkoutPlans = useMemo(() => {
+    if (!planSearch.trim()) return allWorkoutPlans;
+    
+    const search = planSearch.toLowerCase();
+    return allWorkoutPlans.filter(plan => 
+      plan.name.toLowerCase().includes(search) ||
+      plan.goal?.toLowerCase().includes(search) ||
+      plan.level?.toLowerCase().includes(search)
+    );
+  }, [allWorkoutPlans, planSearch]);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         const [customersRes, plansRes] = await Promise.all([
+          // Fetch all customers without pagination limit
           axios.get(`${API_URL}/customers`, {
+            params: { 
+              page: 1, 
+              limit: 10000 // Large enough to get all customers
+            },
             withCredentials: true
           }),
+          // Fetch all workout plans without pagination limit
           axios.get(`${API_URL}/workout-plans`, {
+            params: { 
+              page: 1, 
+              limit: 10000 // Large enough to get all plans
+            },
             withCredentials: true
           }),
         ]);
-        setCustomers(customersRes.data.customers);
-        setWorkoutPlans(plansRes.data.workoutPlans);
+        
+        setAllCustomers(customersRes.data.customers || []);
+        setAllWorkoutPlans(plansRes.data.workoutPlans || []);
       } catch (error) {
         console.error('Error fetching data:', error);
         toast.error('Failed to fetch data');
+        setAllCustomers([]);
+        setAllWorkoutPlans([]);
       } finally {
         setLoading(false);
       }
@@ -112,7 +157,7 @@ const AssignWorkoutPlanPage: React.FC = () => {
   const handleSubmit = async (data: FormData) => {
     try {
       // Find the selected member to get their name
-      const member = customers.find(c => c._id === data.memberId);
+      const member = allCustomers.find(c => c._id === data.memberId);
       if (!member) {
         toast.error('Selected member not found');
         return;
@@ -169,14 +214,42 @@ const AssignWorkoutPlanPage: React.FC = () => {
   const watchedPlanId = form.watch('planId');
 
   useEffect(() => {
-    const member = customers.find(c => c._id === watchedMemberId);
+    const member = allCustomers.find(c => c._id === watchedMemberId);
     setSelectedMember(member || null);
-  }, [watchedMemberId, customers]);
+  }, [watchedMemberId, allCustomers]);
 
   useEffect(() => {
-    const plan = workoutPlans.find(p => p._id === watchedPlanId);
+    const plan = allWorkoutPlans.find(p => p._id === watchedPlanId);
     setSelectedPlan(plan || null);
-  }, [watchedPlanId, workoutPlans]);
+  }, [watchedPlanId, allWorkoutPlans]);
+
+  // Handle customer selection
+  const handleCustomerSelect = (customerId: string) => {
+    form.setValue('memberId', customerId);
+    setCustomerDropdownOpen(false);
+    setCustomerSearch('');
+  };
+
+  // Handle plan selection
+  const handlePlanSelect = (planId: string) => {
+    form.setValue('planId', planId);
+    setPlanDropdownOpen(false);
+    setPlanSearch('');
+  };
+
+  // Clear customer selection
+  const clearCustomerSelection = () => {
+    form.setValue('memberId', '');
+    setSelectedMember(null);
+    setCustomerSearch('');
+  };
+
+  // Clear plan selection
+  const clearPlanSelection = () => {
+    form.setValue('planId', '');
+    setSelectedPlan(null);
+    setPlanSearch('');
+  };
 
   if (loading) {
     return (
@@ -227,6 +300,45 @@ const AssignWorkoutPlanPage: React.FC = () => {
           </div>
         </div>
 
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-50 to-blue-100/50">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-blue-600">Total Clients</p>
+                  <p className="text-2xl font-bold text-blue-700">{allCustomers.length}</p>
+                </div>
+                <Users className="h-8 w-8 text-blue-600" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-green-50 to-green-100/50">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-green-600">Workout Plans</p>
+                  <p className="text-2xl font-bold text-green-700">{allWorkoutPlans.length}</p>
+                </div>
+                <Dumbbell className="h-8 w-8 text-green-600" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-purple-50 to-purple-100/50">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-purple-600">Ready to Assign</p>
+                  <p className="text-2xl font-bold text-purple-700">{selectedMember && selectedPlan ? '1' : '0'}</p>
+                </div>
+                <CheckCircle className="h-8 w-8 text-purple-600" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Assignment Form */}
@@ -245,6 +357,7 @@ const AssignWorkoutPlanPage: React.FC = () => {
               <CardContent className="p-6">
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+                    {/* Client Selection with Search */}
                     <FormField
                       control={form.control}
                       name="memberId"
@@ -252,37 +365,100 @@ const AssignWorkoutPlanPage: React.FC = () => {
                         <FormItem>
                           <FormLabel className="flex items-center gap-2">
                             <Users className="h-4 w-4" />
-                            Select Client
+                            Select Client ({filteredCustomers.length} available)
                           </FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger className="h-11">
-                                <SelectValue placeholder="Choose a client to assign plan to" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {customers.map((customer) => (
-                                <SelectItem key={customer._id} value={customer._id}>
-                                  <div className="flex items-center justify-between w-full">
-                                    <span>{customer.name}</span>
-                                    {customer.membershipType && (
-                                      <span className="ml-2">
-                                        {getMembershipBadge(customer.membershipType)}
-                                      </span>
+                          <div className="space-y-2">
+                            {selectedMember ? (
+                              <div className="flex items-center justify-between p-3 border rounded-md bg-green-50">
+                                <div>
+                                  <p className="font-medium">{selectedMember.name}</p>
+                                  {selectedMember.email && (
+                                    <p className="text-sm text-muted-foreground">{selectedMember.email}</p>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {selectedMember.membershipType && getMembershipBadge(selectedMember.membershipType)}
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={clearCustomerSelection}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="space-y-2">
+                                <div className="relative">
+                                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                  <Input
+                                    placeholder="Search clients by name, email, or membership type..."
+                                    value={customerSearch}
+                                    onChange={(e) => setCustomerSearch(e.target.value)}
+                                    onFocus={() => setCustomerDropdownOpen(true)}
+                                    className="pl-10"
+                                  />
+                                </div>
+                                
+                                {customerDropdownOpen && (
+                                  <div className="relative border rounded-md bg-background shadow-lg max-h-80 overflow-hidden z-20">
+                                    {/* Scrollable list container */}
+                                    <div className="max-h-80 overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent">
+                                      {filteredCustomers.length > 0 ? (
+                                        <>
+                                          {/* Header showing count */}
+                                          <div className="sticky top-0 bg-muted/80 backdrop-blur-sm px-3 py-2 text-xs text-muted-foreground border-b">
+                                            {filteredCustomers.length} client{filteredCustomers.length !== 1 ? 's' : ''} found
+                                          </div>
+                                          
+                                          {/* Customer list */}
+                                          {filteredCustomers.map((customer, index) => (
+                                            <div
+                                              key={customer._id}
+                                              className={`p-3 hover:bg-muted cursor-pointer border-b last:border-b-0 transition-colors ${
+                                                index % 2 === 0 ? 'bg-background' : 'bg-muted/30'
+                                              }`}
+                                              onClick={() => handleCustomerSelect(customer._id)}
+                                            >
+                                              <div className="flex items-center justify-between">
+                                                <div className="flex-1 min-w-0">
+                                                  <p className="font-medium truncate">{customer.name}</p>
+                                                  {customer.email && (
+                                                    <p className="text-sm text-muted-foreground truncate">{customer.email}</p>
+                                                  )}
+                                                </div>
+                                                <div className="flex-shrink-0 ml-2">
+                                                  {customer.membershipType && getMembershipBadge(customer.membershipType)}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </>
+                                      ) : (
+                                        <div className="p-6 text-center text-muted-foreground">
+                                          <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                                          <p className="font-medium">No clients found</p>
+                                          <p className="text-sm">Try adjusting your search: "{customerSearch}"</p>
+                                        </div>
+                                      )}
+                                    </div>
+                                    
+                                    {/* Scroll indicator */}
+                                    {filteredCustomers.length > 8 && (
+                                      <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-background to-transparent pointer-events-none" />
                                     )}
                                   </div>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                                )}
+                              </div>
+                            )}
+                          </div>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
 
+                    {/* Workout Plan Selection with Search */}
                     <FormField
                       control={form.control}
                       name="planId"
@@ -290,32 +466,104 @@ const AssignWorkoutPlanPage: React.FC = () => {
                         <FormItem>
                           <FormLabel className="flex items-center gap-2">
                             <Dumbbell className="h-4 w-4" />
-                            Select Workout Plan
+                            Select Workout Plan ({filteredWorkoutPlans.length} available)
                           </FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger className="h-11">
-                                <SelectValue placeholder="Choose a workout plan to assign" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {workoutPlans.map((plan) => (
-                                <SelectItem key={plan._id} value={plan._id}>
-                                  <div className="flex items-center justify-between w-full">
-                                    <span>{plan.name}</span>
-                                    {plan.level && (
-                                      <span className="ml-2">
-                                        {getLevelBadge(plan.level)}
-                                      </span>
+                          <div className="space-y-2">
+                            {selectedPlan ? (
+                              <div className="flex items-center justify-between p-3 border rounded-md bg-green-50">
+                                <div>
+                                  <p className="font-medium">{selectedPlan.name}</p>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    {selectedPlan.goal && (
+                                      <span className="text-sm text-muted-foreground">{selectedPlan.goal}</span>
+                                    )}
+                                    {selectedPlan.duration && (
+                                      <span className="text-sm text-muted-foreground">• {selectedPlan.duration} weeks</span>
                                     )}
                                   </div>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {selectedPlan.level && getLevelBadge(selectedPlan.level)}
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={clearPlanSelection}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="space-y-2">
+                                <div className="relative">
+                                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                  <Input
+                                    placeholder="Search workout plans by name, goal, or level..."
+                                    value={planSearch}
+                                    onChange={(e) => setPlanSearch(e.target.value)}
+                                    onFocus={() => setPlanDropdownOpen(true)}
+                                    className="pl-10"
+                                  />
+                                </div>
+                                
+                                {planDropdownOpen && (
+                                  <div className="relative border rounded-md bg-background shadow-lg max-h-80 overflow-hidden z-20">
+                                    {/* Scrollable list container */}
+                                    <div className="max-h-80 overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent">
+                                      {filteredWorkoutPlans.length > 0 ? (
+                                        <>
+                                          {/* Header showing count */}
+                                          <div className="sticky top-0 bg-muted/80 backdrop-blur-sm px-3 py-2 text-xs text-muted-foreground border-b">
+                                            {filteredWorkoutPlans.length} workout plan{filteredWorkoutPlans.length !== 1 ? 's' : ''} found
+                                          </div>
+                                          
+                                          {/* Workout plans list */}
+                                          {filteredWorkoutPlans.map((plan, index) => (
+                                            <div
+                                              key={plan._id}
+                                              className={`p-3 hover:bg-muted cursor-pointer border-b last:border-b-0 transition-colors ${
+                                                index % 2 === 0 ? 'bg-background' : 'bg-muted/30'
+                                              }`}
+                                              onClick={() => handlePlanSelect(plan._id)}
+                                            >
+                                              <div className="flex items-center justify-between">
+                                                <div className="flex-1 min-w-0">
+                                                  <p className="font-medium truncate">{plan.name}</p>
+                                                  <div className="flex items-center gap-2 mt-1">
+                                                    {plan.goal && (
+                                                      <span className="text-sm text-muted-foreground truncate">{plan.goal}</span>
+                                                    )}
+                                                    {plan.duration && (
+                                                      <span className="text-sm text-muted-foreground">• {plan.duration} weeks</span>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                                <div className="flex-shrink-0 ml-2">
+                                                  {plan.level && getLevelBadge(plan.level)}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </>
+                                      ) : (
+                                        <div className="p-6 text-center text-muted-foreground">
+                                          <Dumbbell className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                                          <p className="font-medium">No workout plans found</p>
+                                          <p className="text-sm">Try adjusting your search: "{planSearch}"</p>
+                                        </div>
+                                      )}
+                                    </div>
+                                    
+                                    {/* Scroll indicator */}
+                                    {filteredWorkoutPlans.length > 8 && (
+                                      <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -371,7 +619,7 @@ const AssignWorkoutPlanPage: React.FC = () => {
                       <Button 
                         type="submit" 
                         className="px-6"
-                        disabled={!form.formState.isValid}
+                        disabled={!selectedMember || !selectedPlan}
                       >
                         <CheckCircle className="h-4 w-4 mr-2" />
                         Assign Plan
@@ -421,7 +669,7 @@ const AssignWorkoutPlanPage: React.FC = () => {
                 <CardContent className="p-6 text-center">
                   <Users className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
                   <h3 className="font-medium text-muted-foreground">No Client Selected</h3>
-                  <p className="text-sm text-muted-foreground">Choose a client to see their details</p>
+                  <p className="text-sm text-muted-foreground">Search and choose a client to see their details</p>
                 </CardContent>
               </Card>
             )}
@@ -468,7 +716,7 @@ const AssignWorkoutPlanPage: React.FC = () => {
                 <CardContent className="p-6 text-center">
                   <Dumbbell className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
                   <h3 className="font-medium text-muted-foreground">No Plan Selected</h3>
-                  <p className="text-sm text-muted-foreground">Choose a workout plan to see details</p>
+                  <p className="text-sm text-muted-foreground">Search and choose a workout plan to see details</p>
                 </CardContent>
               </Card>
             )}
@@ -500,6 +748,17 @@ const AssignWorkoutPlanPage: React.FC = () => {
             )}
           </motion.div>
         </div>
+
+        {/* Click outside to close dropdowns */}
+        {(customerDropdownOpen || planDropdownOpen) && (
+          <div 
+            className="fixed inset-0 z-10" 
+            onClick={() => {
+              setCustomerDropdownOpen(false);
+              setPlanDropdownOpen(false);
+            }}
+          />
+        )}
       </motion.div>
     </DashboardLayout>
   );

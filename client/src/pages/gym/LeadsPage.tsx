@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { 
   TrendingUp, 
@@ -23,7 +23,9 @@ import {
   Zap,
   CheckCircle,
   Clock,
-  AlertCircle
+  AlertCircle,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -43,11 +45,19 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
-import axios from '@/lib/axios';
+import axios from 'axios';
+import { API_URL } from '@/config';
 import { format } from 'date-fns';
 import {
   AlertDialog,
@@ -82,7 +92,7 @@ interface Lead {
 }
 
 const LeadsPage: React.FC = () => {
-  const [leads, setLeads] = useState<Lead[]>([]);
+  const [allLeads, setAllLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -90,17 +100,27 @@ const LeadsPage: React.FC = () => {
   const [form, setForm] = useState({ name: '', phone: '', source: '', status: 'New', followUpDate: '', notes: '' });
   const [deleteLeadId, setDeleteLeadId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('all');
-  const [search, setSearch] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   const fetchLeads = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('/leads');
-      setLeads(res.data);
+      // Fetch all leads without pagination limit
+      const res = await axios.get(`${API_URL}/leads`, {
+        params: {
+          page: 1,
+          limit: 10000 // Large enough to get all leads
+        },
+        withCredentials: true
+      });
+      setAllLeads(res.data || []);
       setError('');
     } catch (err) {
       setError('Failed to fetch leads');
       toast.error('Failed to fetch leads');
+      setAllLeads([]);
     }
     setLoading(false);
   };
@@ -109,9 +129,9 @@ const LeadsPage: React.FC = () => {
     fetchLeads();
   }, []);
 
-  // Calculate lead insights
-  const leadInsights = React.useMemo(() => {
-    if (!leads.length) return {
+  // Calculate lead insights from all leads
+  const leadInsights = useMemo(() => {
+    if (!allLeads.length) return {
       totalLeads: 0,
       newLeads: 0,
       contactedLeads: 0,
@@ -119,22 +139,130 @@ const LeadsPage: React.FC = () => {
       negotiationLeads: 0,
       closedLeads: 0,
       followUpsDue: 0,
-      todayLeads: 0
+      todayLeads: 0,
+      conversionRate: 0
     };
 
     const today = new Date().toISOString().split('T')[0];
     
-    return {
-      totalLeads: leads.length,
-      newLeads: leads.filter(l => l.status === 'New').length,
-      contactedLeads: leads.filter(l => l.status === 'Contacted').length,
-      interestedLeads: leads.filter(l => l.status === 'Interested').length,
-      negotiationLeads: leads.filter(l => l.status === 'Negotiation').length,
-      closedLeads: leads.filter(l => l.status === 'Closed').length,
-      followUpsDue: leads.filter(l => l.followUpDate && l.followUpDate.slice(0, 10) <= today && l.status !== 'Closed').length,
-      todayLeads: leads.filter(l => l.createdAt && l.createdAt.slice(0, 10) === today).length
+    const insights = {
+      totalLeads: allLeads.length,
+      newLeads: allLeads.filter(l => l.status === 'New').length,
+      contactedLeads: allLeads.filter(l => l.status === 'Contacted').length,
+      interestedLeads: allLeads.filter(l => l.status === 'Interested').length,
+      negotiationLeads: allLeads.filter(l => l.status === 'Negotiation').length,
+      closedLeads: allLeads.filter(l => l.status === 'Closed').length,
+      followUpsDue: allLeads.filter(l => l.followUpDate && l.followUpDate.slice(0, 10) <= today && l.status !== 'Closed').length,
+      todayLeads: allLeads.filter(l => l.createdAt && l.createdAt.slice(0, 10) === today).length,
+      conversionRate: 0
     };
-  }, [leads]);
+
+    insights.conversionRate = insights.totalLeads > 0 
+      ? Math.round((insights.closedLeads / insights.totalLeads) * 100)
+      : 0;
+
+    return insights;
+  }, [allLeads]);
+
+  // Enhanced search functionality with memoization
+  const filteredLeads = useMemo(() => {
+    if (!searchQuery.trim()) return allLeads;
+    
+    const query = searchQuery.toLowerCase().trim();
+    return allLeads.filter(lead => {
+      const name = lead.name?.toLowerCase() || '';
+      const phone = lead.phone?.toLowerCase() || '';
+      const source = lead.source?.toLowerCase() || '';
+      const status = lead.status?.toLowerCase() || '';
+      const notes = lead.notes?.toLowerCase() || '';
+      
+      return name.includes(query) || 
+             phone.includes(query) || 
+             source.includes(query) ||
+             status.includes(query) ||
+             notes.includes(query);
+    });
+  }, [allLeads, searchQuery]);
+
+  // Filter by tab with memoization
+  const tabFilteredLeads = useMemo(() => {
+    let filtered = filteredLeads;
+    
+    switch (activeTab) {
+      case 'new':
+        filtered = filtered.filter(l => l.status === 'New');
+        break;
+      case 'contacted':
+        filtered = filtered.filter(l => l.status === 'Contacted');
+        break;
+      case 'interested':
+        filtered = filtered.filter(l => l.status === 'Interested');
+        break;
+      case 'negotiation':
+        filtered = filtered.filter(l => l.status === 'Negotiation');
+        break;
+      case 'closed':
+        filtered = filtered.filter(l => l.status === 'Closed');
+        break;
+      default:
+        break;
+    }
+    
+    return filtered;
+  }, [filteredLeads, activeTab]);
+
+  // Pagination calculations
+  const totalLeads = tabFilteredLeads.length;
+  const totalPages = Math.ceil(totalLeads / rowsPerPage);
+  const startItem = (currentPage - 1) * rowsPerPage + 1;
+  const endItem = Math.min(currentPage * rowsPerPage, totalLeads);
+  
+  // Get current page data
+  const currentPageLeads = tabFilteredLeads.slice(
+    (currentPage - 1) * rowsPerPage,
+    currentPage * rowsPerPage
+  );
+
+  // Generate page numbers for pagination
+  const getPageNumbers = useMemo(() => {
+    const pages = [];
+    const maxVisiblePages = 5;
+    
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) {
+          pages.push(i);
+        }
+        pages.push('...');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1);
+        pages.push('...');
+        for (let i = totalPages - 3; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        pages.push(1);
+        pages.push('...');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          pages.push(i);
+        }
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+    
+    return pages;
+  }, [totalPages, currentPage]);
+
+  // Reset pagination when tab or search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchQuery]);
 
   const handleOpenModal = (lead: Lead | null = null) => {
     setEditingLead(lead);
@@ -156,10 +284,10 @@ const LeadsPage: React.FC = () => {
     e.preventDefault();
     try {
       if (editingLead) {
-        await axios.put(`/leads/${editingLead._id}`, form);
+        await axios.put(`${API_URL}/leads/${editingLead._id}`, form, { withCredentials: true });
         toast.success('Lead updated successfully');
       } else {
-        await axios.post('/leads', form);
+        await axios.post(`${API_URL}/leads`, form, { withCredentials: true });
         toast.success('Lead created successfully');
       }
       fetchLeads();
@@ -173,7 +301,7 @@ const LeadsPage: React.FC = () => {
 
   const handleDelete = async (id: string) => {
     try {
-      await axios.delete(`/leads/${id}`);
+      await axios.delete(`${API_URL}/leads/${id}`, { withCredentials: true });
       fetchLeads();
       setDeleteLeadId(null);
       toast.success('Lead deleted successfully');
@@ -183,22 +311,11 @@ const LeadsPage: React.FC = () => {
     }
   };
 
-  // Filter leads based on search and tab
-  const filteredLeads = leads
-    .filter(lead => {
-      if (activeTab === 'all') return true;
-      if (activeTab === 'new') return lead.status === 'New';
-      if (activeTab === 'contacted') return lead.status === 'Contacted';
-      if (activeTab === 'negotiation') return lead.status === 'Negotiation';
-      if (activeTab === 'closed') return lead.status === 'Closed';
-      return true;
-    })
-    .filter(lead => lead.name.toLowerCase().includes(search.toLowerCase()));
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'New': return 'bg-blue-100 text-blue-800';
       case 'Contacted': return 'bg-yellow-100 text-yellow-800';
+      case 'Interested': return 'bg-purple-100 text-purple-800';
       case 'Negotiation': return 'bg-orange-100 text-orange-800';
       case 'Closed': return 'bg-green-100 text-green-800';
       default: return 'bg-gray-100 text-gray-800';
@@ -209,19 +326,20 @@ const LeadsPage: React.FC = () => {
     switch (status) {
       case 'New': return <UserPlus className="h-3 w-3" />;
       case 'Contacted': return <Phone className="h-3 w-3" />;
-      case 'Negotiation': return <MessageSquare className="h-3 w-3" />;
+      case 'Interested': return <MessageSquare className="h-3 w-3" />;
+      case 'Negotiation': return <TrendingUp className="h-3 w-3" />;
       case 'Closed': return <CheckCircle className="h-3 w-3" />;
       default: return <AlertCircle className="h-3 w-3" />;
     }
   };
 
   const handleExport = () => {
-    if (!filteredLeads || filteredLeads.length === 0) {
+    if (!tabFilteredLeads || tabFilteredLeads.length === 0) {
       toast("No data to export.");
       return;
     }
 
-    const dataToExport = filteredLeads.map(lead => ({
+    const dataToExport = tabFilteredLeads.map(lead => ({
       "Name": lead.name,
       "Phone": lead.phone,
       "Source": lead.source,
@@ -277,17 +395,19 @@ const LeadsPage: React.FC = () => {
               Track your sales funnel and convert prospects into customers.
             </p>
           </div>
-          <div className="flex gap-3">
-            <Button onClick={() => handleOpenModal()} size="lg" className="shadow-sm">
-              <Plus className="mr-2 h-5 w-5" /> New Lead
+          <div className="flex items-center gap-3">
+            <Button variant="outline" onClick={handleExport}>
+              <Download className="w-4 h-4 mr-2" />
+              Export
             </Button>
-            <Button variant="outline" size="lg" className="shadow-sm" onClick={handleExport}>
-              <Download className="mr-2 h-5 w-5" /> Export Data
+            <Button onClick={() => handleOpenModal()}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Lead
             </Button>
           </div>
         </div>
 
-        {/* Sales Funnel Overview - Vertical Layout */}
+        {/* Lead Insights Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -303,7 +423,7 @@ const LeadsPage: React.FC = () => {
                 </div>
               </CardHeader>
               <CardContent className="space-y-1">
-                <div className="text-2xl font-bold">{leadInsights.totalLeads}</div>
+                <div className="text-2xl font-bold text-blue-700">{leadInsights.totalLeads}</div>
                 <p className="text-xs text-muted-foreground">All prospects</p>
               </CardContent>
             </Card>
@@ -323,7 +443,7 @@ const LeadsPage: React.FC = () => {
                 </div>
               </CardHeader>
               <CardContent className="space-y-1">
-                <div className="text-2xl font-bold">{leadInsights.newLeads}</div>
+                <div className="text-2xl font-bold text-yellow-700">{leadInsights.newLeads}</div>
                 <p className="text-xs text-muted-foreground">Need contact</p>
               </CardContent>
             </Card>
@@ -343,8 +463,8 @@ const LeadsPage: React.FC = () => {
                 </div>
               </CardHeader>
               <CardContent className="space-y-1">
-                <div className="text-2xl font-bold">
-                  {leadInsights.contactedLeads + leadInsights.negotiationLeads}
+                <div className="text-2xl font-bold text-purple-700">
+                  {leadInsights.contactedLeads + leadInsights.interestedLeads + leadInsights.negotiationLeads}
                 </div>
                 <p className="text-xs text-muted-foreground">Active leads</p>
               </CardContent>
@@ -365,8 +485,8 @@ const LeadsPage: React.FC = () => {
                 </div>
               </CardHeader>
               <CardContent className="space-y-1">
-                <div className="text-2xl font-bold">{leadInsights.closedLeads}</div>
-                <p className="text-xs text-muted-foreground">Completed</p>
+                <div className="text-2xl font-bold text-green-700">{leadInsights.closedLeads}</div>
+                <p className="text-xs text-muted-foreground">Converted</p>
               </CardContent>
             </Card>
           </motion.div>
@@ -379,18 +499,14 @@ const LeadsPage: React.FC = () => {
             <Card className="relative overflow-hidden border-0 shadow-lg">
               <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-orange-600/5" />
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Active Rate</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Conversion Rate</CardTitle>
                 <div className="h-8 w-8 rounded-full bg-orange-500/10 flex items-center justify-center">
                   <TrendingUp className="h-4 w-4 text-orange-600" />
                 </div>
               </CardHeader>
               <CardContent className="space-y-1">
-                <div className="text-2xl font-bold">
-                  {leadInsights.totalLeads > 0 
-                    ? Math.round(((leadInsights.totalLeads - leadInsights.closedLeads) / leadInsights.totalLeads) * 100)
-                    : 0}%
-                </div>
-                <p className="text-xs text-muted-foreground">Still active</p>
+                <div className="text-2xl font-bold text-orange-700">{leadInsights.conversionRate}%</div>
+                <p className="text-xs text-muted-foreground">Success rate</p>
               </CardContent>
             </Card>
           </motion.div>
@@ -402,10 +518,10 @@ const LeadsPage: React.FC = () => {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search leads by name, phone, or source..."
+                placeholder="Search leads by name, phone, source, or status..."
                 className="pl-10 h-11 shadow-sm border-muted-foreground/20 focus:ring-2 focus:ring-primary/20"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
               />
             </div>
           </div>
@@ -432,55 +548,45 @@ const LeadsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Funnel Progress Visualization */}
-        <Card className="shadow-lg border-0">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold flex items-center">
-              <Target className="h-5 w-5 mr-2" />
-              Sales Funnel Progress
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {[
-                { label: 'New', count: leadInsights.newLeads, color: 'bg-blue-500' },
-                { label: 'Contacted', count: leadInsights.contactedLeads, color: 'bg-yellow-500' },
-                { label: 'Negotiation', count: leadInsights.negotiationLeads, color: 'bg-orange-500' },
-                { label: 'Closed', count: leadInsights.closedLeads, color: 'bg-green-500' }
-              ].map((stage, index) => (
-                <div key={stage.label} className="text-center">
-                  <div className="text-sm font-medium mb-2">{stage.label}</div>
-                  <div className={`h-20 ${stage.color} rounded-lg flex items-center justify-center text-white font-bold text-xl shadow-sm`}>
-                    {stage.count}
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {leadInsights.totalLeads > 0 ? Math.round((stage.count / leadInsights.totalLeads) * 100) : 0}%
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Leads Table with Tabs */}
         <Card className="shadow-lg border-0">
           <CardHeader className="border-b bg-muted/30">
             <div className="flex items-center justify-between">
               <CardTitle className="text-xl font-semibold">Lead Directory</CardTitle>
-              <Badge variant="secondary" className="text-sm px-3 py-1">
-                {filteredLeads?.length || 0} leads
-              </Badge>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">
+                  Showing {startItem}-{endItem} of {totalLeads}
+                </span>
+                <Select
+                  value={rowsPerPage.toString()}
+                  onValueChange={(value) => {
+                    setRowsPerPage(Number(value));
+                    setCurrentPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-20">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </CardHeader>
           <CardContent className="p-0">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <div className="border-b px-6 pt-6">
-                <TabsList className="grid grid-cols-5 bg-muted/50">
-                  <TabsTrigger value="all">All</TabsTrigger>
-                  <TabsTrigger value="new">New</TabsTrigger>
-                  <TabsTrigger value="contacted">Contacted</TabsTrigger>
-                  <TabsTrigger value="negotiation">Negotiation</TabsTrigger>
-                  <TabsTrigger value="closed">Closed</TabsTrigger>
+                <TabsList className="grid grid-cols-6 bg-muted/50">
+                  <TabsTrigger value="all">All ({allLeads.length})</TabsTrigger>
+                  <TabsTrigger value="new">New ({leadInsights.newLeads})</TabsTrigger>
+                  <TabsTrigger value="contacted">Contacted ({leadInsights.contactedLeads})</TabsTrigger>
+                  <TabsTrigger value="interested">Interested ({leadInsights.interestedLeads})</TabsTrigger>
+                  <TabsTrigger value="negotiation">Negotiation ({leadInsights.negotiationLeads})</TabsTrigger>
+                  <TabsTrigger value="closed">Closed ({leadInsights.closedLeads})</TabsTrigger>
                 </TabsList>
               </div>
 
@@ -502,20 +608,20 @@ const LeadsPage: React.FC = () => {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredLeads.length === 0 ? (
+                        {currentPageLeads.length === 0 ? (
                           <TableRow>
                             <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
                               <div className="flex flex-col items-center space-y-2">
                                 <Target className="h-12 w-12 text-muted-foreground/50" />
                                 <div className="text-lg font-medium">
-                                  {search ? 'No leads found matching your search.' : 'No leads found.'}
+                                  {searchQuery ? 'No leads found matching your search.' : 'No leads found.'}
                                 </div>
                                 <p className="text-sm">Add new leads to start tracking your sales funnel</p>
                               </div>
                             </TableCell>
                           </TableRow>
                         ) : (
-                          filteredLeads.map((lead, index) => (
+                          currentPageLeads.map((lead, index) => (
                             <motion.tr
                               key={lead._id}
                               initial={{ opacity: 0, y: 10 }}
@@ -542,15 +648,15 @@ const LeadsPage: React.FC = () => {
                                 </div>
                               </TableCell>
                               <TableCell className="text-muted-foreground">
-                                {lead.followUpDate ? format(new Date(lead.followUpDate), 'MMM d, yyyy') : '-'}
+                                {lead.followUpDate ? format(new Date(lead.followUpDate), 'MMM d, yyyy') : 'No follow-up'}
                               </TableCell>
-                              <TableCell className="text-muted-foreground max-w-32 truncate">
-                                {lead.notes || '-'}
+                              <TableCell className="text-muted-foreground max-w-48">
+                                <div className="truncate">{lead.notes || 'No notes'}</div>
                               </TableCell>
                               <TableCell>
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-muted">
+                                    <Button variant="ghost" className="h-8 w-8 p-0">
                                       <MoreHorizontal className="h-4 w-4" />
                                     </Button>
                                   </DropdownMenuTrigger>
@@ -579,6 +685,55 @@ const LeadsPage: React.FC = () => {
               </TabsContent>
             </Tabs>
           </CardContent>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between p-6 border-t">
+              <div className="text-sm text-muted-foreground">
+                Showing {startItem} to {endItem} of {totalLeads} leads
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </Button>
+                
+                <div className="flex items-center space-x-1">
+                  {getPageNumbers.map((page, index) => (
+                    <React.Fragment key={index}>
+                      {page === '...' ? (
+                        <span className="px-2 py-1 text-muted-foreground">...</span>
+                      ) : (
+                        <Button
+                          variant={currentPage === page ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setCurrentPage(page as number)}
+                          className="w-8 h-8 p-0"
+                        >
+                          {page}
+                        </Button>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </Card>
       </motion.div>
 
@@ -589,47 +744,82 @@ const LeadsPage: React.FC = () => {
             <DialogTitle>{editingLead ? 'Edit Lead' : 'Add New Lead'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Name</label>
-              <Input name="name" value={form.name} onChange={handleChange} required />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Phone</label>
-              <Input name="phone" value={form.phone} onChange={handleChange} required />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Source</label>
-              <Input name="source" value={form.source} onChange={handleChange} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Status</label>
-              <select 
-                name="status" 
-                value={form.status} 
-                onChange={handleChange} 
-                className="w-full border rounded-md px-3 py-2 bg-background"
-              >
-                <option value="New">New</option>
-                <option value="Contacted">Contacted</option>
-                <option value="Negotiation">Negotiation</option>
-                <option value="Closed">Closed</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Follow-up Date</label>
-              <Input type="date" name="followUpDate" value={form.followUpDate} onChange={handleChange} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Notes</label>
-              <textarea 
-                name="notes" 
-                value={form.notes} 
+            <div className="space-y-2">
+              <label htmlFor="name" className="text-sm font-medium">Name *</label>
+              <Input
+                id="name"
+                name="name"
+                value={form.name}
                 onChange={handleChange}
-                className="w-full border rounded-md px-3 py-2 bg-background min-h-[80px]"
-                placeholder="Add notes about this lead..."
+                placeholder="Enter lead name"
+                required
               />
             </div>
-            <div className="flex gap-2 justify-end pt-4">
+            
+            <div className="space-y-2">
+              <label htmlFor="phone" className="text-sm font-medium">Phone *</label>
+              <Input
+                id="phone"
+                name="phone"
+                value={form.phone}
+                onChange={handleChange}
+                placeholder="Enter phone number"
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label htmlFor="source" className="text-sm font-medium">Source</label>
+              <Input
+                id="source"
+                name="source"
+                value={form.source}
+                onChange={handleChange}
+                placeholder="e.g., Website, Referral, Social Media"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label htmlFor="status" className="text-sm font-medium">Status</label>
+              <Select value={form.status} onValueChange={(value) => setForm({ ...form, status: value })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="New">New</SelectItem>
+                  <SelectItem value="Contacted">Contacted</SelectItem>
+                  <SelectItem value="Interested">Interested</SelectItem>
+                  <SelectItem value="Negotiation">Negotiation</SelectItem>
+                  <SelectItem value="Closed">Closed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <label htmlFor="followUpDate" className="text-sm font-medium">Follow-up Date</label>
+              <Input
+                id="followUpDate"
+                name="followUpDate"
+                type="date"
+                value={form.followUpDate}
+                onChange={handleChange}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label htmlFor="notes" className="text-sm font-medium">Notes</label>
+              <textarea
+                id="notes"
+                name="notes"
+                value={form.notes}
+                onChange={handleChange}
+                placeholder="Add any notes about this lead..."
+                className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                rows={3}
+              />
+            </div>
+            
+            <div className="flex justify-end space-x-3 pt-4">
               <Button type="button" variant="outline" onClick={handleCloseModal}>
                 Cancel
               </Button>
@@ -641,18 +831,24 @@ const LeadsPage: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation */}
-      <AlertDialog open={!!deleteLeadId} onOpenChange={open => !open && setDeleteLeadId(null)}>
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteLeadId} onOpenChange={() => setDeleteLeadId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Lead?</AlertDialogTitle>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this lead? This action cannot be undone.
+              This action cannot be undone. This will permanently delete the lead
+              and remove all associated data.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDeleteLeadId(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => deleteLeadId && handleDelete(deleteLeadId)}>Delete</AlertDialogAction>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteLeadId && handleDelete(deleteLeadId)}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              Delete Lead
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
