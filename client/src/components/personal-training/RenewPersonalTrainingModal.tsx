@@ -128,31 +128,25 @@ export const RenewPersonalTrainingModal: React.FC<RenewPersonalTrainingModalProp
     const currentEndDate = assignment.endDate 
       ? new Date(assignment.endDate)
       : addMonths(new Date(assignment.startDate), assignment.duration);
-    
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
     const startDate = form.getValues('startDate');
     const duration = form.getValues('duration');
-    
     if (startDate && duration > 0) {
       let newStartDate: Date;
       let newEndDate: Date;
       let willExtend: boolean;
-      
-      if (currentEndDate > today) {
-        // Current assignment is still active, extend from current end date + 1 day
+      // If selected start date is before current end date, start after current end date
+      if (startDate < currentEndDate) {
         newStartDate = new Date(currentEndDate);
         newStartDate.setDate(newStartDate.getDate() + 1);
         newEndDate = addMonths(newStartDate, duration);
         willExtend = true;
       } else {
-        // Current assignment has expired, use the selected start date
         newStartDate = startDate;
         newEndDate = addMonths(startDate, duration);
         willExtend = false;
       }
-      
       setRenewalPreview({
         willExtend,
         newStartDate,
@@ -171,7 +165,6 @@ export const RenewPersonalTrainingModal: React.FC<RenewPersonalTrainingModalProp
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       setIsSubmitting(true);
-      
       const currentEndDate = assignment.endDate 
         ? new Date(assignment.endDate)
         : addMonths(new Date(assignment.startDate), assignment.duration);
@@ -179,7 +172,8 @@ export const RenewPersonalTrainingModal: React.FC<RenewPersonalTrainingModalProp
       today.setHours(0, 0, 0, 0);
       let newStartDate: Date;
       let newEndDate: Date;
-      if (currentEndDate > today) {
+      // If selected start date is before current end date, start after current end date
+      if (values.startDate < currentEndDate) {
         newStartDate = new Date(currentEndDate);
         newStartDate.setDate(newStartDate.getDate() + 1);
         newEndDate = addMonths(newStartDate, values.duration);
@@ -198,6 +192,8 @@ export const RenewPersonalTrainingModal: React.FC<RenewPersonalTrainingModalProp
           endDate: newEndDate,
           fees: values.fees,
           gymId: assignment.gymId,
+          paymentMode: values.paymentMode,
+          transactionDate: values.transactionDate,
         })
       });
       // Create transaction
@@ -370,6 +366,52 @@ export const RenewPersonalTrainingModal: React.FC<RenewPersonalTrainingModalProp
                 )}
               />
             </div>
+            <FormField
+              control={form.control}
+              name="startDate"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Start Date</FormLabel>
+                  <FormControl>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full pl-3 text-left font-normal",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          {field.value ? (
+                            format(field.value, "PPP")
+                          ) : (
+                            <span>Pick a date</span>
+                          )}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={field.onChange}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </FormControl>
+                  <FormMessage />
+                  {renewalPreview.newStartDate && (
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Actual renewal will start from: <b>{format(renewalPreview.newStartDate, 'PPP')}</b>
+                      {renewalPreview.willExtend && (
+                        <span> (after your current assignment ends)</span>
+                      )}
+                    </div>
+                  )}
+                </FormItem>
+              )}
+            />
             {/* Renewal Preview */}
             {renewalPreview.newStartDate && renewalPreview.newEndDate && (
               <div className="col-span-2 p-4 bg-blue-50 rounded-lg border border-blue-200">

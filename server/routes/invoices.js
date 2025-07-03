@@ -98,7 +98,7 @@ router.post('/', auth, async (req, res) => {
         transactionDate: new Date(),
         amount: amount,
         membershipType: customer?.membershipType || 'none',
-        paymentMode: paymentMode, // Use the provided payment mode
+        paymentMode: paymentMode || 'cash', // Use the provided payment mode or default to 'cash'
         description: `Payment for Invoice ${invoiceNumber}: ${itemDescriptions}`,
         status: 'SUCCESS' // Mark transaction as successful
       });
