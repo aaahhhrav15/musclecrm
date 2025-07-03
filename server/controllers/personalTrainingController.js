@@ -134,10 +134,42 @@ exports.updateAssignment = async (req, res) => {
       return res.status(404).json({ error: 'Assignment not found.' });
     }
 
-    // Update customer's personalTrainer field
+    // Update customer's personalTrainer field with full assignment
     await Customer.findByIdAndUpdate(customerId, {
-      personalTrainer: trainerId
+      personalTrainer: assignment
     });
+
+    // Update the most recent related invoice (if any)
+    const invoice = await Invoice.findOne({
+      customerId,
+      gymId,
+      'items.description': /Personal Training/
+    }).sort({ createdAt: -1 });
+    if (invoice) {
+      invoice.amount = fees;
+      invoice.dueDate = end;
+      invoice.items = [{
+        description: `Personal Training with ${duration} month(s) duration`,
+        quantity: 1,
+        unitPrice: fees,
+        amount: fees
+      }];
+      invoice.notes = `Personal training assignment starting ${start.toLocaleDateString()}`;
+      await invoice.save();
+    }
+
+    // Update the most recent related transaction (if any)
+    const transaction = await Transaction.findOne({
+      userId: customerId,
+      gymId,
+      transactionType: 'PERSONAL_TRAINING'
+    }).sort({ createdAt: -1 });
+    if (transaction) {
+      transaction.amount = fees;
+      transaction.description = `Personal training fees for ${duration} month(s)`;
+      transaction.transactionDate = new Date();
+      await transaction.save();
+    }
 
     res.json(assignment);
   } catch (err) {
@@ -158,6 +190,20 @@ exports.deleteAssignment = async (req, res) => {
     // Remove personalTrainer from customer
     await Customer.findByIdAndUpdate(assignment.customerId, {
       $unset: { personalTrainer: 1 }
+    });
+
+    // Delete all related invoices
+    await Invoice.deleteMany({
+      customerId: assignment.customerId,
+      gymId: assignment.gymId,
+      'items.description': /Personal Training/
+    });
+
+    // Delete all related transactions
+    await Transaction.deleteMany({
+      userId: assignment.customerId,
+      gymId: assignment.gymId,
+      transactionType: { $in: ['PERSONAL_TRAINING', 'PERSONAL_TRAINING_RENEWAL'] }
     });
 
     // Delete the assignment
@@ -194,6 +240,11 @@ exports.renewAssignment = async (req, res) => {
     if (!assignment) {
       return res.status(404).json({ error: 'Assignment not found.' });
     }
+
+    // Update customer's personalTrainer field with full assignment
+    await Customer.findByIdAndUpdate(assignment.customerId._id || assignment.customerId, {
+      personalTrainer: assignment
+    });
 
     // Generate invoice for renewal
     const invoice = new Invoice({
