@@ -72,6 +72,7 @@ import { ViewCustomerModal } from '@/components/customers/ViewCustomerModal';
 import { Skeleton } from '@/components/ui/skeleton';
 import * as Papa from 'papaparse';
 import { differenceInDays, addDays, addMonths, format, isToday, isTomorrow, isThisWeek, isThisMonth, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
+import axios from 'axios';
 
 interface FilterState {
   membershipType?: string;
@@ -82,6 +83,20 @@ interface FilterState {
   birthdayFilter?: string;
   statusFilter?: string;
 }
+
+// Add Trainer type
+type Trainer = {
+  _id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  specialization?: string;
+  experience?: number;
+  status?: string;
+  bio?: string;
+  clients?: number;
+  gymId?: string;
+};
 
 function handleViewCustomer(customer: Customer, setSelectedCustomer: any, setIsViewModalOpen: any) {
   setSelectedCustomer(customer);
@@ -186,6 +201,7 @@ export function CustomersPage() {
   const [allCustomers, setAllCustomers] = useState<Customer[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [trainers, setTrainers] = useState<Trainer[]>([]);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -202,6 +218,13 @@ export function CustomersPage() {
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
   });
+
+  // Fetch trainers on mount
+  useEffect(() => {
+    axios.get('/api/trainers').then(res => {
+      setTrainers(res.data.data || res.data.trainers || []);
+    });
+  }, []);
 
   // Update allCustomers when data changes
   useEffect(() => {
@@ -1032,6 +1055,7 @@ export function CustomersPage() {
             isOpen={isViewModalOpen}
             onClose={() => setIsViewModalOpen(false)}
             customer={selectedCustomer}
+            trainers={trainers}
             onCustomerUpdated={handleCustomerUpdated}
           />
         </>

@@ -18,6 +18,41 @@ export interface Customer {
   paymentMode: string;
   birthday?: string;
   totalSpent: number;
+  personalTrainer?: string | { _id: string; name: string; email?: string; phone?: string };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PersonalTrainingAssignment {
+  _id: string;
+  customerId: string;
+  trainerId: {
+    _id: string;
+    name: string;
+    email: string;
+    phone?: string;
+  };
+  gymId: string;
+  startDate: string;
+  duration: number;
+  endDate: string;
+  fees: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CustomerTransaction {
+  _id: string;
+  userId: string;
+  gymId: string;
+  invoiceId?: string;
+  transactionType: string;
+  transactionDate: string;
+  amount: number;
+  membershipType: string;
+  paymentMode: string;
+  description?: string;
+  status: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -41,6 +76,7 @@ interface ApiCustomersResponse extends ApiResponse {
     paymentMode: string;
     birthday?: string;
     totalSpent: number;
+    personalTrainer?: string | { _id: string; name: string; email?: string; phone?: string };
     createdAt: string;
     updatedAt: string;
   }>;
@@ -66,9 +102,12 @@ interface ApiCustomerResponse extends ApiResponse {
     paymentMode: string;
     birthday?: string;
     totalSpent: number;
+    personalTrainer?: string | { _id: string; name: string; email?: string; phone?: string };
     createdAt: string;
     updatedAt: string;
   };
+  personalTrainingAssignments?: PersonalTrainingAssignment[];
+  transactions?: CustomerTransaction[];
   invoice?: {
     _id: string;
     invoiceNumber: string;
@@ -136,6 +175,7 @@ interface ApiCustomerData {
   paymentMode: string;
   birthday?: string;
   totalSpent: number;
+  personalTrainer?: string | { _id: string; name: string; email?: string; phone?: string };
   createdAt: string;
   updatedAt: string;
 }
@@ -158,6 +198,7 @@ const mapCustomerFromApi = (apiCustomer: ApiCustomerData): Customer => ({
   paymentMode: apiCustomer.paymentMode,
   birthday: apiCustomer.birthday,
   totalSpent: apiCustomer.totalSpent || 0,
+  personalTrainer: apiCustomer.personalTrainer,
   createdAt: apiCustomer.createdAt,
   updatedAt: apiCustomer.updatedAt
 });
@@ -169,7 +210,7 @@ export const CustomerService = {
   getCustomers: async (filters: CustomerFilterOptions = {}): Promise<{ customers: Customer[], total: number }> => {
     try {
       console.log('Making API request to /customers with filters:', filters);
-      console.log('API URL:', import.meta.env.VITE_API_URL || 'https://flexcrm-ui-suite-production-ec9f.up.railway.app/api');
+      console.log('API URL:', import.meta.env.VITE_API_URL || 'http://localhost:5001/api');
       
       const response = await ApiService.get<ApiCustomersResponse>('/customers', filters);
       console.log('Raw API response:', response);
@@ -263,6 +304,17 @@ export const CustomerService = {
       console.error('Error deleting customer:', error);
       throw error;
     }
+  },
+
+  getCustomerById: async (id: string): Promise<{ customer: Customer, personalTrainingAssignments: PersonalTrainingAssignment[], transactions: CustomerTransaction[] }> => {
+    const response = await ApiService.get<ApiCustomerResponse>(`/customers/${id}`);
+    if (!response.success) throw new Error(response.message || 'Failed to fetch customer');
+    const customer = mapCustomerFromApi(response.customer);
+    return {
+      customer,
+      personalTrainingAssignments: response.personalTrainingAssignments || [],
+      transactions: response.transactions || []
+    };
   }
 };
 

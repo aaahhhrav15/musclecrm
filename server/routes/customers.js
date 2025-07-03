@@ -5,6 +5,8 @@ const { gymAuth } = require('../middleware/gymAuth');
 const Gym = require('../models/Gym');
 const Invoice = require('../models/Invoice');
 const Transaction = require('../models/Transaction');
+const PersonalTrainingAssignment = require('../models/PersonalTrainingAssignment');
+const Trainer = require('../models/Trainer');
 
 const router = express.Router();
 
@@ -206,20 +208,41 @@ router.get('/:id', async (req, res) => {
     const customer = await Customer.findOne({
       _id: req.params.id,
       gymId: req.gymId
-    }).lean(); // Use lean() for better performance
+    }).lean(); // Do not populate here, we will do it manually
     
     if (!customer) {
       return res.status(404).json({ success: false, message: 'Customer not found' });
     }
-    
-    const responseData = { success: true, customer };
-    
+
+    // If customer has a personalTrainer assignment, populate trainer details
+    let personalTrainerAssignment = null;
+    if (customer.personalTrainer && customer.personalTrainer._id) {
+      personalTrainerAssignment = await PersonalTrainingAssignment.findById(customer.personalTrainer._id)
+        .populate('trainerId', 'name email phone dateOfBirth specialization experience status bio clients gymId')
+        .lean();
+    }
+    if (personalTrainerAssignment) {
+      customer.personalTrainer = personalTrainerAssignment;
+    }
+
+    // Fetch personal training assignments and transactions
+    const assignments = await PersonalTrainingAssignment.find({ customerId: req.params.id })
+      .populate('trainerId', 'name email phone');
+    const transactions = await Transaction.find({ userId: req.params.id }).sort({ transactionDate: -1 });
+
+    const responseData = {
+      success: true,
+      customer,
+      personalTrainingAssignments: assignments,
+      transactions
+    };
+
     // Cache the result
     customerCache.set(cacheKey, {
       data: responseData,
       timestamp: Date.now()
     });
-    
+
     res.json(responseData);
   } catch (error) {
     console.error('Error fetching customer:', error);

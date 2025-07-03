@@ -1,4 +1,4 @@
-import React from 'react';
+import * as React from 'react';
 import { format, addMonths, isValid } from 'date-fns';
 import {
   Dialog,
@@ -11,7 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Customer } from '@/services/CustomerService';
+import { Customer, PersonalTrainingAssignment, CustomerTransaction } from '@/services/CustomerService';
 import { RenewMembershipModal } from './RenewMembershipModal';
 import { TransactionHistory } from './TransactionHistory';
 import { Receipt, User, CreditCard, Info } from 'lucide-react';
@@ -21,6 +21,9 @@ interface ViewCustomerModalProps {
   isOpen: boolean;
   onClose: () => void;
   customer: Customer;
+  personalTrainingAssignments?: PersonalTrainingAssignment[];
+  transactions?: CustomerTransaction[];
+  trainers?: Trainer[];
 }
 
 type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'outline';
@@ -29,6 +32,19 @@ interface MembershipStatus {
   status: string;
   variant: BadgeVariant;
 }
+
+type Trainer = {
+  _id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  specialization?: string;
+  experience?: number;
+  status?: string;
+  bio?: string;
+  clients?: number;
+  gymId?: string;
+};
 
 const formatDate = (date: string | Date | undefined) => {
   if (!date) return 'Not set';
@@ -95,6 +111,9 @@ export const ViewCustomerModal: React.FC<ViewCustomerModalProps> = ({
   isOpen,
   onClose,
   customer,
+  personalTrainingAssignments = [],
+  transactions = [],
+  trainers = [],
 }) => {
   const [isRenewModalOpen, setIsRenewModalOpen] = React.useState(false);
   const [isTransactionModalOpen, setIsTransactionModalOpen] = React.useState(false);
@@ -122,13 +141,12 @@ export const ViewCustomerModal: React.FC<ViewCustomerModalProps> = ({
   return (
     <>
       <Dialog open={isDialogOpen} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[700px]">
           <DialogHeader>
             <DialogTitle>Customer Details</DialogTitle>
           </DialogHeader>
-          
           <Tabs defaultValue="basic" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="basic" className="flex items-center gap-2">
                 <User className="h-4 w-4" />
                 Basic
@@ -136,6 +154,10 @@ export const ViewCustomerModal: React.FC<ViewCustomerModalProps> = ({
               <TabsTrigger value="membership" className="flex items-center gap-2">
                 <CreditCard className="h-4 w-4" />
                 Membership
+              </TabsTrigger>
+              <TabsTrigger value="personalTraining" className="flex items-center gap-2">
+                <Info className="h-4 w-4" />
+                Personal Training
               </TabsTrigger>
               <TabsTrigger value="additional" className="flex items-center gap-2">
                 <Info className="h-4 w-4" />
@@ -184,6 +206,56 @@ export const ViewCustomerModal: React.FC<ViewCustomerModalProps> = ({
                     <div>
                       <p className="text-sm text-muted-foreground">Birthday</p>
                       <p className="font-medium">{formatBirthday(customer.birthday)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Personal Trainer</p>
+                      <div className="font-medium">
+                        {customer.personalTrainer ? (
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                              Assigned
+                            </Badge>
+                            {(() => {
+                              // Debug log
+                              // eslint-disable-next-line no-console
+                              console.log('customer.personalTrainer:', customer.personalTrainer);
+                              // eslint-disable-next-line no-console
+                              console.log('trainers:', trainers);
+                              let trainerId: string | undefined = undefined;
+                              const pta = customer.personalTrainer as any;
+                              if (typeof pta === 'string') {
+                                trainerId = pta;
+                              } else if (pta && typeof pta === 'object') {
+                                if (typeof pta.trainerId === 'string') {
+                                  trainerId = pta.trainerId;
+                                } else if (pta.trainerId && typeof pta.trainerId === 'object' && pta.trainerId._id) {
+                                  trainerId = pta.trainerId._id;
+                                }
+                              }
+                              // eslint-disable-next-line no-console
+                              console.log('Resolved trainerId:', trainerId);
+                              const trainer = trainers.find(t => t._id === trainerId);
+                              if (trainer) {
+                                return (
+                                  <span className="text-sm text-muted-foreground">
+                                    ({trainer.name} | {trainer.email} | {trainer.phone})
+                                  </span>
+                                );
+                              }
+                              if (trainerId) {
+                                return (
+                                  <span className="text-sm text-muted-foreground">
+                                    (Trainer ID: {trainerId})
+                                  </span>
+                                );
+                              }
+                              return null;
+                            })()}
+                          </div>
+                        ) : (
+                          <Badge variant="secondary">Not Assigned</Badge>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -254,6 +326,71 @@ export const ViewCustomerModal: React.FC<ViewCustomerModalProps> = ({
                       </Badge>
                     </div>
                   </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="personalTraining">
+              <Card>
+                <CardContent className="pt-6">
+                  <h3 className="text-lg font-semibold mb-4">Personal Training Assignments</h3>
+                  {customer.personalTrainer && typeof customer.personalTrainer === 'object' && 'trainerId' in customer.personalTrainer ? (
+                    (() => {
+                      type Assignment = {
+                        trainerId?: string | { _id: string; name?: string; email?: string; phone?: string };
+                        startDate?: string;
+                        endDate?: string;
+                        duration?: number;
+                        fees?: number;
+                      };
+                      const pta = customer.personalTrainer as Assignment;
+                      let trainer: Trainer | undefined;
+                      if (typeof pta.trainerId === 'string') {
+                        trainer = trainers.find(t => t._id === pta.trainerId);
+                      } else if (pta.trainerId && typeof pta.trainerId === 'object') {
+                        trainer = (pta.trainerId as any).name ? (pta.trainerId as Trainer) : undefined;
+                      }
+                      return (
+                        <div className="border rounded p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                          <div>
+                            <div className="font-medium">Trainer: {trainer?.name || 'N/A'}</div>
+                            <div className="text-sm text-muted-foreground">Email: {trainer?.email || 'N/A'}</div>
+                            <div className="text-sm text-muted-foreground">Phone: {trainer?.phone || 'N/A'}</div>
+                          </div>
+                          <div>
+                            <div>Start: {formatDate(pta.startDate)}</div>
+                            <div>End: {formatDate(pta.endDate)}</div>
+                            <div>Duration: {pta.duration} months</div>
+                          </div>
+                          <div>
+                            <div>Fees: {formatCurrency(pta.fees)}</div>
+                          </div>
+                        </div>
+                      );
+                    })()
+                  ) : personalTrainingAssignments.length === 0 ? (
+                    <p className="text-muted-foreground">No personal training assignments found.</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {personalTrainingAssignments.map((pta) => (
+                        <div key={pta._id} className="border rounded p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                          <div>
+                            <div className="font-medium">Trainer: {pta.trainerId?.name || 'N/A'}</div>
+                            <div className="text-sm text-muted-foreground">Email: {pta.trainerId?.email || 'N/A'}</div>
+                            <div className="text-sm text-muted-foreground">Phone: {pta.trainerId?.phone || 'N/A'}</div>
+                          </div>
+                          <div>
+                            <div>Start: {formatDate(pta.startDate)}</div>
+                            <div>End: {formatDate(pta.endDate)}</div>
+                            <div>Duration: {pta.duration} months</div>
+                          </div>
+                          <div>
+                            <div>Fees: {formatCurrency(pta.fees)}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>

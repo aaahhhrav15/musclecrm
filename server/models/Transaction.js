@@ -18,7 +18,7 @@ const transactionSchema = new mongoose.Schema({
     },
     transactionType: {
         type: String,
-        enum: ['MEMBERSHIP_JOINING', 'MEMBERSHIP_RENEWAL', 'INVOICE_PAYMENT', 'OTHER'],
+        enum: ['MEMBERSHIP_JOINING', 'MEMBERSHIP_RENEWAL', 'INVOICE_PAYMENT', 'PERSONAL_TRAINING', 'OTHER'],
         required: true
     },
     transactionDate: {

@@ -1,5 +1,5 @@
 // API Configuration
-export const API_URL = 'https://flexcrm-ui-suite-production-ec9f.up.railway.app/api';
+export const API_URL = 'http://localhost:5001/api';
 
 // Other configuration settings can be added here
 export const APP_CONFIG = {

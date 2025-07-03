@@ -3,6 +3,7 @@ const router = express.Router();
 const Transaction = require('../models/Transaction');
 const Customer = require('../models/Customer');
 const auth = require('../middleware/auth');
+const PersonalTrainingAssignment = require('../models/PersonalTrainingAssignment');
 
 // Get all transactions for a gym
 router.get('/gym/:gymId', auth, async (req, res) => {
@@ -21,7 +22,19 @@ router.get('/user/:userId', auth, async (req, res) => {
     try {
         const transactions = await Transaction.find({ userId: req.params.userId })
             .sort({ transactionDate: -1 });
-        res.json(transactions);
+        // For each transaction, if type is PERSONAL_TRAINING, attach assignment details
+        const transactionsWithAssignment = await Promise.all(transactions.map(async (txn) => {
+            if (txn.transactionType === 'PERSONAL_TRAINING') {
+                const assignment = await PersonalTrainingAssignment.findOne({
+                    customerId: txn.userId,
+                    startDate: { $lte: txn.transactionDate },
+                    endDate: { $gte: txn.transactionDate }
+                }).populate('trainerId', 'name email phone dateOfBirth specialization experience status bio clients gymId').lean();
+                return { ...txn.toObject(), personalTrainingAssignment: assignment };
+            }
+            return txn;
+        }));
+        res.json(transactionsWithAssignment);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

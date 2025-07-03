@@ -1,4 +1,4 @@
-import React from 'react';
+import * as React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -291,6 +291,7 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen, setIsOpen }
           { icon: <CalendarIcon className="w-5 h-5" />, label: 'Class Schedule', href: '/dashboard/gym/class-schedule' },
           { icon: <FileText className="w-5 h-5" />, label: 'Membership Plans', href: '/dashboard/gym/membership-plans' },
           { icon: <UserPlus className="w-5 h-5" />, label: 'Personal Trainers', href: '/dashboard/gym/trainers' },
+          { icon: <Users className="w-5 h-5" />, label: 'Personal Training', href: '/dashboard/gym/personal-training' },
           { icon: <FileText className="w-5 h-5" />, label: 'Nutrition Plans', href: '/dashboard/gym/nutrition-plans' },
           { icon: <MessageSquare className="w-5 h-5" />, label: 'Member Communications', href: '/dashboard/gym/communications' },
           { icon: <File className="w-5 h-5" />, label: 'Health Assessments', href: '/dashboard/gym/health-assessments' },

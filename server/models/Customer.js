@@ -77,6 +77,10 @@ const customerSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  personalTrainer: {
+    type: Object,
+    required: false
+  },
   notes: {
     type: String,
     trim: true
@@ -96,5 +100,6 @@ const customerSchema = new mongoose.Schema({
 customerSchema.index({ userId: 1, email: 1 });
 customerSchema.index({ userId: 1, name: 1 });
 customerSchema.index({ gymId: 1 });
+customerSchema.index({ personalTrainer: 1 });
 
 module.exports = mongoose.model('Customer', customerSchema);

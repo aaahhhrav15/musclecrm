@@ -62,6 +62,24 @@ interface Transaction {
   status: string;
   createdAt: string;
   updatedAt: string;
+  personalTrainingAssignment?: {
+    _id: string;
+    trainerId: {
+      _id: string;
+      name: string;
+      email: string;
+      phone?: string;
+      specialization?: string;
+      experience?: number;
+      status?: string;
+      bio?: string;
+      clients?: number;
+    };
+    startDate: string;
+    endDate: string;
+    duration: number;
+    fees: number;
+  };
 }
 
 interface TransactionHistoryProps {
@@ -104,8 +122,14 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({ userId }
   const fetchTransactions = async () => {
     try {
       setIsLoading(true);
+      // eslint-disable-next-line no-console
+      console.log('Fetching transactions for userId:', userId);
       const data = await transactionService.getUserTransactions(userId);
+      // eslint-disable-next-line no-console
+      console.log('API returned transactions:', data);
       setTransactions(data);
+      // eslint-disable-next-line no-console
+      console.log('Set transactions state:', data);
     } catch (error) {
       toast({
         title: "Error",
@@ -213,51 +237,36 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({ userId }
             <TableHeader>
               <TableRow>
                 <TableHead>Date</TableHead>
+                <TableHead>Type</TableHead>
                 <TableHead>Amount</TableHead>
                 <TableHead>Payment Mode</TableHead>
-                <TableHead>Description</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Personal Training Assignment</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {transactions.map((transaction) => (
-                <TableRow key={transaction._id}>
+              {transactions.map((txn) => (
+                <TableRow key={txn._id}>
+                  <TableCell>{format(new Date(txn.transactionDate), 'PPP')}</TableCell>
+                  <TableCell>{txn.transactionType ? txn.transactionType.replace('_', ' ') : 'N/A'}</TableCell>
+                  <TableCell>{formatCurrency(txn.amount)}</TableCell>
+                  <TableCell>{txn.paymentMode}</TableCell>
+                  <TableCell>{txn.status}</TableCell>
+                  <TableCell>{txn.description}</TableCell>
                   <TableCell>
-                    {format(new Date(transaction.transactionDate), 'dd/MM/yyyy')}
+                    {txn.personalTrainingAssignment && (
+                      <div className="text-xs text-muted-foreground">
+                        <div><b>Trainer:</b> {txn.personalTrainingAssignment.trainerId?.name}</div>
+                        <div><b>Duration:</b> {txn.personalTrainingAssignment.duration} months</div>
+                        <div><b>Fees:</b> {formatCurrency(txn.personalTrainingAssignment.fees)}</div>
+                      </div>
+                    )}
                   </TableCell>
-                  <TableCell>{formatCurrency(transaction.amount)}</TableCell>
-                  <TableCell className="capitalize">
-                    {transaction.paymentMode.replace('_', ' ')}
-                  </TableCell>
-                  <TableCell>{transaction.description}</TableCell>
                   <TableCell>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      transaction.status === 'SUCCESS' ? 'bg-green-100 text-green-800' :
-                      transaction.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
-                      transaction.status === 'FAILED' ? 'bg-red-100 text-red-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {transaction.status}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleEdit(transaction)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDelete(transaction)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    <Button size="sm" variant="outline" onClick={() => handleEdit(txn)}><Edit className="h-4 w-4" /></Button>
+                    <Button size="sm" variant="destructive" onClick={() => handleDelete(txn)}><Trash2 className="h-4 w-4" /></Button>
                   </TableCell>
                 </TableRow>
               ))}

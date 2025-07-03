@@ -31,6 +31,7 @@ const retailSalesRoutes = require('./routes/retailSales');
 const transactionsRoutes = require('./routes/transactions');
 const expensesRoutes = require('./routes/expenses');
 const leadsRouter = require('./routes/leads');
+const personalTrainingRoutes = require('./routes/personalTraining');
 
 
 const app = express();
@@ -158,6 +159,7 @@ app.use('/api/gym/health-assessments', healthAssessmentRoutes);
 app.use('/api/gym/retail-sales', retailSalesRoutes);
 app.use('/api/transactions', transactionsRoutes);
 app.use('/api/leads', leadsRouter);
+app.use('/api/personal-training', personalTrainingRoutes);
 
 
 // Root route
