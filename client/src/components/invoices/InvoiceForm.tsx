@@ -313,7 +313,8 @@ export default function InvoiceForm({ open, onClose, onSubmit }: InvoiceFormProp
                         placeholder="Search customers by name..."
                         value={customerSearch}
                         onChange={e => setCustomerSearch(e.target.value)}
-                        onFocus={() => setCustomerDropdownOpen(true)}
+                        onFocus={() => setCustomerDropdownOpen(false)}
+                        onClick={() => setCustomerDropdownOpen(true)}
                         className="pl-10"
                       />
                     </div>

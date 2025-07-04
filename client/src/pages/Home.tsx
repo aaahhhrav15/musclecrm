@@ -288,13 +288,13 @@ const Home = () => {
                 </Button>
                 <Button 
                   size="lg" 
-                  variant="outline" 
+                  variant="outline"
                   className="border-2 border-slate-300 dark:border-slate-600 px-8 py-4 text-lg font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 group"
                   asChild
                 >
                   <Link to="/contact">
-                    <Play className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
-                    Watch Demo
+                    <Calendar className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
+                    Schedule Demo
                   </Link>
                 </Button>
               </motion.div>
@@ -767,8 +767,7 @@ const Home = () => {
                 
                 <Button 
                   size="lg" 
-                  variant="outline" 
-                  className="border-white/30 text-white hover:bg-white/10 px-8 py-4 text-lg font-semibold backdrop-blur-sm group"
+                  className="bg-white/10 text-white border-white/30 hover:bg-white/20 px-8 py-4 text-lg font-semibold backdrop-blur-sm group"
                   asChild
                 >
                   <Link to="/contact">

@@ -50,23 +50,6 @@ const Header: React.FC<HeaderProps> = ({ transparent = false }) => {
       <div className="container flex items-center justify-between h-16 px-4 mx-auto sm:px-6 lg:px-8">
         <Link to="/" className="flex items-center">
           <span className="text-xl font-bold text-primary">FlexCRM</span>
-          {isAuthenticated && user?.industry === 'gym' && gym && !isHomePage && (
-            <div className="flex items-center ml-2">
-              {gym.logo && (
-                <img 
-                  src={gym.logo} 
-                  alt={`${gym.name} logo`} 
-                  className="h-8 w-8 object-contain mr-2"
-                  onError={(e) => {
-                    console.error('Error loading logo:', e);
-                    console.error('Failed URL:', e.currentTarget.src);
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
-              )}
-              <span className="text-sm text-muted-foreground">- {gym.name}</span>
-            </div>
-          )}
         </Link>
 
         {/* Desktop Navigation */}

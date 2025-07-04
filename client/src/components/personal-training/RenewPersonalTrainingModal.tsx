@@ -1,4 +1,4 @@
-import React from 'react';
+import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -82,15 +82,8 @@ function safeFormatDate(date: Date | null | undefined, fmt: string = 'PPP') {
   return format(date, fmt);
 }
 
-export const RenewPersonalTrainingModal: React.FC<RenewPersonalTrainingModalProps> = ({
-  isOpen,
-  onClose,
-  assignment,
-  onRenewed,
-}) => {
-  // Guard: if assignment is null, do not render modal
-  if (!assignment) return null;
-
+export const RenewPersonalTrainingModal: React.FC<RenewPersonalTrainingModalProps> = (props) => {
+  const { isOpen, onClose, assignment, onRenewed } = props;
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -136,13 +129,13 @@ export const RenewPersonalTrainingModal: React.FC<RenewPersonalTrainingModalProp
       let newStartDate: Date;
       let newEndDate: Date;
       let willExtend: boolean;
-      // If selected start date is before current end date, start after current end date
-      if (startDate < currentEndDate) {
-        newStartDate = new Date(currentEndDate);
-        newStartDate.setDate(newStartDate.getDate() + 1);
-        newEndDate = addMonths(newStartDate, duration);
+      if (currentEndDate > today) {
+        // Current assignment is still active, extend from current end date
+        newStartDate = new Date(assignment.startDate); // Show original start date
+        newEndDate = addMonths(currentEndDate, duration);
         willExtend = true;
       } else {
+        // Assignment has expired, use the selected start date
         newStartDate = startDate;
         newEndDate = addMonths(startDate, duration);
         willExtend = false;
@@ -172,12 +165,12 @@ export const RenewPersonalTrainingModal: React.FC<RenewPersonalTrainingModalProp
       today.setHours(0, 0, 0, 0);
       let newStartDate: Date;
       let newEndDate: Date;
-      // If selected start date is before current end date, start after current end date
-      if (values.startDate < currentEndDate) {
-        newStartDate = new Date(currentEndDate);
-        newStartDate.setDate(newStartDate.getDate() + 1);
-        newEndDate = addMonths(newStartDate, values.duration);
+      if (currentEndDate > today) {
+        // Current assignment is still active, extend from current end date
+        newStartDate = new Date(assignment.startDate); // Keep original start date
+        newEndDate = addMonths(currentEndDate, values.duration);
       } else {
+        // Assignment has expired, use the selected start date
         newStartDate = values.startDate;
         newEndDate = addMonths(values.startDate, values.duration);
       }
@@ -241,6 +234,7 @@ export const RenewPersonalTrainingModal: React.FC<RenewPersonalTrainingModalProp
     }
   };
 
+  if (!assignment) return null;
   return (
     <Dialog open={isDialogOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[600px]">

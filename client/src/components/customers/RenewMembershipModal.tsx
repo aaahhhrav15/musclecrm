@@ -1,4 +1,4 @@
-import React from 'react';
+import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -94,7 +94,7 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      membershipType: customer.membershipType || 'none',
+      membershipType: (customer.membershipType as 'none' | 'basic' | 'premium' | 'vip') || 'none',
       membershipFees: customer.membershipFees || 0,
       membershipDuration: customer.membershipDuration || 1,
       membershipStartDate: new Date(),
@@ -138,7 +138,7 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
       
       if (currentEndDate > today) {
         // Current membership is still active, extend from current end date
-        newStartDate = currentEndDate;
+        newStartDate = new Date(customer.membershipStartDate); // Show original start date
         newEndDate = addMonths(currentEndDate, duration);
         willExtend = true;
       } else {
@@ -181,7 +181,7 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
       
       if (currentEndDate > today) {
         // Current membership is still active, extend from current end date
-        newStartDate = currentEndDate;
+        newStartDate = new Date(customer.membershipStartDate); // Keep original start date
         newEndDate = addMonths(currentEndDate, values.membershipDuration);
       } else {
         // Current membership has expired, use the selected start date
@@ -242,7 +242,31 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
         await queryClient.invalidateQueries({ queryKey: ['transactions', customer.id] });
         await queryClient.invalidateQueries({ queryKey: ['invoices'] });
         if (onMembershipRenewed) {
-          onMembershipRenewed(response);
+          if (response.customer) {
+            // Map API customer to Customer type if needed
+            onMembershipRenewed({
+              id: response.customer._id,
+              name: response.customer.name,
+              email: response.customer.email,
+              phone: response.customer.phone,
+              address: response.customer.address,
+              source: response.customer.source,
+              notes: response.customer.notes,
+              membershipType: response.customer.membershipType,
+              membershipFees: response.customer.membershipFees || 0,
+              membershipDuration: response.customer.membershipDuration || 0,
+              joinDate: response.customer.joinDate,
+              membershipStartDate: response.customer.membershipStartDate,
+              membershipEndDate: response.customer.membershipEndDate,
+              transactionDate: response.customer.transactionDate,
+              paymentMode: response.customer.paymentMode,
+              birthday: response.customer.birthday,
+              totalSpent: response.customer.totalSpent || 0,
+              personalTrainer: response.customer.personalTrainer,
+              createdAt: response.customer.createdAt,
+              updatedAt: response.customer.updatedAt
+            });
+          }
         }
         handleClose();
       }
