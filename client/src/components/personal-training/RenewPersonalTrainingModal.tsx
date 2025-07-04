@@ -189,33 +189,6 @@ export const RenewPersonalTrainingModal: React.FC<RenewPersonalTrainingModalProp
           transactionDate: values.transactionDate,
         })
       });
-      // Create transaction
-      await transactionService.createTransaction({
-        userId: assignment.customerId._id,
-        gymId: assignment.gymId,
-        transactionType: 'PERSONAL_TRAINING_RENEWAL',
-        transactionDate: values.transactionDate,
-        amount: values.fees,
-        paymentMode: values.paymentMode,
-        description: `Personal training renewal for ${values.duration} months (${safeFormatDate(newStartDate)} to ${safeFormatDate(newEndDate)})`,
-        status: 'SUCCESS',
-      });
-      // Create invoice
-      await InvoiceService.createInvoice({
-        customerId: assignment.customerId._id,
-        amount: values.fees,
-        currency: 'INR',
-        dueDate: format(newEndDate, 'yyyy-MM-dd'),
-        items: [
-          {
-            description: `Personal Training Renewal (${safeFormatDate(newStartDate)} to ${safeFormatDate(newEndDate)})`,
-            quantity: values.duration,
-            unitPrice: values.fees / values.duration,
-            amount: values.fees,
-          },
-        ],
-        notes: 'Personal training renewal invoice',
-      });
       toast({
         title: 'Success',
         description: 'Personal training renewed and invoice generated!',

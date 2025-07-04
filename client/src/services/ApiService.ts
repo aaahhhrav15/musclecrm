@@ -129,5 +129,13 @@ export const ApiService = {
       console.error(`DELETE request failed: ${url}`, error);
       throw error;
     }
+  },
+
+  /**
+   * Fetch personal training assignments expiring today or in the next 7 days for a gym
+   */
+  getExpiringPersonalTrainingAssignments: async (gymId: string) => {
+    const response = await apiClient.get(`/personal-training/expiring`, { params: { gymId } });
+    return response.data;
   }
 };

@@ -18,4 +18,7 @@ router.post('/:id/renew', auth, personalTrainingController.renewAssignment);
 // Delete an assignment
 router.delete('/:id', auth, personalTrainingController.deleteAssignment);
 
+// Get assignments expiring today or in the next 7 days
+router.get('/expiring', auth, personalTrainingController.getExpiringAssignments);
+
 module.exports = router; 

@@ -216,10 +216,18 @@ router.get('/:id', async (req, res) => {
 
     // If customer has a personalTrainer assignment, populate trainer details
     let personalTrainerAssignment = null;
-    if (customer.personalTrainer && customer.personalTrainer._id) {
-      personalTrainerAssignment = await PersonalTrainingAssignment.findById(customer.personalTrainer._id)
-        .populate('trainerId', 'name email phone dateOfBirth specialization experience status bio clients gymId')
-        .lean();
+    if (customer.personalTrainer) {
+      let assignmentId = null;
+      if (typeof customer.personalTrainer === 'string') {
+        assignmentId = customer.personalTrainer;
+      } else if (customer.personalTrainer._id) {
+        assignmentId = customer.personalTrainer._id;
+      }
+      if (assignmentId) {
+        personalTrainerAssignment = await PersonalTrainingAssignment.findById(assignmentId)
+          .populate('trainerId', 'name email phone dateOfBirth specialization experience status bio clients gymId')
+          .lean();
+      }
     }
     if (personalTrainerAssignment) {
       customer.personalTrainer = personalTrainerAssignment;

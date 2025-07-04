@@ -293,4 +293,26 @@ exports.renewAssignment = async (req, res) => {
     console.error('Error renewing assignment:', err);
     res.status(500).json({ error: err.message });
   }
+};
+
+// Get assignments expiring today or in the next 7 days
+exports.getExpiringAssignments = async (req, res) => {
+  try {
+    const { gymId } = req.query;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const sevenDaysFromNow = new Date(today);
+    sevenDaysFromNow.setDate(today.getDate() + 7);
+    sevenDaysFromNow.setHours(23, 59, 59, 999);
+    const filter = {
+      endDate: { $gte: today, $lte: sevenDaysFromNow }
+    };
+    if (gymId) filter.gymId = gymId;
+    const assignments = await PersonalTrainingAssignment.find(filter)
+      .populate('customerId', 'name email')
+      .populate('trainerId', 'name email');
+    res.json(assignments);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 }; 

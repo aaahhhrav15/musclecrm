@@ -44,6 +44,7 @@ import CustomerService from "@/services/CustomerService";
 import api from "@/services/api";
 import { Customer } from "@/services/CustomerService";
 import { addMonths, differenceInDays } from "date-fns";
+import { ApiService } from '@/services/ApiService';
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
@@ -199,6 +200,18 @@ interface Lead {
   createdAt: string;
 }
 
+// Personal Training Assignment type
+interface PersonalTrainingAssignment {
+  _id: string;
+  customerId: { _id: string; name: string; email?: string };
+  trainerId: { _id: string; name: string; email?: string };
+  gymId: string;
+  startDate: string;
+  duration: number;
+  endDate: string;
+  fees: number;
+}
+
 type ModalType =
   | "memberBirthdays"
   | "employeeBirthdays"
@@ -349,7 +362,7 @@ const Dashboard: React.FC = () => {
     let totalMembers = 0;
     let activeMembers = 0;
     let inactiveMembers = 0;
-    let expiringCustomers: Customer[] = [];
+    const expiringCustomers: Customer[] = [];
     let memberBirthdays = 0;
     let todayEnrolled = 0;
 
@@ -453,11 +466,57 @@ const Dashboard: React.FC = () => {
     };
   }, [metrics.memberProfit.memberAmount, metrics.pos.totalSell, metrics.pos.totalPosExpense, expenseMetrics.totalExpense]);
 
+  // Fetch expiring personal training assignments
+  const {
+    data: expiringPTAssignments = [],
+    isLoading: isLoadingPT,
+    refetch: refetchPT
+  } = useQuery({
+    queryKey: ["expiringPTAssignments", stableGymId],
+    queryFn: async () => {
+      if (!stableGymId) return [];
+      return await ApiService.getExpiringPersonalTrainingAssignments(stableGymId);
+    },
+    enabled: !!stableGymId,
+    staleTime: 60000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchInterval: false,
+    retry: 1,
+  });
+
+  // Memoize counts for today and next 7 days
+  const { ptExpiringToday, ptExpiringIn7Days, ptExpiringTodayList, ptExpiringIn7DaysList } = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const sevenDaysFromNow = new Date(today);
+    sevenDaysFromNow.setDate(today.getDate() + 7);
+    sevenDaysFromNow.setHours(23, 59, 59, 999);
+    const ptToday: PersonalTrainingAssignment[] = [];
+    const pt7Days: PersonalTrainingAssignment[] = [];
+    for (const a of expiringPTAssignments) {
+      const end = new Date(a.endDate);
+      end.setHours(0, 0, 0, 0);
+      if (end.getTime() === today.getTime()) ptToday.push(a);
+      if (end > today && end <= sevenDaysFromNow) pt7Days.push(a);
+    }
+    return {
+      ptExpiringToday: ptToday.length,
+      ptExpiringIn7Days: pt7Days.length,
+      ptExpiringTodayList: ptToday,
+      ptExpiringIn7DaysList: pt7Days,
+    };
+  }, [expiringPTAssignments]);
+
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [modalType, setModalType] = useState<ModalType | null>(null);
   const [modalData, setModalData] = useState<Customer[] | Staff[] | Lead[]>([]);
   const [modalLoading, setModalLoading] = useState(false);
+
+  // Modal state for PT assignments
+  const [ptModalOpen, setPTModalOpen] = useState(false);
+  const [ptModalType, setPTModalType] = useState<'today' | '7days' | null>(null);
 
   // **OPTIMIZATION: Optimized modal handler with lazy loading**
   const handleOpenModal = React.useCallback(async (type: ModalType) => {
@@ -552,6 +611,15 @@ const Dashboard: React.FC = () => {
     setModalType(null);
     setModalData([]);
   }, []);
+
+  const handleOpenPTModal = (type: 'today' | '7days') => {
+    setPTModalType(type);
+    setPTModalOpen(true);
+  };
+  const handleClosePTModal = () => {
+    setPTModalOpen(false);
+    setPTModalType(null);
+  };
 
   // Helper functions
   function isStaff(item: Customer | Staff | Lead): item is Staff {
@@ -718,6 +786,30 @@ const Dashboard: React.FC = () => {
               onClick={() => handleOpenModal("memberBirthdays")}
               className="cursor-pointer hover:shadow-lg transition"
             />
+             <MetricCard
+              title="PT Expiring Today"
+              value={ptExpiringToday}
+              icon={<AlertCircle />}
+              isLoading={isLoadingPT}
+              gradientFrom="yellow-500"
+              gradientTo="yellow-600"
+              iconColor="yellow-600"
+              delay={0.26}
+              onClick={() => handleOpenPTModal('today')}
+              className="cursor-pointer hover:shadow-lg transition"
+            />
+            <MetricCard
+              title="PT Expiring in 7 Days"
+              value={ptExpiringIn7Days}
+              icon={<AlertCircle />}
+              isLoading={isLoadingPT}
+              gradientFrom="amber-500"
+              gradientTo="amber-600"
+              iconColor="amber-600"
+              delay={0.27}
+              onClick={() => handleOpenPTModal('7days')}
+              className="cursor-pointer hover:shadow-lg transition"
+            />
             <MetricCard
               title="Today Invoices"
               value={metrics.members.todayInvoices}
@@ -806,6 +898,7 @@ const Dashboard: React.FC = () => {
               onClick={() => handleOpenModal("todayFollowUps")}
               className="cursor-pointer hover:shadow-lg transition"
             />
+           
           </div>
         </div>
 
@@ -1174,6 +1267,43 @@ const Dashboard: React.FC = () => {
                       </tr>
                     );
                   })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal for PT expiring assignments */}
+      <Dialog open={ptModalOpen} onOpenChange={handleClosePTModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {ptModalType === 'today' ? 'Personal Training Expiring Today' : 'Personal Training Expiring in Next 7 Days'}
+            </DialogTitle>
+          </DialogHeader>
+          {((ptModalType === 'today' ? ptExpiringTodayList : ptExpiringIn7DaysList).length === 0) ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No expiring personal training assignments found.
+            </div>
+          ) : (
+            <div className="max-h-[70vh] overflow-y-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr>
+                    <th className="text-left p-2">Member</th>
+                    <th className="text-left p-2">Trainer</th>
+                    <th className="text-left p-2">End Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(ptModalType === 'today' ? ptExpiringTodayList : ptExpiringIn7DaysList).map((a) => (
+                    <tr key={a._id} className="border-b">
+                      <td className="p-2">{a.customerId?.name || '-'}</td>
+                      <td className="p-2">{a.trainerId?.name || '-'}</td>
+                      <td className="p-2">{a.endDate ? new Date(a.endDate).toLocaleDateString() : '-'}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>

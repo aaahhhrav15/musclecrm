@@ -21,9 +21,7 @@ interface ViewCustomerModalProps {
   isOpen: boolean;
   onClose: () => void;
   customer: Customer;
-  personalTrainingAssignments?: PersonalTrainingAssignment[];
   transactions?: CustomerTransaction[];
-  trainers?: Trainer[];
 }
 
 type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'outline';
@@ -45,6 +43,11 @@ type Trainer = {
   clients?: number;
   gymId?: string;
 };
+
+interface TrainerApiResponse {
+  data?: Trainer[];
+  trainers?: Trainer[];
+}
 
 const formatDate = (date: string | Date | undefined) => {
   if (!date) return 'Not set';
@@ -107,29 +110,54 @@ const formatPaymentMode = (mode: string | undefined) => {
   return mode.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
 };
 
+function isPersonalTrainingAssignmentLike(obj: unknown): obj is Partial<PersonalTrainingAssignment> {
+  return !!obj && typeof obj === 'object' && 'trainerId' in (obj as Partial<PersonalTrainingAssignment>) && 'endDate' in (obj as Partial<PersonalTrainingAssignment>);
+}
+
 export const ViewCustomerModal: React.FC<ViewCustomerModalProps> = ({
   isOpen,
   onClose,
   customer,
-  personalTrainingAssignments = [],
   transactions = [],
-  trainers = [],
 }) => {
   const [isRenewModalOpen, setIsRenewModalOpen] = React.useState(false);
   const [isTransactionModalOpen, setIsTransactionModalOpen] = React.useState(false);
   const [isDialogOpen, setIsDialogOpen] = React.useState(isOpen);
   const [membershipEndDate, setMembershipEndDate] = React.useState<Date | null>(null);
+  const [trainers, setTrainers] = React.useState<Trainer[]>([]);
+  const [personalTrainingAssignments, setPersonalTrainingAssignments] = React.useState<PersonalTrainingAssignment[]>([]);
+  const [fetchedCustomer, setFetchedCustomer] = React.useState<Customer | null>(null);
 
   React.useEffect(() => {
     setIsDialogOpen(isOpen);
   }, [isOpen]);
 
   React.useEffect(() => {
-    const endDate = customer.membershipEndDate 
-      ? new Date(customer.membershipEndDate)
-      : calculateEndDate(customer.membershipStartDate, customer.membershipDuration);
+    const c = fetchedCustomer ?? customer;
+    const endDate = c.membershipEndDate 
+      ? new Date(c.membershipEndDate)
+      : calculateEndDate(c.membershipStartDate, c.membershipDuration);
     setMembershipEndDate(endDate);
-  }, [customer.membershipStartDate, customer.membershipDuration, customer.membershipEndDate]);
+  }, [customer, fetchedCustomer]);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      import('@/services/ApiService').then(({ ApiService }) => {
+        ApiService.get<TrainerApiResponse>('/trainers').then((res) => {
+          setTrainers(res.data || res.trainers || []);
+        }).catch(() => setTrainers([]));
+      });
+      import('@/services/CustomerService').then(({ CustomerService }) => {
+        CustomerService.getCustomerById(customer.id).then((res) => {
+          setPersonalTrainingAssignments(res.personalTrainingAssignments || []);
+          setFetchedCustomer(res.customer);
+        }).catch(() => {
+          setPersonalTrainingAssignments([]);
+          setFetchedCustomer(null);
+        });
+      });
+    }
+  }, [isOpen, customer.id]);
 
   const handleClose = () => {
     setIsDialogOpen(false);
@@ -278,25 +306,25 @@ export const ViewCustomerModal: React.FC<ViewCustomerModalProps> = ({
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <p className="text-sm text-muted-foreground">Membership Type</p>
-                      <Badge className={`${getMembershipTypeColor(customer.membershipType || 'none')} text-white`}>
-                        {customer.membershipType?.toUpperCase() || 'NONE'}
+                      <Badge className={`${getMembershipTypeColor((fetchedCustomer ?? customer).membershipType || 'none')} text-white`}>
+                        {(fetchedCustomer ?? customer).membershipType?.toUpperCase() || 'NONE'}
                       </Badge>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Duration</p>
-                      <p className="font-medium">{customer.membershipDuration} months</p>
+                      <p className="font-medium">{(fetchedCustomer ?? customer).membershipDuration} months</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Fees</p>
-                      <p className="font-medium">{formatCurrency(customer.membershipFees)}</p>
+                      <p className="font-medium">{formatCurrency((fetchedCustomer ?? customer).membershipFees)}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Total Spent</p>
-                      <p className="font-medium">{formatCurrency(customer.totalSpent)}</p>
+                      <p className="font-medium">{formatCurrency((fetchedCustomer ?? customer).totalSpent)}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Start Date</p>
-                      <p className="font-medium">{formatDate(customer.membershipStartDate)}</p>
+                      <p className="font-medium">{formatDate((fetchedCustomer ?? customer).membershipStartDate)}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Expiry Date</p>
@@ -309,15 +337,15 @@ export const ViewCustomerModal: React.FC<ViewCustomerModalProps> = ({
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Join Date</p>
-                      <p className="font-medium">{formatDate(customer.joinDate)}</p>
+                      <p className="font-medium">{formatDate((fetchedCustomer ?? customer).joinDate)}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Transaction Date</p>
-                      <p className="font-medium">{formatDate(customer.transactionDate)}</p>
+                      <p className="font-medium">{formatDate((fetchedCustomer ?? customer).transactionDate)}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Payment Mode</p>
-                      <p className="font-medium capitalize">{customer.paymentMode || 'Not specified'}</p>
+                      <p className="font-medium capitalize">{formatPaymentMode((fetchedCustomer ?? customer).paymentMode)}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Membership Status</p>
@@ -334,63 +362,74 @@ export const ViewCustomerModal: React.FC<ViewCustomerModalProps> = ({
               <Card>
                 <CardContent className="pt-6">
                   <h3 className="text-lg font-semibold mb-4">Personal Training Assignments</h3>
-                  {customer.personalTrainer && typeof customer.personalTrainer === 'object' && 'trainerId' in customer.personalTrainer ? (
-                    (() => {
-                      type Assignment = {
-                        trainerId?: string | { _id: string; name?: string; email?: string; phone?: string };
-                        startDate?: string;
-                        endDate?: string;
-                        duration?: number;
-                        fees?: number;
-                      };
-                      const pta = customer.personalTrainer as Assignment;
-                      let trainer: Trainer | undefined;
-                      if (typeof pta.trainerId === 'string') {
-                        trainer = trainers.find(t => t._id === pta.trainerId);
-                      } else if (pta.trainerId && typeof pta.trainerId === 'object') {
-                        trainer = (pta.trainerId as any).name ? (pta.trainerId as Trainer) : undefined;
-                      }
+                  {/* Prepare assignments: use personalTrainingAssignments if available, else fallback to customer.personalTrainer if it's an object */}
+                  {(() => {
+                    const assignments = personalTrainingAssignments && personalTrainingAssignments.length > 0
+                      ? personalTrainingAssignments
+                      : (isPersonalTrainingAssignmentLike(customer.personalTrainer))
+                        ? [{
+                            ...customer.personalTrainer as Partial<PersonalTrainingAssignment>,
+                            _id: customer.personalTrainer._id || 'fallback',
+                            customerId: customer.id,
+                            trainerId: customer.personalTrainer.trainerId,
+                            gymId: customer.personalTrainer.gymId || '',
+                            startDate: customer.personalTrainer.startDate,
+                            duration: customer.personalTrainer.duration,
+                            endDate: customer.personalTrainer.endDate,
+                            fees: customer.personalTrainer.fees,
+                            createdAt: customer.personalTrainer.createdAt || '',
+                            updatedAt: customer.personalTrainer.updatedAt || '',
+                          } as PersonalTrainingAssignment]
+                        : [];
+                    if (assignments.length > 0) {
+                      // Find the assignment with the latest endDate
+                      const latestAssignment = assignments.reduce((latest, curr) => {
+                        if (!latest) return curr;
+                        const latestDate = new Date(latest.endDate || 0);
+                        const currDate = new Date(curr.endDate || 0);
+                        return currDate > latestDate ? curr : latest;
+                      }, assignments[0]);
                       return (
-                        <div className="border rounded p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                          <div>
-                            <div className="font-medium">Trainer: {trainer?.name || 'N/A'}</div>
-                            <div className="text-sm text-muted-foreground">Email: {trainer?.email || 'N/A'}</div>
-                            <div className="text-sm text-muted-foreground">Phone: {trainer?.phone || 'N/A'}</div>
+                        <>
+                          <div className="mb-4">
+                            <span className="font-medium">Current Personal Training End Date: </span>
+                            <span>{formatDate(latestAssignment.endDate)}</span>
                           </div>
-                          <div>
-                            <div>Start: {formatDate(pta.startDate)}</div>
-                            <div>End: {formatDate(pta.endDate)}</div>
-                            <div>Duration: {pta.duration} months</div>
+                          <div className="space-y-4">
+                            {assignments.map((pta) => {
+                              // Resolve trainer details like in the Basic tab
+                              let trainerId: string | undefined = undefined;
+                              if (typeof pta.trainerId === 'string') {
+                                trainerId = pta.trainerId;
+                              } else if (pta.trainerId && typeof pta.trainerId === 'object' && '_id' in pta.trainerId) {
+                                trainerId = pta.trainerId._id;
+                              }
+                              const trainer = trainers.find(t => t._id === trainerId);
+                              return (
+                                <div key={pta._id} className="border rounded p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                                  <div>
+                                    <div className="font-medium">Trainer: {trainer?.name || (typeof pta.trainerId === 'object' && 'name' in pta.trainerId ? pta.trainerId.name : 'N/A')}</div>
+                                    <div className="text-sm text-muted-foreground">Email: {trainer?.email || (typeof pta.trainerId === 'object' && 'email' in pta.trainerId ? pta.trainerId.email : 'N/A')}</div>
+                                    <div className="text-sm text-muted-foreground">Phone: {trainer?.phone || (typeof pta.trainerId === 'object' && 'phone' in pta.trainerId ? pta.trainerId.phone : 'N/A')}</div>
+                                  </div>
+                                  <div>
+                                    <div>Start: {formatDate(pta.startDate)}</div>
+                                    <div>End: {formatDate(pta.endDate)}</div>
+                                    <div>Duration: {pta.duration} months</div>
+                                  </div>
+                                  <div>
+                                    <div>Fees: {formatCurrency(pta.fees)}</div>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
-                          <div>
-                            <div>Fees: {formatCurrency(pta.fees)}</div>
-                          </div>
-                        </div>
+                        </>
                       );
-                    })()
-                  ) : personalTrainingAssignments.length === 0 ? (
-                    <p className="text-muted-foreground">No personal training assignments found.</p>
-                  ) : (
-                    <div className="space-y-4">
-                      {personalTrainingAssignments.map((pta) => (
-                        <div key={pta._id} className="border rounded p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                          <div>
-                            <div className="font-medium">Trainer: {pta.trainerId?.name || 'N/A'}</div>
-                            <div className="text-sm text-muted-foreground">Email: {pta.trainerId?.email || 'N/A'}</div>
-                            <div className="text-sm text-muted-foreground">Phone: {pta.trainerId?.phone || 'N/A'}</div>
-                          </div>
-                          <div>
-                            <div>Start: {formatDate(pta.startDate)}</div>
-                            <div>End: {formatDate(pta.endDate)}</div>
-                            <div>Duration: {pta.duration} months</div>
-                          </div>
-                          <div>
-                            <div>Fees: {formatCurrency(pta.fees)}</div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                    } else {
+                      return <p className="text-muted-foreground">No personal training assignments found.</p>;
+                    }
+                  })()}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -422,7 +461,7 @@ export const ViewCustomerModal: React.FC<ViewCustomerModalProps> = ({
             <Button variant="outline" onClick={handleClose}>
               Close
             </Button>
-            {customer.membershipType !== 'none' && (
+            {((fetchedCustomer ?? customer).membershipType !== 'none') && (
               <Button onClick={() => setIsRenewModalOpen(true)}>
                 Renew Membership
               </Button>
