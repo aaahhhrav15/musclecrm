@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import * as React from 'react';
+import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import {
   Table,
@@ -103,6 +104,10 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({ userId }
   const [deletingTransaction, setDeletingTransaction] = useState<Transaction | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [page, setPage] = useState(1);
+  const pageSize = 5;
+  const totalPages = Math.ceil(transactions.length / pageSize);
+  const paginatedTransactions = transactions.slice((page - 1) * pageSize, page * pageSize);
 
   const editForm = useForm<z.infer<typeof editTransactionSchema>>({
     resolver: zodResolver(editTransactionSchema),
@@ -145,10 +150,10 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({ userId }
     setEditingTransaction(transaction);
     editForm.reset({
       amount: transaction.amount,
-      paymentMode: transaction.paymentMode as any,
+      paymentMode: transaction.paymentMode as 'cash' | 'card' | 'upi' | 'bank_transfer' | 'other',
       description: transaction.description,
       transactionDate: new Date(transaction.transactionDate),
-      status: transaction.status as any,
+      status: transaction.status as 'PENDING' | 'SUCCESS' | 'FAILED' | 'CANCELLED',
     });
     setIsEditModalOpen(true);
   };
@@ -222,6 +227,11 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({ userId }
     }).format(amount);
   };
 
+  // Reset page to 1 when transactions or userId changes
+  useEffect(() => {
+    setPage(1);
+  }, [transactions, userId]);
+
   if (isLoading) {
     return <div>Loading transaction history...</div>;
   }
@@ -241,7 +251,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({ userId }
           </TableRow>
         </TableHeader>
         <TableBody>
-          {transactions.map((transaction: Transaction) => (
+          {paginatedTransactions.map((transaction: Transaction) => (
             <TableRow key={transaction._id}>
               <TableCell>{format(new Date(transaction.transactionDate), 'PPP')}</TableCell>
               <TableCell>{transaction.transactionType}</TableCell>
@@ -268,6 +278,18 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({ userId }
           )}
         </TableBody>
       </Table>
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-2 mt-2">
+          <Button variant="outline" size="sm" onClick={() => setPage(page - 1)} disabled={page === 1}>
+            Previous
+          </Button>
+          <span className="text-sm">Page {page} of {totalPages}</span>
+          <Button variant="outline" size="sm" onClick={() => setPage(page + 1)} disabled={page === totalPages}>
+            Next
+          </Button>
+        </div>
+      )}
 
       {/* Edit Transaction Modal */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
