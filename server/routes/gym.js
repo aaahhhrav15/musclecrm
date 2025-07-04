@@ -181,10 +181,11 @@ router.get('/info', async (req, res) => {
 });
 
 // **OPTIMIZED: Update gym information with validation and caching**
-router.put('/info', async (req, res) => {
+router.put('/info', upload.single('logo'), handleMulterError, async (req, res) => {
   try {
     const gymId = req.gymId;
     const { name, contactInfo, address } = req.body;
+    const logoFile = req.file;
 
     // **OPTIMIZATION: Validate input data**
     if (name && typeof name !== 'string') {
@@ -201,48 +202,93 @@ router.put('/info', async (req, res) => {
       });
     }
 
-    // Clear cache before update
-    clearGymCache(gymId);
+    // Parse JSON strings if they come as strings
+    let parsedContactInfo = contactInfo;
+    let parsedAddress = address;
+    
+    if (typeof contactInfo === 'string') {
+      try {
+        parsedContactInfo = JSON.parse(contactInfo);
+      } catch (error) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Invalid contact info format' 
+        });
+      }
+    }
+    
+    if (typeof address === 'string') {
+      try {
+        parsedAddress = JSON.parse(address);
+      } catch (error) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Invalid address format' 
+        });
+      }
+    }
 
-    // Find gym first
-    const gym = await Gym.findById(gymId);
-    if (!gym) {
+    // **OPTIMIZATION: Build update object**
+    const updateData = {};
+    if (name) updateData.name = name.trim();
+    if (parsedContactInfo) updateData.contactInfo = parsedContactInfo;
+    if (parsedAddress) updateData.address = parsedAddress;
+
+    // Handle logo upload if provided
+    if (logoFile) {
+      try {
+        // Process the uploaded image
+        const processedImageBuffer = await sharp(logoFile.buffer)
+          .resize(300, 300, { 
+            fit: 'inside', 
+            withoutEnlargement: true 
+          })
+          .jpeg({ quality: 80 })
+          .toBuffer();
+
+        // Convert to base64
+        const base64Logo = `data:image/jpeg;base64,${processedImageBuffer.toString('base64')}`;
+        updateData.logo = base64Logo;
+      } catch (error) {
+        console.error('Error processing logo:', error);
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Error processing logo image' 
+        });
+      }
+    }
+
+    // Handle logo removal if requested
+    if (req.body.removeLogo === 'true') {
+      updateData.logo = null;
+    }
+
+    // **OPTIMIZATION: Update gym with lean query**
+    const updatedGym = await Gym.findByIdAndUpdate(
+      gymId, 
+      updateData, 
+      { new: true, lean: true }
+    );
+
+    if (!updatedGym) {
       return res.status(404).json({ 
         success: false, 
         message: 'Gym not found' 
       });
     }
 
-    // **OPTIMIZATION: Build update object dynamically**
-    const updateData = {};
-    if (name) updateData.name = name.trim();
-    if (contactInfo) {
-      updateData.contactInfo = {
-        ...gym.contactInfo,
-        ...contactInfo
-      };
-    }
-    if (address) {
-      updateData.address = {
-        ...gym.address,
-        ...address
-      };
-    }
-
-    // **OPTIMIZATION: Use findByIdAndUpdate for atomic operation**
-    const updatedGym = await Gym.findByIdAndUpdate(
-      gymId,
-      updateData,
-      { new: true, runValidators: true }
-    );
-
-    // Cache the updated data
+    // **OPTIMIZATION: Clear cache and update**
+    clearGymCache(gymId);
     gymCache.set(getGymCacheKey(gymId), {
       data: updatedGym,
       timestamp: Date.now()
     });
-    
-    res.json({ success: true, gym: updatedGym });
+
+    res.json({ 
+      success: true, 
+      gym: updatedGym,
+      message: 'Gym information updated successfully'
+    });
   } catch (error) {
     console.error('Error updating gym info:', error);
     res.status(500).json({ 

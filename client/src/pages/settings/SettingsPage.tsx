@@ -96,6 +96,7 @@ interface GymFormData {
     zipCode: string;
     country: string;
   };
+  logo?: File | null;
 }
 
 const SettingsPage: React.FC = () => {
@@ -109,6 +110,7 @@ const SettingsPage: React.FC = () => {
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [logoRemoved, setLogoRemoved] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const personalForm = useForm<GymFormData>({
@@ -124,7 +126,8 @@ const SettingsPage: React.FC = () => {
         state: '',
         zipCode: '',
         country: ''
-      }
+      },
+      logo: null
     }
   });
 
@@ -219,71 +222,46 @@ const SettingsPage: React.FC = () => {
       return;
     }
 
-    try {
-      setIsUploadingLogo(true);
-      const formData = new FormData();
-      formData.append('logo', file);
+    // Set the logo in the form and show preview
+    personalForm.setValue('logo', file);
+    setLogoRemoved(false);
+    
+    // Manually trigger form dirty state since setValue doesn't always trigger it
+    personalForm.trigger('logo');
+    
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setLogoPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
 
-      console.log('Uploading logo...');
-      const response = await axiosInstance.put('/gym/logo', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+    toast({
+      title: "Logo Selected",
+      description: "Logo will be saved when you click 'Save Changes'",
+    });
 
-      console.log('Logo upload response:', response.data);
-
-      if (response.data.logo) {
-        setLogoPreview(response.data.logo);
-        setGymInfo(prev => {
-          if (!prev) return null;
-          return { ...prev, logo: response.data.logo };
-        });
-        toast({
-          title: "Success",
-          description: "Logo updated successfully",
-        });
-      }
-    } catch (error: unknown) {
-      const err = error as AxiosError;
-      console.error('Error uploading logo:', err);
-      toast({
-        title: "Error",
-        description: (err.response?.data as { message?: string })?.message || "Failed to upload logo. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsUploadingLogo(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
-  }, [toast]);
+  }, [personalForm, toast]);
 
   const handleRemoveLogo = useCallback(async () => {
-    try {
-      console.log('Removing logo...');
-      await axiosInstance.delete('/gym/logo');
-      setLogoPreview(null);
-      setGymInfo(prev => {
-        if (!prev) return null;
-        return { ...prev, logo: null };
-      });
-      toast({
-        title: "Success",
-        description: "Logo removed successfully",
-      });
-    } catch (error: unknown) {
-      const err = error as AxiosError;
-      console.error('Error removing logo:', err);
-      toast({
-        title: "Error",
-        description: "Failed to remove logo",
-        variant: "destructive",
-      });
-    }
+    // Clear the logo from the form
+    personalForm.setValue('logo', null);
+    setLogoPreview(null);
+    setLogoRemoved(true);
+    
+    // Manually trigger form dirty state since setValue doesn't always trigger it
+    personalForm.trigger('logo');
+    
+    toast({
+      title: "Logo Removed",
+      description: "Logo will be removed when you click 'Save Changes'",
+    });
+    
     setShowDeleteDialog(false);
-  }, [toast]);
+  }, [personalForm, toast]);
 
   const generatePDF = useCallback(async (preview: boolean = false) => {
     try {
@@ -351,19 +329,34 @@ const SettingsPage: React.FC = () => {
     try {
       setIsSaving(true);
       console.log('Saving gym info:', data);
-      const response = await axiosInstance.put('/gym/info', {
-        name: data.name.trim(),
-        contactInfo: {
-          email: data.contactInfo.email.trim(),
-          phone: data.contactInfo.phone.trim()
+      
+      // Create FormData to handle both regular data and file upload
+      const formData = new FormData();
+      formData.append('name', data.name.trim());
+      formData.append('contactInfo', JSON.stringify({
+        email: data.contactInfo.email.trim(),
+        phone: data.contactInfo.phone.trim()
+      }));
+      formData.append('address', JSON.stringify({
+        street: data.address.street.trim(),
+        city: data.address.city.trim(),
+        state: data.address.state.trim(),
+        zipCode: data.address.zipCode.trim(),
+        country: data.address.country.trim()
+      }));
+      
+      // Add logo if selected, or flag for removal if null
+      if (data.logo) {
+        formData.append('logo', data.logo);
+      } else if (logoRemoved) {
+        // This means user explicitly removed the logo
+        formData.append('removeLogo', 'true');
+      }
+
+      const response = await axiosInstance.put('/gym/info', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
         },
-        address: {
-          street: data.address.street.trim(),
-          city: data.address.city.trim(),
-          state: data.address.state.trim(),
-          zipCode: data.address.zipCode.trim(),
-          country: data.address.country.trim()
-        }
       });
 
       console.log('Save response:', response.data);
@@ -371,6 +364,10 @@ const SettingsPage: React.FC = () => {
       if (response.data.success) {
         setGymInfo(response.data.gym);
         setIsEditing(false);
+        
+        // Clear the logo from form after successful save
+        personalForm.setValue('logo', null);
+        
         toast({
           title: "Success",
           description: "Gym information updated successfully",
@@ -387,10 +384,11 @@ const SettingsPage: React.FC = () => {
     } finally {
       setIsSaving(false);
     }
-  }, [toast]);
+  }, [personalForm, toast, logoRemoved]);
 
   const handleCancelEdit = useCallback(() => {
     setIsEditing(false);
+    setLogoRemoved(false);
     if (gymInfo) {
       personalForm.reset({
         name: gymInfo.name || '',
@@ -404,8 +402,11 @@ const SettingsPage: React.FC = () => {
           state: '',
           zipCode: '',
           country: ''
-        }
+        },
+        logo: null
       });
+      // Reset logo preview to original
+      setLogoPreview(gymInfo.logo);
     }
   }, [gymInfo, personalForm]);
 
@@ -430,9 +431,16 @@ const SettingsPage: React.FC = () => {
   }, [gymInfo]);
 
   const hasUnsavedChanges = useMemo(() => {
-    if (!gymInfo || !personalForm.formState.isDirty) return false;
-    return isEditing && personalForm.formState.isDirty;
-  }, [gymInfo, personalForm.formState.isDirty, isEditing]);
+    if (!gymInfo || !isEditing) return false;
+    
+    // Check if form fields are dirty
+    const formIsDirty = personalForm.formState.isDirty;
+    
+    // Check if logo has been changed (either uploaded or removed)
+    const logoChanged = personalForm.watch('logo') !== null || logoRemoved;
+    
+    return formIsDirty || logoChanged;
+  }, [gymInfo, personalForm.formState.isDirty, personalForm.watch('logo'), logoRemoved, isEditing]);
 
   if (isLoading) {
     return (
@@ -520,7 +528,7 @@ const SettingsPage: React.FC = () => {
                         <Button
                           size="sm"
                           onClick={personalForm.handleSubmit(handleSaveGymInfo)}
-                          disabled={isSaving || !personalForm.formState.isDirty}
+                          disabled={isSaving || !hasUnsavedChanges}
                           className="shadow-sm"
                         >
                           {isSaving ? (
