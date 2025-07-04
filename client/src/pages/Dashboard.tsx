@@ -421,7 +421,8 @@ const Dashboard: React.FC = () => {
     memberMetrics, 
     expiringCustomers, 
     memberBirthdays, 
-    todayEnrolled 
+    todayEnrolled,
+    totalMemberAmount
   } = useMemo(() => {
     if (!customerQuery.data) return {
       memberMetrics: {
@@ -433,6 +434,7 @@ const Dashboard: React.FC = () => {
       expiringCustomers: [],
       memberBirthdays: 0,
       todayEnrolled: 0,
+      totalMemberAmount: 0,
     };
 
     const customerData = customerQuery.data;
@@ -449,9 +451,11 @@ const Dashboard: React.FC = () => {
     const expiringCustomers: Customer[] = [];
     let memberBirthdays = 0;
     let todayEnrolled = 0;
+    let totalMemberAmount = 0;
 
     customerData.forEach(customer => {
       totalMembers++;
+      totalMemberAmount += customer.totalSpent || 0;
 
       // **OPTIMIZATION: Use stored membershipEndDate from database (no calculation needed)**
       if (customer.membershipEndDate) {
@@ -501,6 +505,7 @@ const Dashboard: React.FC = () => {
       expiringCustomers,
       memberBirthdays,
       todayEnrolled,
+      totalMemberAmount,
     };
   }, [customerQuery.data, customerQuery.dataUpdatedAt]); // Added dataUpdatedAt for stability
 
@@ -519,6 +524,7 @@ const Dashboard: React.FC = () => {
         todayEnrolled: todayEnrolled,
         todayExpense: expenseMetrics.todayExpense,
         totalExpense: expenseMetrics.totalExpense,
+        totalMemberAmount: totalMemberAmount,
       }
     };
   }, [
@@ -527,7 +533,8 @@ const Dashboard: React.FC = () => {
     memberMetrics, 
     memberBirthdays, 
     todayEnrolled, 
-    expenseMetrics
+    expenseMetrics,
+    totalMemberAmount
   ]); // Added dataUpdatedAt and stabilized dependencies
 
   // **OPTIMIZATION: Memoized profit calculations using computed expense metrics**
@@ -846,7 +853,7 @@ const Dashboard: React.FC = () => {
               onClick={() => handleOpenModal("memberBirthdays")}
               className="cursor-pointer hover:shadow-lg transition"
             />
-             <MetricCard
+            <MetricCard
               title="PT Expiring Today"
               value={ptExpiringToday}
               icon={<AlertCircle />}
