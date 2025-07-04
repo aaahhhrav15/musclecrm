@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import * as React from 'react';
 import { motion } from 'framer-motion';
 import { 
   Plus, 
@@ -67,6 +67,13 @@ import { toast } from 'sonner';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
 import { useIndustry } from '@/context/IndustryContext';
 import axiosInstance from '@/lib/axios';
+import {
+  Command,
+  CommandInput,
+  CommandList,
+  CommandItem,
+  CommandEmpty,
+} from '@/components/ui/command';
 
 interface Member {
   _id: string;
@@ -118,24 +125,26 @@ const HealthAssessmentsPage: React.FC = () => {
   const { selectedIndustry, setSelectedIndustry } = useIndustry();
   
   // Set gym as the selected industry if not already set
-  useEffect(() => {
+  React.useEffect(() => {
     if (selectedIndustry !== 'gym') {
       setSelectedIndustry('gym');
     }
   }, [selectedIndustry, setSelectedIndustry]);
 
-  const [assessments, setAssessments] = useState<HealthAssessment[]>([]);
-  const [members, setMembers] = useState<Member[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingAssessment, setEditingAssessment] = useState<HealthAssessment | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
-  const [showFilters, setShowFilters] = useState(false);
+  const [assessments, setAssessments] = React.useState<HealthAssessment[]>([]);
+  const [members, setMembers] = React.useState<Member[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [isDialogOpen, setIsDialogOpen] = React.useState(false); // Modal closed by default
+  const [editingAssessment, setEditingAssessment] = React.useState<HealthAssessment | null>(null);
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [statusFilter, setStatusFilter] = React.useState<string>('all');
+  const [viewMode, setViewMode] = React.useState<'cards' | 'table'>('cards');
+  const [showFilters, setShowFilters] = React.useState(false);
+  const [memberSearch, setMemberSearch] = React.useState('');
+  const [memberDropdownOpen, setMemberDropdownOpen] = React.useState(false);
 
   // Form state
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = React.useState({
     memberId: '',
     memberName: '',
     age: '',
@@ -167,15 +176,24 @@ const HealthAssessmentsPage: React.FC = () => {
     date: ''
   });
 
+  const filteredMembers = React.useMemo(() => {
+    if (!memberSearch.trim()) return members;
+    const search = memberSearch.toLowerCase();
+    return members.filter(member =>
+      (member.name?.toLowerCase() ?? '').includes(search) ||
+      (member.email?.toLowerCase() ?? '').includes(search)
+    );
+  }, [members, memberSearch]);
+
   // Load health assessments and members
-  useEffect(() => {
+  React.useEffect(() => {
     fetchAssessments();
     fetchMembers();
   }, []);
 
   const fetchMembers = async () => {
     try {
-      const response = await axiosInstance.get('/customers');
+      const response = await axiosInstance.get('/customers', { params: { limit: 10000 } });
       if (response.data.success && Array.isArray(response.data.customers)) {
         setMembers(response.data.customers);
       } else {
@@ -183,7 +201,7 @@ const HealthAssessmentsPage: React.FC = () => {
         setMembers([]);
         toast.error('Failed to load members');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error fetching members:', error);
       toast.error('Failed to load members');
       setMembers([]);
@@ -201,7 +219,7 @@ const HealthAssessmentsPage: React.FC = () => {
         setAssessments([]);
         toast.error('Invalid data format received from server');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error fetching health assessments:', error);
       toast.error('Failed to load health assessments');
       setAssessments([]);
@@ -229,7 +247,7 @@ const HealthAssessmentsPage: React.FC = () => {
       }
 
       // Create base assessment data with required fields
-      const assessmentData: any = {
+      const assessmentData: Record<string, any> = {
         memberId: formData.memberId,
         memberName: formData.memberName,
         age: parseInt(formData.age),
@@ -288,7 +306,7 @@ const HealthAssessmentsPage: React.FC = () => {
       } else {
         throw new Error('Invalid response format from server');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error creating health assessment:', error);
       toast.error('Failed to create health assessment');
     }
@@ -298,7 +316,7 @@ const HealthAssessmentsPage: React.FC = () => {
     if (!editingAssessment) return;
 
     try {
-      const assessmentData: any = {
+      const assessmentData: Record<string, any> = {
         memberId: formData.memberId,
         memberName: formData.memberName,
         age: parseInt(formData.age),
@@ -353,7 +371,7 @@ const HealthAssessmentsPage: React.FC = () => {
       } else {
         throw new Error('Invalid response format from server');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error updating health assessment:', error);
       toast.error('Failed to update health assessment');
     }
@@ -487,11 +505,15 @@ const HealthAssessmentsPage: React.FC = () => {
   };
 
   // Filter assessments
-  const filteredAssessments = assessments.filter(assessment => {
-    const matchesSearch = assessment.memberName.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || assessment.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const filteredAssessments = React.useMemo(() => {
+    if (!searchQuery.trim() && !statusFilter.trim()) return assessments;
+    const search = searchQuery.toLowerCase();
+    return assessments.filter(assessment => {
+      const matchesSearch = assessment.memberName.toLowerCase().includes(search);
+      const matchesStatus = statusFilter === 'all' || assessment.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [assessments, searchQuery, statusFilter]);
 
   const handleExport = () => {
     if (!filteredAssessments || filteredAssessments.length === 0) {
@@ -527,6 +549,19 @@ const HealthAssessmentsPage: React.FC = () => {
     document.body.removeChild(link);
     toast.success("Data exported successfully!");
   };
+
+  // Close member dropdown on outside click
+  React.useEffect(() => {
+    if (!memberDropdownOpen) return;
+    function handleClickOutside(event: MouseEvent) {
+      const dropdown = document.querySelector('.z-50.mt-2');
+      if (dropdown && !dropdown.contains(event.target as Node)) {
+        setMemberDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [memberDropdownOpen]);
 
   if (isLoading) {
     return (
@@ -966,21 +1001,50 @@ const HealthAssessmentsPage: React.FC = () => {
                     <div className="space-y-4">
                       <div>
                         <label className="text-sm font-medium mb-2 block">Member *</label>
-                        <Select
-                          value={formData.memberId}
-                          onValueChange={handleMemberSelect}
-                        >
-                          <SelectTrigger className="h-11">
-                            <SelectValue placeholder="Select a member" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {members.map((member) => (
-                              <SelectItem key={member._id} value={member._id}>
-                                {member.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <div className="relative">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="w-full justify-between"
+                            onClick={() => setMemberDropdownOpen((open) => !open)}
+                          >
+                            {formData.memberName || 'Select a member'}
+                          </Button>
+                          {memberDropdownOpen && (
+                            <div className="absolute z-50 mt-2 w-full bg-white border rounded shadow-lg">
+                              <Command className="w-full">
+                                <CommandInput
+                                  placeholder="Search members by name or email..."
+                                  onValueChange={(value) => setMemberSearch(value)}
+                                  value={memberSearch}
+                                />
+                                <CommandList className="max-h-60 overflow-y-auto">
+                                  <CommandEmpty>No members found.</CommandEmpty>
+                                  {filteredMembers.map((member) => (
+                                    <CommandItem
+                                      key={member._id}
+                                      value={member._id}
+                                      onSelect={() => {
+                                        setFormData({
+                                          ...formData,
+                                          memberId: member._id,
+                                          memberName: member.name
+                                        });
+                                        setMemberSearch('');
+                                        setMemberDropdownOpen(false);
+                                      }}
+                                    >
+                                      <div className="flex flex-col">
+                                        <span className="font-medium">{member.name}</span>
+                                        <span className="text-xs text-muted-foreground">{member.email}</span>
+                                      </div>
+                                    </CommandItem>
+                                  ))}
+                                </CommandList>
+                              </Command>
+                            </div>
+                          )}
+                        </div>
                       </div>
                       <div>
                         <label className="text-sm font-medium mb-2 block">Age *</label>

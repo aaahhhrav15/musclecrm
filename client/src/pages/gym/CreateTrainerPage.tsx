@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import * as React from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -80,11 +81,13 @@ const CreateTrainerPage: React.FC = () => {
           variant: 'destructive',
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error adding trainer:', error);
-      const errorMessage = error.response?.data?.message || 
-                          error.response?.data?.error || 
-                          'Failed to add trainer';
+      let errorMessage = 'Failed to add trainer';
+      if (error && typeof error === 'object' && 'response' in error) {
+        const err = error as { response?: { data?: { message?: string; error?: string } } };
+        errorMessage = err.response?.data?.message || err.response?.data?.error || errorMessage;
+      }
       toast({
         title: 'Error',
         description: errorMessage,
@@ -99,7 +102,12 @@ const CreateTrainerPage: React.FC = () => {
     <DashboardLayout>
       <div className="space-y-4">
         <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Add New Trainer</h1>
+          <div className="flex items-center gap-4">
+            <Button variant="outline" type="button" onClick={() => navigate('/dashboard/gym/trainers')}>
+              Back
+            </Button>
+            <h1 className="text-2xl font-bold">Add New Trainer</h1>
+          </div>
         </div>
 
         <Card>
