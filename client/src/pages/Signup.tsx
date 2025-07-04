@@ -27,7 +27,6 @@ const formSchema = z.object({
   gymName: z.string().min(2, { message: 'Gym name must be at least 2 characters' }),
   email: z.string().email({ message: 'Please enter a valid email address' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters' }),
-  industry: z.string().min(1, { message: 'Please select an industry' }),
   phone: z.string().min(10, { message: 'Please enter a valid phone number' }),
   logo: z.any().optional(),
   address: z.object({
@@ -55,7 +54,6 @@ const Signup: React.FC = () => {
       gymName: '',
       email: '',
       password: '',
-      industry: '',
       phone: '',
       logo: null,
       address: {
@@ -81,40 +79,46 @@ const Signup: React.FC = () => {
   };
 
   const onSubmit = async (values: FormValues) => {
+    console.log('=== FORM SUBMISSION STARTED ===');
+    console.log('Form submitted with values:', values);
     setIsLoading(true);
-    
     try {
-      // Create FormData for the logo upload
-      const formData = new FormData();
-      if (values.logo) {
-        formData.append('logo', values.logo);
-      }
-
-      // Call signup with individual parameters
-      const response = await signup(
-        values.gymName,
-        values.email,
-        values.password,
-        'gym',
-        values.gymName,
-        values.phone
-      );
-      
-      // Set the industry and navigate
+      console.log('Calling signup function...');
+      // Call signup with all fields as an object
+      const response = await signup({
+        name: values.gymName,
+        email: values.email,
+        password: values.password,
+        industry: 'gym', // Hardcoded since we only support gym
+        gymName: values.gymName,
+        phone: values.phone,
+        address: {
+          street: values.address.street,
+          city: values.address.city,
+          state: values.address.state,
+          zipCode: values.address.zipCode,
+          country: values.address.country,
+        },
+        logo: values.logo || undefined,
+      });
+      console.log('Signup successful:', response);
       setSelectedIndustry('gym');
-      
       toast({
         title: 'Account created',
-        description: `Welcome to FlexCRM! Your gym number is: ${response.gym.gymCode}`,
+        description: `Welcome to FlexCRM! Your gym number is: ${response.gym?.gymCode}`,
       });
-      
       navigate('/setup');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Signup error:', error);
-      
+      // Try to extract error message if possible
+      let errorMessage = 'There was a problem creating your account.';
+      if (error && typeof error === 'object' && 'response' in error) {
+        const err = error as { response?: { data?: { message?: string } } };
+        errorMessage = err.response?.data?.message || errorMessage;
+      }
       toast({
         title: 'Signup failed',
-        description: error.response?.data?.message || 'There was a problem creating your account.',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {

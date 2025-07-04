@@ -38,7 +38,22 @@ interface AuthContextType {
   loading: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
-  signup: (name: string, email: string, password: string, industry: string, gymName?: string, phone?: string) => Promise<SignupResponse>;
+  signup: (data: {
+    name: string;
+    email: string;
+    password: string;
+    industry: string;
+    gymName?: string;
+    phone?: string;
+    address?: {
+      street: string;
+      city: string;
+      state: string;
+      zipCode: string;
+      country: string;
+    };
+    logo?: File | null;
+  }) => Promise<SignupResponse>;
   logout: () => void;
   updateUserProfile: (userData: Partial<User>) => Promise<void>;
 }
@@ -144,22 +159,43 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const signup = async (name: string, email: string, password: string, industry: string, gymName?: string, phone?: string): Promise<SignupResponse> => {
+  const signup = async (data: {
+    name: string;
+    email: string;
+    password: string;
+    industry: string;
+    gymName?: string;
+    phone?: string;
+    address?: {
+      street: string;
+      city: string;
+      state: string;
+      zipCode: string;
+      country: string;
+    };
+    logo?: File | null;
+  }): Promise<SignupResponse> => {
+    console.log('AuthContext signup called with data:', data);
     setLoading(true);
-    
     try {
-      const response = await axiosInstance.post('/auth/register', {
-        name,
-        email,
-        password,
-        industry,
-        gymName,
-        phone
+      const formData = new FormData();
+      formData.append('name', data.name);
+      formData.append('email', data.email);
+      formData.append('password', data.password);
+      formData.append('industry', data.industry);
+      if (data.gymName) formData.append('gymName', data.gymName);
+      if (data.phone) formData.append('phone', data.phone);
+      if (data.address) formData.append('address', JSON.stringify(data.address));
+      if (data.logo) formData.append('logo', data.logo);
+
+      console.log('Sending FormData to /auth/register...');
+      const response = await axiosInstance.post('/auth/register', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
-      
+      console.log('Backend response:', response.data);
+
       if (response.data.success) {
         const userData = response.data.user;
-        
         setUser({
           id: userData._id,
           name: userData.name,
@@ -170,24 +206,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           gymId: userData.gymId
         });
         setIsAuthenticated(true);
-        
         toast({
           title: "Account created",
           description: "Your account has been successfully created.",
         });
-
         return response.data;
       }
       throw new Error('Signup failed');
     } catch (error: any) {
       console.error('Signup error:', error);
-      
       toast({
         title: "Signup failed",
         description: error.response?.data?.message || "There was a problem creating your account.",
         variant: "destructive",
       });
-      
       throw error;
     } finally {
       setLoading(false);

@@ -15,7 +15,7 @@ export const IndustryProvider = ({ children }: { children: ReactNode }) => {
   // Initialize state from localStorage if available
   const [selectedIndustry, setSelectedIndustry] = useState<IndustryType>(() => {
     const saved = localStorage.getItem('selectedIndustry');
-    return saved === 'gym' ? 'gym' : null;
+    return (saved === 'gym') ? saved : null;
   });
   
   const [isSetupComplete, setIsSetupComplete] = useState(() => {

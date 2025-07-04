@@ -105,6 +105,20 @@ router.post('/register', upload.single('logo'), async (req, res) => {
     const { name, email, password, industry, role, gymName, phone, address } = req.body;
     const logo = req.file ? `/uploads/logos/${req.file.filename}` : undefined;
 
+    // Parse address if it's a JSON string
+    let parsedAddress;
+    if (address) {
+      try {
+        parsedAddress = typeof address === 'string' ? JSON.parse(address) : address;
+      } catch (error) {
+        console.error('Error parsing address:', error);
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Invalid address format' 
+        });
+      }
+    }
+
     // Check if user already exists
     let user = await User.findOne({ email });
     if (user) {
@@ -130,7 +144,7 @@ router.post('/register', upload.single('logo'), async (req, res) => {
         gymCode,
         name: gymName,
         logo: logo,
-        address: address,
+        address: parsedAddress,
         contactInfo: {
           phone: phone,
           email: email
