@@ -64,19 +64,107 @@ interface MetricCardProps {
   className?: string;
 }
 
+// Add this mapping above MetricCard
+const cardColorMap: Record<string, {
+  gradientFrom: string;
+  gradientTo: string;
+  iconBg: string;
+  iconColor: string;
+}> = {
+  'Total Members': {
+    gradientFrom: 'from-blue-500/10', gradientTo: 'to-blue-600/5', iconBg: 'bg-blue-500/10', iconColor: 'text-blue-600'
+  },
+  'Active Members': {
+    gradientFrom: 'from-green-500/10', gradientTo: 'to-green-600/5', iconBg: 'bg-green-500/10', iconColor: 'text-green-600'
+  },
+  'Inactive Members': {
+    gradientFrom: 'from-red-500/10', gradientTo: 'to-red-600/5', iconBg: 'bg-red-500/10', iconColor: 'text-red-600'
+  },
+  'Expiring in 7 Days': {
+    gradientFrom: 'from-orange-500/10', gradientTo: 'to-orange-600/5', iconBg: 'bg-orange-500/10', iconColor: 'text-orange-600'
+  },
+  'Today Enrolled': {
+    gradientFrom: 'from-emerald-500/10', gradientTo: 'to-emerald-600/5', iconBg: 'bg-emerald-500/10', iconColor: 'text-emerald-600'
+  },
+  'Total Member Amount': {
+    gradientFrom: 'from-purple-500/10', gradientTo: 'to-purple-600/5', iconBg: 'bg-purple-500/10', iconColor: 'text-purple-600'
+  },
+  'Employee Birthdays': {
+    gradientFrom: 'from-pink-500/10', gradientTo: 'to-pink-600/5', iconBg: 'bg-pink-500/10', iconColor: 'text-pink-600'
+  },
+  'Member Birthdays': {
+    gradientFrom: 'from-indigo-500/10', gradientTo: 'to-indigo-600/5', iconBg: 'bg-indigo-500/10', iconColor: 'text-indigo-600'
+  },
+  'PT Expiring Today': {
+    gradientFrom: 'from-yellow-500/10', gradientTo: 'to-yellow-600/5', iconBg: 'bg-yellow-500/10', iconColor: 'text-yellow-600'
+  },
+  'PT Expiring in 7 Days': {
+    gradientFrom: 'from-amber-500/10', gradientTo: 'to-amber-600/5', iconBg: 'bg-amber-500/10', iconColor: 'text-amber-600'
+  },
+  'Today Invoices': {
+    gradientFrom: 'from-cyan-500/10', gradientTo: 'to-cyan-600/5', iconBg: 'bg-cyan-500/10', iconColor: 'text-cyan-600'
+  },
+  'Total Invoices': {
+    gradientFrom: 'from-teal-500/10', gradientTo: 'to-teal-600/5', iconBg: 'bg-teal-500/10', iconColor: 'text-teal-600'
+  },
+  'Today Due Amount': {
+    gradientFrom: 'from-amber-500/10', gradientTo: 'to-amber-600/5', iconBg: 'bg-amber-500/10', iconColor: 'text-amber-600'
+  },
+  'Today Expense': {
+    gradientFrom: 'from-slate-500/10', gradientTo: 'to-slate-600/5', iconBg: 'bg-slate-500/10', iconColor: 'text-slate-600'
+  },
+  'Monthly Expense (July 2025)': {
+    gradientFrom: 'from-violet-500/10', gradientTo: 'to-violet-600/5', iconBg: 'bg-violet-500/10', iconColor: 'text-violet-600'
+  },
+  'Total Expense': {
+    gradientFrom: 'from-rose-500/10', gradientTo: 'to-rose-600/5', iconBg: 'bg-rose-500/10', iconColor: 'text-rose-600'
+  },
+  'Today Enquiry': {
+    gradientFrom: 'from-lime-500/10', gradientTo: 'to-lime-600/5', iconBg: 'bg-lime-500/10', iconColor: 'text-lime-600'
+  },
+  'Today Follow-Ups': {
+    gradientFrom: 'from-sky-500/10', gradientTo: 'to-sky-600/5', iconBg: 'bg-sky-500/10', iconColor: 'text-sky-600'
+  },
+  // Add more mappings as needed for all card titles
+  'Member Amount': { gradientFrom: 'from-emerald-500/10', gradientTo: 'to-emerald-600/5', iconBg: 'bg-emerald-500/10', iconColor: 'text-emerald-600' },
+  'Total Expenses': { gradientFrom: 'from-red-500/10', gradientTo: 'to-red-600/5', iconBg: 'bg-red-500/10', iconColor: 'text-red-600' },
+  'Total Gym Profit': { gradientFrom: 'from-green-500/10', gradientTo: 'to-green-600/5', iconBg: 'bg-green-500/10', iconColor: 'text-green-600' },
+  'Today Purchase': { gradientFrom: 'from-blue-500/10', gradientTo: 'to-blue-600/5', iconBg: 'bg-blue-500/10', iconColor: 'text-blue-600' },
+  'Total Purchase': { gradientFrom: 'from-indigo-500/10', gradientTo: 'to-indigo-600/5', iconBg: 'bg-indigo-500/10', iconColor: 'text-indigo-600' },
+  'Total Stock Value': { gradientFrom: 'from-green-500/10', gradientTo: 'to-green-600/5', iconBg: 'bg-green-500/10', iconColor: 'text-green-600' },
+  'Low Stock Value': { gradientFrom: 'from-orange-500/10', gradientTo: 'to-orange-600/5', iconBg: 'bg-orange-500/10', iconColor: 'text-orange-600' },
+  'Total Clearing Amount': { gradientFrom: 'from-purple-500/10', gradientTo: 'to-purple-600/5', iconBg: 'bg-purple-500/10', iconColor: 'text-purple-600' },
+  'Today Sell': { gradientFrom: 'from-emerald-500/10', gradientTo: 'to-emerald-600/5', iconBg: 'bg-emerald-500/10', iconColor: 'text-emerald-600' },
+  'Total Sell': { gradientFrom: 'from-teal-500/10', gradientTo: 'to-teal-600/5', iconBg: 'bg-teal-500/10', iconColor: 'text-teal-600' },
+  'Total Sell Purchase Value': { gradientFrom: 'from-cyan-500/10', gradientTo: 'to-cyan-600/5', iconBg: 'bg-cyan-500/10', iconColor: 'text-cyan-600' },
+  'Today Sell Invoice': { gradientFrom: 'from-pink-500/10', gradientTo: 'to-pink-600/5', iconBg: 'bg-pink-500/10', iconColor: 'text-pink-600' },
+  'Total Sell Invoice': { gradientFrom: 'from-rose-500/10', gradientTo: 'to-rose-600/5', iconBg: 'bg-rose-500/10', iconColor: 'text-rose-600' },
+  'Sell Due Amount': { gradientFrom: 'from-amber-500/10', gradientTo: 'to-amber-600/5', iconBg: 'bg-amber-500/10', iconColor: 'text-amber-600' },
+  'Total POS Expense': { gradientFrom: 'from-slate-500/10', gradientTo: 'to-slate-600/5', iconBg: 'bg-slate-500/10', iconColor: 'text-slate-600' },
+  'Today POS Expense': { gradientFrom: 'from-gray-500/10', gradientTo: 'to-gray-600/5', iconBg: 'bg-gray-500/10', iconColor: 'text-gray-600' },
+  'Total POS Amount': { gradientFrom: 'from-blue-500/10', gradientTo: 'to-blue-600/5', iconBg: 'bg-blue-500/10', iconColor: 'text-blue-600' },
+  'Total POS Profit': { gradientFrom: 'from-green-500/10', gradientTo: 'to-green-600/5', iconBg: 'bg-green-500/10', iconColor: 'text-green-600' },
+  'Total Business Profit (Gym + POS)': { gradientFrom: 'from-emerald-500/10', gradientTo: 'to-emerald-600/5', iconBg: 'bg-emerald-500/10', iconColor: 'text-emerald-600' },
+};
+
+const defaultColor = {
+  gradientFrom: 'from-gray-200',
+  gradientTo: 'to-gray-100',
+  iconBg: 'bg-gray-200',
+  iconColor: 'text-gray-600',
+};
+
 const MetricCard: React.FC<MetricCardProps> = React.memo(({
   title,
   value,
   icon,
   format = "number",
   isLoading,
-  gradientFrom = "blue-500",
-  gradientTo = "blue-600",
-  iconColor = "blue-600",
   delay = 0,
   onClick,
   className,
 }) => {
+  const color = cardColorMap[title] || (title.startsWith('Monthly Expense') ? { gradientFrom: 'from-violet-500/10', gradientTo: 'to-violet-600/5', iconBg: 'bg-violet-500/10', iconColor: 'text-violet-600' } : defaultColor);
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -88,18 +176,14 @@ const MetricCard: React.FC<MetricCardProps> = React.memo(({
         className="relative overflow-hidden border-0 shadow-lg cursor-pointer hover:shadow-lg transition"
         onClick={onClick}
       >
-        <div
-          className={`absolute inset-0 bg-gradient-to-br from-${gradientFrom}/10 to-${gradientTo}/5`}
-        />
+        <div className={`absolute inset-0 bg-gradient-to-br ${color.gradientFrom} ${color.gradientTo}`} />
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
           <CardTitle className="text-sm font-medium text-muted-foreground">
             {title}
           </CardTitle>
-          <div
-            className={`h-10 w-10 rounded-full bg-${gradientFrom}/10 flex items-center justify-center`}
-          >
+          <div className={`h-10 w-10 rounded-full ${color.iconBg} flex items-center justify-center`}>
             {React.cloneElement(icon as React.ReactElement, {
-              className: `h-5 w-5 text-${iconColor}`,
+              className: `h-5 w-5 ${color.iconColor}`,
             })}
           </div>
         </CardHeader>
@@ -700,9 +784,6 @@ const Dashboard: React.FC = () => {
               value={metrics.members.totalMembers}
               icon={<Users />}
               isLoading={isLoading}
-              gradientFrom="blue-500"
-              gradientTo="blue-600"
-              iconColor="blue-600"
               delay={0.1}
             />
             <MetricCard
@@ -710,9 +791,6 @@ const Dashboard: React.FC = () => {
               value={metrics.members.activeMembers}
               icon={<UserPlus />}
               isLoading={isLoading}
-              gradientFrom="green-500"
-              gradientTo="green-600"
-              iconColor="green-600"
               delay={0.15}
             />
             <MetricCard
@@ -720,9 +798,6 @@ const Dashboard: React.FC = () => {
               value={metrics.members.inactiveMembers}
               icon={<UserMinus />}
               isLoading={isLoading}
-              gradientFrom="red-500"
-              gradientTo="red-600"
-              iconColor="red-600"
               delay={0.2}
               onClick={() => handleOpenModal("inactive")}
               className="cursor-pointer hover:shadow-lg transition"
@@ -732,9 +807,6 @@ const Dashboard: React.FC = () => {
               value={metrics.members.expiringIn7Days}
               icon={<AlertCircle />}
               isLoading={isLoading}
-              gradientFrom="orange-500"
-              gradientTo="orange-600"
-              iconColor="orange-600"
               delay={0.25}
               onClick={() => handleOpenModal("expiring")}
               className="cursor-pointer hover:shadow-lg transition"
@@ -744,9 +816,6 @@ const Dashboard: React.FC = () => {
               value={metrics.members.todayEnrolled}
               icon={<UserPlus />}
               isLoading={isLoading}
-              gradientFrom="emerald-500"
-              gradientTo="emerald-600"
-              iconColor="emerald-600"
               delay={0.3}
               onClick={() => handleOpenModal("todayEnrolled")}
               className="cursor-pointer hover:shadow-lg transition"
@@ -757,9 +826,6 @@ const Dashboard: React.FC = () => {
               icon={<DollarSign />}
               format="currency"
               isLoading={isLoading}
-              gradientFrom="purple-500"
-              gradientTo="purple-600"
-              iconColor="purple-600"
               delay={0.35}
             />
             <MetricCard
@@ -767,9 +833,6 @@ const Dashboard: React.FC = () => {
               value={metrics.members.todayEmployeeBirthdays}
               icon={<Cake />}
               isLoading={isLoading}
-              gradientFrom="pink-500"
-              gradientTo="pink-600"
-              iconColor="pink-600"
               delay={0.4}
               onClick={() => handleOpenModal("employeeBirthdays")}
               className="cursor-pointer hover:shadow-lg transition"
@@ -779,9 +842,6 @@ const Dashboard: React.FC = () => {
               value={metrics.members.todayMemberBirthdays}
               icon={<Gift />}
               isLoading={isLoading}
-              gradientFrom="indigo-500"
-              gradientTo="indigo-600"
-              iconColor="indigo-600"
               delay={0.45}
               onClick={() => handleOpenModal("memberBirthdays")}
               className="cursor-pointer hover:shadow-lg transition"
@@ -791,9 +851,6 @@ const Dashboard: React.FC = () => {
               value={ptExpiringToday}
               icon={<AlertCircle />}
               isLoading={isLoadingPT}
-              gradientFrom="yellow-500"
-              gradientTo="yellow-600"
-              iconColor="yellow-600"
               delay={0.26}
               onClick={() => handleOpenPTModal('today')}
               className="cursor-pointer hover:shadow-lg transition"
@@ -803,21 +860,16 @@ const Dashboard: React.FC = () => {
               value={ptExpiringIn7Days}
               icon={<AlertCircle />}
               isLoading={isLoadingPT}
-              gradientFrom="amber-500"
-              gradientTo="amber-600"
-              iconColor="amber-600"
               delay={0.27}
               onClick={() => handleOpenPTModal('7days')}
               className="cursor-pointer hover:shadow-lg transition"
             />
+
             <MetricCard
               title="Today Invoices"
               value={metrics.members.todayInvoices}
               icon={<BarChart3 />}
               isLoading={isLoading}
-              gradientFrom="cyan-500"
-              gradientTo="cyan-600"
-              iconColor="cyan-600"
               delay={0.5}
             />
             <MetricCard
@@ -825,9 +877,6 @@ const Dashboard: React.FC = () => {
               value={metrics.members.totalInvoices}
               icon={<BarChart3 />}
               isLoading={isLoading}
-              gradientFrom="teal-500"
-              gradientTo="teal-600"
-              iconColor="teal-600"
               delay={0.55}
             />
             <MetricCard
@@ -836,9 +885,6 @@ const Dashboard: React.FC = () => {
               icon={<AlertCircle />}
               format="currency"
               isLoading={isLoading}
-              gradientFrom="amber-500"
-              gradientTo="amber-600"
-              iconColor="amber-600"
               delay={0.6}
             />
             <MetricCard
@@ -847,9 +893,6 @@ const Dashboard: React.FC = () => {
               icon={<DollarSign />}
               format="currency"
               isLoading={expenseQuery.isLoading}
-              gradientFrom="slate-500"
-              gradientTo="slate-600"
-              iconColor="slate-600"
               delay={0.65}
             />
             <MetricCard
@@ -858,9 +901,6 @@ const Dashboard: React.FC = () => {
               icon={<Calendar />}
               format="currency"
               isLoading={expenseQuery.isLoading}
-              gradientFrom="violet-500"
-              gradientTo="violet-600"
-              iconColor="violet-600"
               delay={0.7}
             />
             <MetricCard
@@ -869,9 +909,6 @@ const Dashboard: React.FC = () => {
               icon={<TrendingUp />}
               format="currency"
               isLoading={expenseQuery.isLoading}
-              gradientFrom="rose-500"
-              gradientTo="rose-600"
-              iconColor="rose-600"
               delay={0.75}
             />
             <MetricCard
@@ -879,9 +916,6 @@ const Dashboard: React.FC = () => {
               value={metrics.members.todayEnquiry}
               icon={<Users />}
               isLoading={isLoading}
-              gradientFrom="lime-500"
-              gradientTo="lime-600"
-              iconColor="lime-600"
               delay={0.8}
               onClick={() => handleOpenModal("todayEnquiry")}
               className="cursor-pointer hover:shadow-lg transition"
@@ -891,9 +925,6 @@ const Dashboard: React.FC = () => {
               value={metrics.members.todayFollowUps}
               icon={<Target />}
               isLoading={isLoading}
-              gradientFrom="sky-500"
-              gradientTo="sky-600"
-              iconColor="sky-600"
               delay={0.85}
               onClick={() => handleOpenModal("todayFollowUps")}
               className="cursor-pointer hover:shadow-lg transition"
@@ -915,9 +946,6 @@ const Dashboard: React.FC = () => {
               format="currency"
               icon={<DollarSign />}
               isLoading={isLoading}
-              gradientFrom="emerald-500"
-              gradientTo="emerald-600"
-              iconColor="emerald-600"
               delay={0.1}
             />
             <MetricCard
@@ -926,9 +954,6 @@ const Dashboard: React.FC = () => {
               format="currency"
               icon={<TrendingUp />}
               isLoading={expenseQuery.isLoading}
-              gradientFrom="red-500"
-              gradientTo="red-600"
-              iconColor="red-600"
               delay={0.2}
             />
             <MetricCard
@@ -937,9 +962,6 @@ const Dashboard: React.FC = () => {
               format="currency"
               icon={<Target />}
               isLoading={isLoading || expenseQuery.isLoading}
-              gradientFrom="green-500"
-              gradientTo="green-600"
-              iconColor="green-600"
               delay={0.3}
             />
           </div>
@@ -958,9 +980,6 @@ const Dashboard: React.FC = () => {
               format="currency"
               icon={<ShoppingCart />}
               isLoading={isLoading}
-              gradientFrom="blue-500"
-              gradientTo="blue-600"
-              iconColor="blue-600"
               delay={0.1}
             />
             <MetricCard
@@ -969,9 +988,6 @@ const Dashboard: React.FC = () => {
               format="currency"
               icon={<ShoppingCart />}
               isLoading={isLoading}
-              gradientFrom="indigo-500"
-              gradientTo="indigo-600"
-              iconColor="indigo-600"
               delay={0.15}
             />
             <MetricCard
@@ -980,9 +996,6 @@ const Dashboard: React.FC = () => {
               format="currency"
               icon={<BarChart3 />}
               isLoading={isLoading}
-              gradientFrom="green-500"
-              gradientTo="green-600"
-              iconColor="green-600"
               delay={0.2}
             />
             <MetricCard
@@ -991,9 +1004,6 @@ const Dashboard: React.FC = () => {
               format="currency"
               icon={<AlertCircle />}
               isLoading={isLoading}
-              gradientFrom="orange-500"
-              gradientTo="orange-600"
-              iconColor="orange-600"
               delay={0.25}
             />
             <MetricCard
@@ -1002,9 +1012,6 @@ const Dashboard: React.FC = () => {
               format="currency"
               icon={<DollarSign />}
               isLoading={isLoading}
-              gradientFrom="purple-500"
-              gradientTo="purple-600"
-              iconColor="purple-600"
               delay={0.3}
             />
             <MetricCard
@@ -1013,9 +1020,6 @@ const Dashboard: React.FC = () => {
               format="currency"
               icon={<TrendingUp />}
               isLoading={isLoading}
-              gradientFrom="emerald-500"
-              gradientTo="emerald-600"
-              iconColor="emerald-600"
               delay={0.35}
             />
             <MetricCard
@@ -1024,9 +1028,6 @@ const Dashboard: React.FC = () => {
               format="currency"
               icon={<TrendingUp />}
               isLoading={isLoading}
-              gradientFrom="teal-500"
-              gradientTo="teal-600"
-              iconColor="teal-600"
               delay={0.4}
             />
             <MetricCard
@@ -1035,9 +1036,6 @@ const Dashboard: React.FC = () => {
               format="currency"
               icon={<BarChart3 />}
               isLoading={isLoading}
-              gradientFrom="cyan-500"
-              gradientTo="cyan-600"
-              iconColor="cyan-600"
               delay={0.45}
             />
             <MetricCard
@@ -1045,9 +1043,6 @@ const Dashboard: React.FC = () => {
               value={metrics.pos.todaySellInvoice}
               icon={<BarChart3 />}
               isLoading={isLoading}
-              gradientFrom="pink-500"
-              gradientTo="pink-600"
-              iconColor="pink-600"
               delay={0.5}
             />
             <MetricCard
@@ -1055,9 +1050,6 @@ const Dashboard: React.FC = () => {
               value={metrics.pos.totalSellInvoice}
               icon={<BarChart3 />}
               isLoading={isLoading}
-              gradientFrom="rose-500"
-              gradientTo="rose-600"
-              iconColor="rose-600"
               delay={0.55}
             />
             <MetricCard
@@ -1066,9 +1058,6 @@ const Dashboard: React.FC = () => {
               format="currency"
               icon={<AlertCircle />}
               isLoading={isLoading}
-              gradientFrom="amber-500"
-              gradientTo="amber-600"
-              iconColor="amber-600"
               delay={0.6}
             />
             <MetricCard
@@ -1077,9 +1066,6 @@ const Dashboard: React.FC = () => {
               format="currency"
               icon={<DollarSign />}
               isLoading={isLoading}
-              gradientFrom="slate-500"
-              gradientTo="slate-600"
-              iconColor="slate-600"
               delay={0.65}
             />
             <MetricCard
@@ -1088,9 +1074,6 @@ const Dashboard: React.FC = () => {
               format="currency"
               icon={<DollarSign />}
               isLoading={isLoading}
-              gradientFrom="gray-500"
-              gradientTo="gray-600"
-              iconColor="gray-600"
               delay={0.7}
             />
           </div>
@@ -1109,9 +1092,6 @@ const Dashboard: React.FC = () => {
               format="currency"
               icon={<DollarSign />}
               isLoading={isLoading}
-              gradientFrom="blue-500"
-              gradientTo="blue-600"
-              iconColor="blue-600"
               delay={0.1}
             />
             <MetricCard
@@ -1120,9 +1100,6 @@ const Dashboard: React.FC = () => {
               format="currency"
               icon={<TrendingUp />}
               isLoading={isLoading}
-              gradientFrom="red-500"
-              gradientTo="red-600"
-              iconColor="red-600"
               delay={0.2}
             />
             <MetricCard
@@ -1131,9 +1108,6 @@ const Dashboard: React.FC = () => {
               format="currency"
               icon={<Target />}
               isLoading={isLoading}
-              gradientFrom="green-500"
-              gradientTo="green-600"
-              iconColor="green-600"
               delay={0.3}
             />
           </div>
@@ -1152,9 +1126,6 @@ const Dashboard: React.FC = () => {
               format="currency"
               icon={<Target />}
               isLoading={isLoading}
-              gradientFrom="emerald-500"
-              gradientTo="emerald-600"
-              iconColor="emerald-600"
               delay={0.1}
             />
           </div>
