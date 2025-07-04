@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -19,6 +19,8 @@ import { toast } from 'sonner';
 import { API_URL } from '@/lib/constants';
 import { useQueryClient } from '@tanstack/react-query';
 import { useGym } from '@/context/GymContext';
+import axios from 'axios';
+import { Search, X } from 'lucide-react';
 
 interface Customer {
   _id: string;
@@ -73,18 +75,47 @@ export default function InvoiceForm({ open, onClose, onSubmit }: InvoiceFormProp
   ]);
   const { gym } = useGym();
 
+  // Customer dropdown states
+  const [customerDropdownOpen, setCustomerDropdownOpen] = useState(false);
+  const [customerSearch, setCustomerSearch] = useState('');
+  const customerDropdownRef = useRef<HTMLDivElement | null>(null);
+
+  // Filter customers based on search
+  const filteredCustomers = useMemo(() => {
+    if (!customerSearch.trim()) return customers;
+    const search = customerSearch.toLowerCase();
+    return customers.filter(customer =>
+      customer.name.toLowerCase().includes(search)
+    );
+  }, [customers, customerSearch]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!customerDropdownOpen) return;
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        customerDropdownRef.current &&
+        !customerDropdownRef.current.contains(event.target as Node)
+      ) {
+        setCustomerDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [customerDropdownOpen]);
+
   // Fetch customers
   useEffect(() => {
     const fetchCustomers = async () => {
       try {
-        const response = await fetch(`${API_URL}/customers`, {
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json'
-          }
+        const response = await axios.get(`${API_URL}/customers`, {
+          params: { limit: 10000 },
+          withCredentials: true
         });
-        if (!response.ok) throw new Error('Failed to fetch customers');
-        const data = await response.json();
+        
+        const data = response.data;
         const customersArray = Array.isArray(data) ? data : 
           (data.customers && Array.isArray(data.customers) ? data.customers : []);
         
@@ -229,6 +260,8 @@ export default function InvoiceForm({ open, onClose, onSubmit }: InvoiceFormProp
     }
   };
 
+  const selectedCustomer = customers.find(c => c._id === form.watch('customerId'));
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px]">
@@ -254,29 +287,77 @@ export default function InvoiceForm({ open, onClose, onSubmit }: InvoiceFormProp
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="customerId">Customer</Label>
-              <Select
-                value={form.watch('customerId')}
-                onValueChange={(value) => {
-                  form.setValue('customerId', value);
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select customer" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Array.isArray(customers) && customers.length > 0 ? (
-                    customers.map((customer) => (
-                      <SelectItem key={customer._id} value={customer._id}>
-                        {customer.name}
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem value="no-customers" disabled>
-                      No customers available
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
+              <div className="space-y-2" ref={customerDropdownRef}>
+                {selectedCustomer ? (
+                  <div className="flex items-center justify-between p-3 border rounded-md bg-green-50">
+                    <div>
+                      <p className="font-medium">{selectedCustomer.name}</p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        form.setValue('customerId', '');
+                        setCustomerSearch('');
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2 relative">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search customers by name..."
+                        value={customerSearch}
+                        onChange={e => setCustomerSearch(e.target.value)}
+                        onFocus={() => setCustomerDropdownOpen(true)}
+                        className="pl-10"
+                      />
+                    </div>
+                    {customerDropdownOpen && (
+                      <div className="absolute top-full left-0 right-0 border rounded-md bg-background shadow-lg max-h-80 overflow-hidden z-50">
+                        <div className="max-h-80 overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent">
+                          {filteredCustomers.length > 0 ? (
+                            <>
+                              <div className="sticky top-0 bg-muted/80 backdrop-blur-sm px-3 py-2 text-xs text-muted-foreground border-b">
+                                {filteredCustomers.length} customer{filteredCustomers.length !== 1 ? 's' : ''} found
+                              </div>
+                              {filteredCustomers.map((customer, index) => (
+                                <div
+                                  key={customer._id}
+                                  className={`p-3 hover:bg-muted cursor-pointer border-b last:border-b-0 transition-colors ${index % 2 === 0 ? 'bg-background' : 'bg-muted/30'}`}
+                                  onClick={() => {
+                                    form.setValue('customerId', customer._id);
+                                    setCustomerDropdownOpen(false);
+                                    setCustomerSearch('');
+                                  }}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex-1 min-w-0">
+                                      <p className="font-medium truncate">{customer.name}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </>
+                          ) : (
+                            <div className="p-6 text-center text-muted-foreground">
+                              <p className="font-medium">No customers found</p>
+                              <p className="text-sm">Try adjusting your search: "{customerSearch}"</p>
+                            </div>
+                          )}
+                        </div>
+                        {filteredCustomers.length > 8 && (
+                          <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
               {form.formState.errors.customerId && (
                 <p className="text-sm text-red-500">{form.formState.errors.customerId.message}</p>
               )}
