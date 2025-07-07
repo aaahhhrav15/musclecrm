@@ -85,7 +85,6 @@ const gymSchema = new mongoose.Schema({
   }
 });
 
-// Drop the old gymNumber index if it exists
 gymSchema.index({ gymNumber: 1 }, { unique: true, sparse: true });
 
 // Update the updatedAt timestamp before saving
@@ -94,13 +93,4 @@ gymSchema.pre('save', function(next) {
   next();
 });
 
-const Gym = mongoose.model('Gym', gymSchema);
-
-// Drop the old gymNumber index
-Gym.collection.dropIndex('gymNumber_1').catch(err => {
-  if (err.code !== 26) { // Ignore if index doesn't exist
-    console.error('Error dropping old index:', err);
-  }
-});
-
-module.exports = Gym; 
+module.exports = mongoose.model('Gym', gymSchema); 
