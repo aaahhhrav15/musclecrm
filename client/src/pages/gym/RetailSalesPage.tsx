@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import * as React from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -109,9 +110,10 @@ const RetailSalesPage: React.FC = () => {
     try {
       setLoading(true);
       const response = await axios.get('/api/gym/retail-sales');
-      setSales(response.data.data);
+      setSales(Array.isArray(response.data.data) ? response.data.data : []);
     } catch (error) {
       toast.error('Failed to fetch sales data');
+      setSales([]); // fallback to empty array on error
     } finally {
       setLoading(false);
     }
