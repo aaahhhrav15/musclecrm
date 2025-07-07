@@ -42,7 +42,7 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Configure CORS
 app.use(cors({
-  origin: ['http://localhost:5173', 'https://flexcrm-ui-suite.vercel.app', 'www.musclecrm.com','musclecrm.com'], // Your frontend URL
+  origin: ['http://localhost:5173', 'https://flexcrm-ui-suite.vercel.app', 'https://www.musclecrm.com','https://musclecrm.com'], // Your frontend URL
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
