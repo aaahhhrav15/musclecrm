@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 
-const API_BASE_URL = 'http://https://flexcrm-ui-suite-production-ec9f.up.railway.app';
+const API_BASE_URL = 'https://flexcrm-ui-suite-production-ec9f.up.railway.app';
 
 const WaiverFormsPage: React.FC = () => {
   const handleDownload = async () => {

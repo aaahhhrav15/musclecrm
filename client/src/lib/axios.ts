@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://https://flexcrm-ui-suite-production-ec9f.up.railway.app/api';
+const API_URL = import.meta.env.VITE_API_URL || 'https://flexcrm-ui-suite-production-ec9f.up.railway.app/api';
 
 // Create axios instance with default config
 const axiosInstance = axios.create({

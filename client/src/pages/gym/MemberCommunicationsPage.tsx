@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'react-hot-toast';
 import axios from 'axios';
 
-const API_BASE_URL = 'http://https://flexcrm-ui-suite-production-ec9f.up.railway.app';
+const API_BASE_URL = 'https://flexcrm-ui-suite-production-ec9f.up.railway.app';
 
 interface Customer {
   _id: string;
