@@ -68,9 +68,3 @@ classScheduleSchema.index({ status: 1 });
 classScheduleSchema.index({ gymId: 1 });
 
 module.exports = mongoose.model('ClassSchedule', classScheduleSchema); 
-classScheduleSchema.index({ startTime: 1, endTime: 1 });
-classScheduleSchema.index({ instructor: 1 });
-classScheduleSchema.index({ status: 1 });
-classScheduleSchema.index({ gymId: 1 });
-
-module.exports = mongoose.model('ClassSchedule', classScheduleSchema); 
