@@ -44,7 +44,7 @@ exports.generateNutritionPlan = async (req, res) => {
       targetWeight,
       objective,
       dietType,
-      allergies
+      additionalDetails
     } = req.body;
 
     // Validate required fields
@@ -61,7 +61,7 @@ exports.generateNutritionPlan = async (req, res) => {
     - Target weight: ${targetWeight}kg
     - Objective: ${objective}
     - Diet type: ${dietType}
-    - Allergies: ${allergies || 'None'}
+    - Additional requirements: ${additionalDetails || 'None'}
 
     The plan should include:
     1. Total daily calories
@@ -107,7 +107,7 @@ exports.generateNutritionPlan = async (req, res) => {
       ]
     }
 
-    Ensure all nutritional values are realistic and appropriate for the user's goals.`;
+    Ensure all nutritional values are realistic and appropriate for the user's goals. If specific calorie or protein targets are mentioned in the additional requirements, prioritize those in the plan.`;
 
     // Generate response from Gemini
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });

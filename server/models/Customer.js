@@ -102,4 +102,15 @@ customerSchema.index({ userId: 1, name: 1 });
 customerSchema.index({ gymId: 1 });
 customerSchema.index({ personalTrainer: 1 });
 
+// **OPTIMIZATION: Add compound indexes for dashboard queries**
+customerSchema.index({ userId: 1, gymId: 1, membershipEndDate: 1 });
+customerSchema.index({ userId: 1, gymId: 1, joinDate: 1 });
+customerSchema.index({ userId: 1, gymId: 1, birthday: 1 });
+customerSchema.index({ userId: 1, gymId: 1, totalSpent: 1 });
+customerSchema.index({ gymId: 1, membershipEndDate: 1 });
+customerSchema.index({ gymId: 1, joinDate: 1 });
+
+// **OPTIMIZATION: Text index for search functionality**
+customerSchema.index({ name: 'text', email: 'text', phone: 'text' });
+
 module.exports = mongoose.model('Customer', customerSchema);

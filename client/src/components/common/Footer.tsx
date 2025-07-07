@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 
@@ -38,29 +37,14 @@ const Footer: React.FC = () => {
             </div>
           </div>
           <div>
-            <h3 className="text-sm font-semibold tracking-wider text-gray-900 uppercase">Industries</h3>
-            <ul className="mt-4 space-y-3">
-              <li>
-                <Link to="/industries/gym" className="text-sm text-gray-600 hover:text-primary">
-                  Gym CRM
-                </Link>
-              </li>
-              <li>
-                <Link to="/industries/spa" className="text-sm text-gray-600 hover:text-primary">
-                  Spa CRM
-                </Link>
-              </li>
-              <li>
-                <Link to="/industries/hotel" className="text-sm text-gray-600 hover:text-primary">
-                  Hotel CRM
-                </Link>
-              </li>
-              <li>
-                <Link to="/industries/club" className="text-sm text-gray-600 hover:text-primary">
-                  Club CRM
-                </Link>
-              </li>
-            </ul>
+            <h3 className="text-sm font-semibold tracking-wider text-gray-900 uppercase">Industry</h3>
+            <div className="mt-4 flex flex-col items-start">
+              <div className="inline-flex items-center px-3 py-1 rounded-full bg-blue-100 text-blue-800 font-medium text-sm mb-2">
+                <svg className="w-4 h-4 mr-2 text-blue-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2a2 2 0 012-2h2a2 2 0 012 2v2m-6 0a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2m-6 0h6" /></svg>
+                Gym CRM
+              </div>
+              <span className="text-xs text-gray-500">All-in-one CRM for gyms and fitness centers.</span>
+            </div>
           </div>
           <div>
             <h3 className="text-sm font-semibold tracking-wider text-gray-900 uppercase">Company</h3>

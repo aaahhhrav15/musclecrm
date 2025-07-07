@@ -110,13 +110,13 @@ const cardColorMap: Record<string, {
   'Today Due Amount': {
     gradientFrom: 'from-amber-500/10', gradientTo: 'to-amber-600/5', iconBg: 'bg-amber-500/10', iconColor: 'text-amber-600'
   },
-  'Today Expense': {
+  'Today Gym Expense': {
     gradientFrom: 'from-slate-500/10', gradientTo: 'to-slate-600/5', iconBg: 'bg-slate-500/10', iconColor: 'text-slate-600'
   },
-  'Monthly Expense (July 2025)': {
+  'Monthly Gym Expense (July 2025)': {
     gradientFrom: 'from-violet-500/10', gradientTo: 'to-violet-600/5', iconBg: 'bg-violet-500/10', iconColor: 'text-violet-600'
   },
-  'Total Expense': {
+  'Total Gym Expense': {
     gradientFrom: 'from-rose-500/10', gradientTo: 'to-rose-600/5', iconBg: 'bg-rose-500/10', iconColor: 'text-rose-600'
   },
   'Today Enquiry': {
@@ -140,11 +140,30 @@ const cardColorMap: Record<string, {
   'Today Sell Invoice': { gradientFrom: 'from-pink-500/10', gradientTo: 'to-pink-600/5', iconBg: 'bg-pink-500/10', iconColor: 'text-pink-600' },
   'Total Sell Invoice': { gradientFrom: 'from-rose-500/10', gradientTo: 'to-rose-600/5', iconBg: 'bg-rose-500/10', iconColor: 'text-rose-600' },
   'Sell Due Amount': { gradientFrom: 'from-amber-500/10', gradientTo: 'to-amber-600/5', iconBg: 'bg-amber-500/10', iconColor: 'text-amber-600' },
-  'Total POS Expense': { gradientFrom: 'from-slate-500/10', gradientTo: 'to-slate-600/5', iconBg: 'bg-slate-500/10', iconColor: 'text-slate-600' },
-  'Today POS Expense': { gradientFrom: 'from-gray-500/10', gradientTo: 'to-gray-600/5', iconBg: 'bg-gray-500/10', iconColor: 'text-gray-600' },
+  'Total POS Expense': {
+    gradientFrom: 'from-red-500/10', gradientTo: 'to-red-600/5', iconBg: 'bg-red-500/10', iconColor: 'text-red-600'
+  },
+  'Today POS Expense': {
+    gradientFrom: 'from-orange-500/10', gradientTo: 'to-orange-600/5', iconBg: 'bg-orange-500/10', iconColor: 'text-orange-600'
+  },
   'Total POS Amount': { gradientFrom: 'from-blue-500/10', gradientTo: 'to-blue-600/5', iconBg: 'bg-blue-500/10', iconColor: 'text-blue-600' },
   'Total POS Profit': { gradientFrom: 'from-green-500/10', gradientTo: 'to-green-600/5', iconBg: 'bg-green-500/10', iconColor: 'text-green-600' },
   'Total Business Profit (Gym + POS)': { gradientFrom: 'from-emerald-500/10', gradientTo: 'to-emerald-600/5', iconBg: 'bg-emerald-500/10', iconColor: 'text-emerald-600' },
+  'Today Sell Value': {
+    gradientFrom: 'from-emerald-500/10', gradientTo: 'to-emerald-600/5', iconBg: 'bg-emerald-500/10', iconColor: 'text-emerald-600'
+  },
+  'Total Sell Value': {
+    gradientFrom: 'from-teal-500/10', gradientTo: 'to-teal-600/5', iconBg: 'bg-teal-500/10', iconColor: 'text-teal-600'
+  },
+  'Today Retail Sales': {
+    gradientFrom: 'from-green-500/10', gradientTo: 'to-green-600/5', iconBg: 'bg-green-500/10', iconColor: 'text-green-600'
+  },
+  'Total Retail Sales': {
+    gradientFrom: 'from-blue-500/10', gradientTo: 'to-blue-600/5', iconBg: 'bg-blue-500/10', iconColor: 'text-blue-600'
+  },
+  'Total Gym Expenses': {
+    gradientFrom: 'from-rose-500/10', gradientTo: 'to-rose-600/5', iconBg: 'bg-rose-500/10', iconColor: 'text-rose-600'
+  },
 };
 
 const defaultColor = {
@@ -164,7 +183,7 @@ const MetricCard: React.FC<MetricCardProps> = React.memo(({
   onClick,
   className,
 }) => {
-  const color = cardColorMap[title] || (title.startsWith('Monthly Expense') ? { gradientFrom: 'from-violet-500/10', gradientTo: 'to-violet-600/5', iconBg: 'bg-violet-500/10', iconColor: 'text-violet-600' } : defaultColor);
+  const color = cardColorMap[title] || (title.startsWith('Monthly Gym Expense') ? { gradientFrom: 'from-violet-500/10', gradientTo: 'to-violet-600/5', iconBg: 'bg-violet-500/10', iconColor: 'text-violet-600' } : defaultColor);
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -227,7 +246,11 @@ const defaultMetrics = {
     todayDueAmount: 0,
     todayMemberBirthdays: 0,
     todayExpense: 0,
+    monthlyExpense: 0,
     totalExpense: 0,
+    todayGymExpense: 0,
+    monthlyGymExpense: 0,
+    totalGymExpense: 0,
     todayEnquiry: 0,
     todayFollowUps: 0,
   },
@@ -250,6 +273,10 @@ const defaultMetrics = {
     sellDueAmount: 0,
     totalPosExpense: 0,
     todayPosExpense: 0,
+    todayRetailSales: 0,
+    totalRetailSales: 0,
+    todayRetailExpense: 0,
+    totalRetailExpense: 0,
   },
   posProfit: {
     posProfit: 0,
@@ -257,6 +284,11 @@ const defaultMetrics = {
   overallProfit: {
     totalProfit: 0,
   },
+  expenses: {
+    todayGymExpense: 0,
+    monthlyGymExpense: 0,
+    totalGymExpense: 0,
+  }
 };
 
 // Add Staff type for modal context
@@ -311,110 +343,40 @@ const Dashboard: React.FC = () => {
   // **OPTIMIZATION: Stabilize gym ID to prevent unnecessary re-renders**
   const stableGymId = useMemo(() => gym?._id, [gym?._id]);
   
-  // **OPTIMIZATION: Single expense query that gets all expense data**
-  const expenseQuery = useQuery({
-    queryKey: ["expenses", stableGymId],
+  // **OPTIMIZATION: Single dashboard query that gets all metrics including POS expenses**
+  const dashboardQuery = useQuery({
+    queryKey: ["dashboardMetrics", stableGymId],
     queryFn: async () => {
-      if (!stableGymId) return [];
-      const response = await axiosInstance.get(`/gym/expenses?gymId=${stableGymId}`);
-      return response.data || [];
+      if (!stableGymId) return defaultMetrics;
+      const response = await axiosInstance.get(`/dashboard`);
+      return response.data.metrics || defaultMetrics;
     },
     enabled: !!stableGymId,
-    staleTime: 300000, // 5 minutes
+    staleTime: 120000, // 2 minutes (matching backend cache)
     refetchOnWindowFocus: false,
-    refetchOnMount: false, // Prevent refetch on mount if data exists
-    refetchInterval: false, // Disable automatic refetching
-    retry: 1, // Reduce retry attempts
+    refetchOnMount: false,
+    refetchInterval: false,
+    retry: 1,
   });
 
-  // **OPTIMIZATION: Stabilized queries with better deduplication**
-  const queries = useQueries({
-    queries: [
-      {
-        queryKey: ["dashboardMetrics"],
-        queryFn: async () => {
-          const response = await axios.get(`${API_URL}/dashboard`, {
-            withCredentials: true,
-          });
-          return response.data.metrics;
-        },
-        staleTime: 30000, // 30 seconds
-        refetchOnWindowFocus: false,
-        refetchOnMount: false,
-        refetchInterval: false,
-        retry: 1,
-      },
-      {
-        queryKey: ["customers"],
-        queryFn: async () => {
-          const { customers } = await CustomerService.getCustomers({ 
-            page: 1, 
-            limit: 1000 // Reduced from 10000 to improve performance
-          });
-          return customers;
-        },
-        staleTime: 60000, // 1 minute
-        refetchOnWindowFocus: false,
-        refetchOnMount: false,
-        refetchInterval: false,
-        retry: 1,
-      }
-    ]
+  // **OPTIMIZATION: Customer query for additional data**
+  const customerQuery = useQuery({
+    queryKey: ["customers", stableGymId],
+    queryFn: async () => {
+      if (!stableGymId) return [];
+      const { customers } = await CustomerService.getCustomers({ 
+        page: 1, 
+        limit: 1000
+      });
+      return customers;
+    },
+    enabled: !!stableGymId,
+    staleTime: 60000, // 1 minute
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchInterval: false,
+    retry: 1,
   });
-
-  const [dashboardQuery, customerQuery] = queries;
-
-  // **OPTIMIZATION: Calculate expense metrics from single expense query with stable dependencies**
-  const expenseMetrics = useMemo(() => {
-    if (!expenseQuery.data || !Array.isArray(expenseQuery.data)) {
-      return {
-        monthlyExpense: 0,
-        totalExpense: 0,
-        todayExpense: 0
-      };
-    }
-
-    const expenses = expenseQuery.data;
-    const today = new Date();
-    const month = today.getMonth() + 1;
-    const year = today.getFullYear();
-    
-    // Set today's date boundaries
-    const todayStart = new Date(today);
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date(today);
-    todayEnd.setHours(23, 59, 59, 999);
-
-    // Filter and calculate all expense metrics in one pass
-    let monthlyExpense = 0;
-    let totalExpense = 0;
-    let todayExpense = 0;
-
-    expenses.forEach(expense => {
-      if (expense.category === "Gym" || expense.category === "gym") {
-        const expenseDate = new Date(expense.date);
-        
-        // Add to total
-        totalExpense += expense.amount || 0;
-        
-        // Check if it's this month
-        if (expenseDate.getMonth() + 1 === month && expenseDate.getFullYear() === year) {
-          monthlyExpense += expense.amount || 0;
-        }
-        
-        // Check if it's today
-        if (expenseDate >= todayStart && expenseDate <= todayEnd) {
-          todayExpense += expense.amount || 0;
-        }
-      }
-    });
-
-    return {
-      monthlyExpense,
-      totalExpense,
-      todayExpense
-    };
-  }, [expenseQuery.data, expenseQuery.dataUpdatedAt]); // Added dataUpdatedAt for stability
 
   // **OPTIMIZATION: Memoized calculations using stored end dates from database**
   const { 
@@ -509,9 +471,63 @@ const Dashboard: React.FC = () => {
     };
   }, [customerQuery.data, customerQuery.dataUpdatedAt]); // Added dataUpdatedAt for stability
 
-  // **OPTIMIZATION: Simplified metrics object with stable dependencies**
+  // Always provide a fallback for members
   const metrics = useMemo(() => {
-    const baseMetrics = dashboardQuery.data || defaultMetrics;
+    const data = dashboardQuery.data || {};
+    
+    // Debug logs to understand data structure
+    console.log('Raw dashboard data:', data);
+    console.log('Members data:', data.members);
+    console.log('Expenses data:', data.expenses);
+    
+    return {
+      ...defaultMetrics,
+      ...data,
+      members: {
+        ...defaultMetrics.members,
+        ...(data.members || {})
+      },
+      expenses: {
+        ...defaultMetrics.expenses,
+        ...(data.expenses || {})
+      }
+    };
+  }, [dashboardQuery.data, dashboardQuery.dataUpdatedAt]);
+
+  // **OPTIMIZATION: Enhanced metrics with customer data and fixed gym expenses**
+  const enhancedMetrics = useMemo(() => {
+    const baseMetrics = metrics;
+    
+    // Multiple fallback paths for gym expenses
+    const getTodayGymExpense = () => {
+      return baseMetrics.members?.todayGymExpense ?? 
+             baseMetrics.expenses?.todayGymExpense ?? 
+             baseMetrics.members?.todayExpense ?? 
+             0;
+    };
+    
+    const getMonthlyGymExpense = () => {
+      return baseMetrics.members?.monthlyGymExpense ?? 
+             baseMetrics.expenses?.monthlyGymExpense ?? 
+             baseMetrics.members?.monthlyExpense ?? 
+             0;
+    };
+    
+    const getTotalGymExpense = () => {
+      return baseMetrics.members?.totalGymExpense ?? 
+             baseMetrics.expenses?.totalGymExpense ?? 
+             baseMetrics.members?.totalExpense ?? 
+             0;
+    };
+    
+    console.log('Enhanced metrics calculation:', {
+      todayGymExpense: getTodayGymExpense(),
+      monthlyGymExpense: getMonthlyGymExpense(),
+      totalGymExpense: getTotalGymExpense(),
+      baseMembersData: baseMetrics.members,
+      baseExpensesData: baseMetrics.expenses
+    });
+    
     return {
       ...baseMetrics,
       members: {
@@ -522,29 +538,29 @@ const Dashboard: React.FC = () => {
         expiringIn7Days: memberMetrics.expiringIn7Days,
         todayMemberBirthdays: memberBirthdays,
         todayEnrolled: todayEnrolled,
-        todayExpense: expenseMetrics.todayExpense,
-        totalExpense: expenseMetrics.totalExpense,
         totalMemberAmount: totalMemberAmount,
+        // Fixed gym expense fields with multiple fallbacks
+        todayGymExpense: getTodayGymExpense(),
+        monthlyGymExpense: getMonthlyGymExpense(),
+        totalGymExpense: getTotalGymExpense(),
       }
     };
   }, [
-    dashboardQuery.data, 
-    dashboardQuery.dataUpdatedAt,
+    metrics, 
     memberMetrics, 
     memberBirthdays, 
     todayEnrolled, 
-    expenseMetrics,
     totalMemberAmount
-  ]); // Added dataUpdatedAt and stabilized dependencies
+  ]);
 
-  // **OPTIMIZATION: Memoized profit calculations using computed expense metrics**
+  // **OPTIMIZATION: Memoized profit calculations using dashboard metrics**
   const profitMetrics = useMemo(() => {
-    const memberAmount = metrics.memberProfit.memberAmount || 0;
-    const profitExpense = expenseMetrics.totalExpense || 0;
-    const totalGymProfit = memberAmount - profitExpense;
+    const memberAmount = enhancedMetrics.members?.totalMemberAmount || 0;
+    const memberExpense = enhancedMetrics.members?.totalGymExpense || 0;
+    const totalGymProfit = memberAmount - memberExpense;
     
-    const totalPosAmount = metrics.pos.totalSell || 0;
-    const totalPosExpense = metrics.pos.totalPosExpense || 0;
+    const totalPosAmount = metrics.pos?.totalRetailSales || 0;
+    const totalPosExpense = metrics.pos?.totalRetailExpense || 0;
     const calculatedPosProfit = totalPosAmount - totalPosExpense;
     
     const overallTotalProfit = totalGymProfit + calculatedPosProfit;
@@ -553,51 +569,13 @@ const Dashboard: React.FC = () => {
       totalGymProfit,
       calculatedPosProfit,
       overallTotalProfit,
-      profitExpense,
+      memberExpense,
     };
-  }, [metrics.memberProfit.memberAmount, metrics.pos.totalSell, metrics.pos.totalPosExpense, expenseMetrics.totalExpense]);
+  }, [enhancedMetrics.members?.totalMemberAmount, enhancedMetrics.members?.totalGymExpense, metrics.pos?.totalRetailSales, metrics.pos?.totalRetailExpense]);
 
-  // Fetch expiring personal training assignments
-  const {
-    data: expiringPTAssignments = [],
-    isLoading: isLoadingPT,
-    refetch: refetchPT
-  } = useQuery({
-    queryKey: ["expiringPTAssignments", stableGymId],
-    queryFn: async () => {
-      if (!stableGymId) return [];
-      return await ApiService.getExpiringPersonalTrainingAssignments(stableGymId);
-    },
-    enabled: !!stableGymId,
-    staleTime: 60000,
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    refetchInterval: false,
-    retry: 1,
-  });
-
-  // Memoize counts for today and next 7 days
-  const { ptExpiringToday, ptExpiringIn7Days, ptExpiringTodayList, ptExpiringIn7DaysList } = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const sevenDaysFromNow = new Date(today);
-    sevenDaysFromNow.setDate(today.getDate() + 7);
-    sevenDaysFromNow.setHours(23, 59, 59, 999);
-    const ptToday: PersonalTrainingAssignment[] = [];
-    const pt7Days: PersonalTrainingAssignment[] = [];
-    for (const a of expiringPTAssignments) {
-      const end = new Date(a.endDate);
-      end.setHours(0, 0, 0, 0);
-      if (end.getTime() === today.getTime()) ptToday.push(a);
-      if (end > today && end <= sevenDaysFromNow) pt7Days.push(a);
-    }
-    return {
-      ptExpiringToday: ptToday.length,
-      ptExpiringIn7Days: pt7Days.length,
-      ptExpiringTodayList: ptToday,
-      ptExpiringIn7DaysList: pt7Days,
-    };
-  }, [expiringPTAssignments]);
+  // **OPTIMIZATION: PT data now comes from main dashboard endpoint**
+  const ptExpiringToday = metrics.members?.ptExpiringToday || 0;
+  const ptExpiringIn7Days = metrics.members?.ptExpiringIn7Days || 0;
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -690,6 +668,7 @@ const Dashboard: React.FC = () => {
         }
       }
     } catch (e) {
+      console.error('Error loading modal data:', e);
       data = [];
     }
     
@@ -737,8 +716,8 @@ const Dashboard: React.FC = () => {
 
   // **OPTIMIZATION: Stabilized loading state check**
   const isLoading = useMemo(() => {
-    return dashboardQuery.isLoading || customerQuery.isLoading || expenseQuery.isLoading;
-  }, [dashboardQuery.isLoading, customerQuery.isLoading, expenseQuery.isLoading]);
+    return dashboardQuery.isLoading || customerQuery.isLoading;
+  }, [dashboardQuery.isLoading, customerQuery.isLoading]);
 
   // **OPTIMIZATION: Early return with memoized loading component**
   const LoadingComponent = useMemo(() => (
@@ -788,85 +767,85 @@ const Dashboard: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <MetricCard
               title="Total Members"
-              value={metrics.members.totalMembers}
+              value={enhancedMetrics.members.totalMembers || 0}
               icon={<Users />}
-              isLoading={isLoading}
+              isLoading={dashboardQuery.isLoading}
               delay={0.1}
             />
             <MetricCard
               title="Active Members"
-              value={metrics.members.activeMembers}
+              value={enhancedMetrics.members.activeMembers || 0}
               icon={<UserPlus />}
-              isLoading={isLoading}
+              isLoading={dashboardQuery.isLoading}
               delay={0.15}
             />
             <MetricCard
               title="Inactive Members"
-              value={metrics.members.inactiveMembers}
+              value={enhancedMetrics.members.inactiveMembers || 0}
               icon={<UserMinus />}
-              isLoading={isLoading}
+              isLoading={dashboardQuery.isLoading}
               delay={0.2}
               onClick={() => handleOpenModal("inactive")}
               className="cursor-pointer hover:shadow-lg transition"
             />
             <MetricCard
               title="Expiring in 7 Days"
-              value={metrics.members.expiringIn7Days}
+              value={enhancedMetrics.members.expiringIn7Days || 0}
               icon={<AlertCircle />}
-              isLoading={isLoading}
+              isLoading={dashboardQuery.isLoading}
               delay={0.25}
               onClick={() => handleOpenModal("expiring")}
               className="cursor-pointer hover:shadow-lg transition"
             />
             <MetricCard
               title="Today Enrolled"
-              value={metrics.members.todayEnrolled}
+              value={enhancedMetrics.members.todayEnrolled || 0}
               icon={<UserPlus />}
-              isLoading={isLoading}
+              isLoading={dashboardQuery.isLoading}
               delay={0.3}
               onClick={() => handleOpenModal("todayEnrolled")}
               className="cursor-pointer hover:shadow-lg transition"
             />
             <MetricCard
               title="Total Member Amount"
-              value={metrics.members.totalMemberAmount}
+              value={enhancedMetrics.members.totalMemberAmount || 0}
               icon={<DollarSign />}
               format="currency"
-              isLoading={isLoading}
+              isLoading={dashboardQuery.isLoading}
               delay={0.35}
             />
             <MetricCard
               title="Employee Birthdays"
-              value={metrics.members.todayEmployeeBirthdays}
+              value={metrics.members?.todayEmployeeBirthdays || 0}
               icon={<Cake />}
-              isLoading={isLoading}
+              isLoading={dashboardQuery.isLoading}
               delay={0.4}
               onClick={() => handleOpenModal("employeeBirthdays")}
               className="cursor-pointer hover:shadow-lg transition"
             />
             <MetricCard
               title="Member Birthdays"
-              value={metrics.members.todayMemberBirthdays}
+              value={enhancedMetrics.members.todayMemberBirthdays || 0}
               icon={<Gift />}
-              isLoading={isLoading}
+              isLoading={dashboardQuery.isLoading}
               delay={0.45}
               onClick={() => handleOpenModal("memberBirthdays")}
               className="cursor-pointer hover:shadow-lg transition"
             />
             <MetricCard
               title="PT Expiring Today"
-              value={ptExpiringToday}
+              value={metrics.members?.ptExpiringToday || 0}
               icon={<AlertCircle />}
-              isLoading={isLoadingPT}
+              isLoading={dashboardQuery.isLoading}
               delay={0.26}
               onClick={() => handleOpenPTModal('today')}
               className="cursor-pointer hover:shadow-lg transition"
             />
             <MetricCard
               title="PT Expiring in 7 Days"
-              value={ptExpiringIn7Days}
+              value={metrics.members?.ptExpiringIn7Days || 0}
               icon={<AlertCircle />}
-              isLoading={isLoadingPT}
+              isLoading={dashboardQuery.isLoading}
               delay={0.27}
               onClick={() => handleOpenPTModal('7days')}
               className="cursor-pointer hover:shadow-lg transition"
@@ -874,64 +853,67 @@ const Dashboard: React.FC = () => {
 
             <MetricCard
               title="Today Invoices"
-              value={metrics.members.todayInvoices}
+              value={metrics.members?.todayInvoices || 0}
               icon={<BarChart3 />}
-              isLoading={isLoading}
+              isLoading={dashboardQuery.isLoading}
               delay={0.5}
             />
             <MetricCard
               title="Total Invoices"
-              value={metrics.members.totalInvoices}
+              value={metrics.members?.totalInvoices || 0}
               icon={<BarChart3 />}
-              isLoading={isLoading}
+              isLoading={dashboardQuery.isLoading}
               delay={0.55}
             />
             <MetricCard
               title="Today Due Amount"
-              value={metrics.members.todayDueAmount}
+              value={metrics.members?.todayDueAmount || 0}
               icon={<AlertCircle />}
               format="currency"
-              isLoading={isLoading}
+              isLoading={dashboardQuery.isLoading}
               delay={0.6}
             />
+            
+            {/* FIXED GYM EXPENSE CARDS */}
             <MetricCard
-              title="Today Expense"
-              value={expenseMetrics.todayExpense}
+              title="Today Gym Expense"
+              value={enhancedMetrics.members?.todayGymExpense || 0}
               icon={<DollarSign />}
               format="currency"
-              isLoading={expenseQuery.isLoading}
+              isLoading={dashboardQuery.isLoading}
               delay={0.65}
             />
             <MetricCard
-              title={`Monthly Expense (${format(new Date(), "MMMM yyyy")})`}
-              value={expenseMetrics.monthlyExpense}
+              title={`Monthly Gym Expense (${format(new Date(), "MMMM yyyy")})`}
+              value={enhancedMetrics.members?.monthlyGymExpense || 0}
               icon={<Calendar />}
               format="currency"
-              isLoading={expenseQuery.isLoading}
+              isLoading={dashboardQuery.isLoading}
               delay={0.7}
             />
             <MetricCard
-              title="Total Expense"
-              value={expenseMetrics.totalExpense}
+              title="Total Gym Expense"
+              value={enhancedMetrics.members?.totalGymExpense || 0}
               icon={<TrendingUp />}
               format="currency"
-              isLoading={expenseQuery.isLoading}
+              isLoading={dashboardQuery.isLoading}
               delay={0.75}
             />
+            
             <MetricCard
               title="Today Enquiry"
-              value={metrics.members.todayEnquiry}
+              value={metrics.members?.todayEnquiry || 0}
               icon={<Users />}
-              isLoading={isLoading}
+              isLoading={dashboardQuery.isLoading}
               delay={0.8}
               onClick={() => handleOpenModal("todayEnquiry")}
               className="cursor-pointer hover:shadow-lg transition"
             />
             <MetricCard
               title="Today Follow-Ups"
-              value={metrics.members.todayFollowUps}
+              value={metrics.members?.todayFollowUps || 0}
               icon={<Target />}
-              isLoading={isLoading}
+              isLoading={dashboardQuery.isLoading}
               delay={0.85}
               onClick={() => handleOpenModal("todayFollowUps")}
               className="cursor-pointer hover:shadow-lg transition"
@@ -949,18 +931,18 @@ const Dashboard: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <MetricCard
               title="Member Amount"
-              value={metrics.memberProfit.memberAmount}
+              value={enhancedMetrics.members?.totalMemberAmount || 0}
               format="currency"
               icon={<DollarSign />}
-              isLoading={isLoading}
+              isLoading={dashboardQuery.isLoading}
               delay={0.1}
             />
             <MetricCard
-              title="Total Expenses"
-              value={profitMetrics.profitExpense}
+              title="Total Gym Expenses"
+              value={enhancedMetrics.members?.totalGymExpense || 0}
               format="currency"
               icon={<TrendingUp />}
-              isLoading={expenseQuery.isLoading}
+              isLoading={dashboardQuery.isLoading}
               delay={0.2}
             />
             <MetricCard
@@ -968,7 +950,7 @@ const Dashboard: React.FC = () => {
               value={profitMetrics.totalGymProfit}
               format="currency"
               icon={<Target />}
-              isLoading={isLoading || expenseQuery.isLoading}
+              isLoading={isLoading}
               delay={0.3}
             />
           </div>
@@ -980,108 +962,38 @@ const Dashboard: React.FC = () => {
             <div className="h-8 w-1 bg-gradient-to-b from-purple-500 to-purple-600 rounded-full" />
             <h2 className="text-2xl font-bold">Point of Sale</h2>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <MetricCard
-              title="Today Purchase"
-              value={metrics.pos.todayPurchase}
+              title="Today Retail Sales"
+              value={metrics.pos?.todayRetailSales ?? 0}
               format="currency"
-              icon={<ShoppingCart />}
-              isLoading={isLoading}
+              icon={<TrendingUp />}
+              isLoading={dashboardQuery.isLoading}
               delay={0.1}
             />
             <MetricCard
-              title="Total Purchase"
-              value={metrics.pos.totalPurchase}
+              title="Total Retail Sales"
+              value={metrics.pos?.totalRetailSales ?? 0}
               format="currency"
-              icon={<ShoppingCart />}
-              isLoading={isLoading}
-              delay={0.15}
-            />
-            <MetricCard
-              title="Total Stock Value"
-              value={metrics.pos.totalStockValue}
-              format="currency"
-              icon={<BarChart3 />}
-              isLoading={isLoading}
+              icon={<TrendingUp />}
+              isLoading={dashboardQuery.isLoading}
               delay={0.2}
             />
             <MetricCard
-              title="Low Stock Value"
-              value={metrics.pos.lowStockValue}
-              format="currency"
-              icon={<AlertCircle />}
-              isLoading={isLoading}
-              delay={0.25}
-            />
-            <MetricCard
-              title="Total Clearing Amount"
-              value={metrics.pos.totalClearingAmount}
+              title="Today POS Expense"
+              value={metrics.pos?.todayRetailExpense ?? 0}
               format="currency"
               icon={<DollarSign />}
-              isLoading={isLoading}
+              isLoading={dashboardQuery.isLoading}
               delay={0.3}
             />
             <MetricCard
-              title="Today Sell"
-              value={metrics.pos.todaySell}
-              format="currency"
-              icon={<TrendingUp />}
-              isLoading={isLoading}
-              delay={0.35}
-            />
-            <MetricCard
-              title="Total Sell"
-              value={metrics.pos.totalSell}
-              format="currency"
-              icon={<TrendingUp />}
-              isLoading={isLoading}
-              delay={0.4}
-            />
-            <MetricCard
-              title="Total Sell Purchase Value"
-              value={metrics.pos.totalSellPurchaseValue}
-              format="currency"
-              icon={<BarChart3 />}
-              isLoading={isLoading}
-              delay={0.45}
-            />
-            <MetricCard
-              title="Today Sell Invoice"
-              value={metrics.pos.todaySellInvoice}
-              icon={<BarChart3 />}
-              isLoading={isLoading}
-              delay={0.5}
-            />
-            <MetricCard
-              title="Total Sell Invoice"
-              value={metrics.pos.totalSellInvoice}
-              icon={<BarChart3 />}
-              isLoading={isLoading}
-              delay={0.55}
-            />
-            <MetricCard
-              title="Sell Due Amount"
-              value={metrics.pos.sellDueAmount}
-              format="currency"
-              icon={<AlertCircle />}
-              isLoading={isLoading}
-              delay={0.6}
-            />
-            <MetricCard
               title="Total POS Expense"
-              value={metrics.pos.totalPosExpense}
+              value={metrics.pos?.totalRetailExpense ?? 0}
               format="currency"
               icon={<DollarSign />}
-              isLoading={isLoading}
-              delay={0.65}
-            />
-            <MetricCard
-              title="Today POS Expense"
-              value={metrics.pos.todayPosExpense}
-              format="currency"
-              icon={<DollarSign />}
-              isLoading={isLoading}
-              delay={0.7}
+              isLoading={dashboardQuery.isLoading}
+              delay={0.4}
             />
           </div>
         </div>
@@ -1095,18 +1007,18 @@ const Dashboard: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <MetricCard
               title="Total POS Amount"
-              value={metrics.pos.totalSell}
+              value={metrics.pos?.totalRetailSales || 0}
               format="currency"
               icon={<DollarSign />}
-              isLoading={isLoading}
+              isLoading={dashboardQuery.isLoading}
               delay={0.1}
             />
             <MetricCard
               title="Total POS Expense"
-              value={metrics.pos.totalPosExpense}
+              value={metrics.pos?.totalRetailExpense || 0}
               format="currency"
               icon={<TrendingUp />}
-              isLoading={isLoading}
+              isLoading={dashboardQuery.isLoading}
               delay={0.2}
             />
             <MetricCard
@@ -1114,7 +1026,7 @@ const Dashboard: React.FC = () => {
               value={profitMetrics.calculatedPosProfit}
               format="currency"
               icon={<Target />}
-              isLoading={isLoading}
+              isLoading={dashboardQuery.isLoading}
               delay={0.3}
             />
           </div>
@@ -1260,32 +1172,14 @@ const Dashboard: React.FC = () => {
               {ptModalType === 'today' ? 'Personal Training Expiring Today' : 'Personal Training Expiring in Next 7 Days'}
             </DialogTitle>
           </DialogHeader>
-          {((ptModalType === 'today' ? ptExpiringTodayList : ptExpiringIn7DaysList).length === 0) ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No expiring personal training assignments found.
-            </div>
-          ) : (
-            <div className="max-h-[70vh] overflow-y-auto">
-              <table className="min-w-full text-sm">
-                <thead>
-                  <tr>
-                    <th className="text-left p-2">Member</th>
-                    <th className="text-left p-2">Trainer</th>
-                    <th className="text-left p-2">End Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(ptModalType === 'today' ? ptExpiringTodayList : ptExpiringIn7DaysList).map((a) => (
-                    <tr key={a._id} className="border-b">
-                      <td className="p-2">{a.customerId?.name || '-'}</td>
-                      <td className="p-2">{a.trainerId?.name || '-'}</td>
-                      <td className="p-2">{a.endDate ? new Date(a.endDate).toLocaleDateString() : '-'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <div className="text-center py-8 text-muted-foreground">
+            {ptModalType === 'today' 
+              ? `There are ${ptExpiringToday} personal training assignments expiring today.`
+              : `There are ${ptExpiringIn7Days} personal training assignments expiring in the next 7 days.`
+            }
+            <br />
+            <span className="text-sm">Detailed list will be available in a future update.</span>
+          </div>
         </DialogContent>
       </Dialog>
     </DashboardLayout>

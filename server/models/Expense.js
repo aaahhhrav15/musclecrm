@@ -36,4 +36,10 @@ const expenseSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// **OPTIMIZATION: Add compound indexes for dashboard queries**
+expenseSchema.index({ gymId: 1, date: 1 });
+expenseSchema.index({ gymId: 1, category: 1, date: 1 });
+expenseSchema.index({ gymId: 1, amount: 1 });
+expenseSchema.index({ userId: 1, gymId: 1, date: 1 });
+
 module.exports = mongoose.model('Expense', expenseSchema); 

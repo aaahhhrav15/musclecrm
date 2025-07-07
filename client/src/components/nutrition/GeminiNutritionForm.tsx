@@ -45,7 +45,7 @@ const GeminiNutritionForm: React.FC<GeminiNutritionFormProps> = ({ onPlanGenerat
     targetWeight: '',
     objective: '',
     dietType: '',
-    allergies: ''
+    additionalDetails: ''
   });
   const [customerDropdownOpen, setCustomerDropdownOpen] = useState(false);
   const [customerSearch, setCustomerSearch] = useState('');
@@ -293,11 +293,11 @@ const GeminiNutritionForm: React.FC<GeminiNutritionFormProps> = ({ onPlanGenerat
         </div>
 
         <div className="grid gap-2">
-          <label className="text-sm font-medium">Allergies (if any)</label>
+          <label className="text-sm font-medium">Additional Details</label>
           <Textarea
-            value={formData.allergies}
-            onChange={(e) => setFormData(prev => ({ ...prev, allergies: e.target.value }))}
-            placeholder="Enter any food allergies or leave empty if none"
+            value={formData.additionalDetails}
+            onChange={(e) => setFormData(prev => ({ ...prev, additionalDetails: e.target.value }))}
+            placeholder="Enter any additional requirements like calories intake, protein goals, dietary preferences, allergies, or other specific needs"
             className="h-20"
           />
         </div>

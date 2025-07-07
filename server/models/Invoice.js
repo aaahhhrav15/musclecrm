@@ -129,4 +129,10 @@ invoiceSchema.index({ gymId: 1 });
 invoiceSchema.index({ bookingId: 1 });
 invoiceSchema.index({ customerId: 1 });
 
+// **OPTIMIZATION: Add compound indexes for dashboard queries**
+invoiceSchema.index({ gymId: 1, status: 1, createdAt: 1 });
+invoiceSchema.index({ gymId: 1, dueDate: 1 });
+invoiceSchema.index({ gymId: 1, amount: 1 });
+invoiceSchema.index({ userId: 1, gymId: 1, createdAt: 1 });
+
 module.exports = mongoose.models.Invoice || mongoose.model('Invoice', invoiceSchema);

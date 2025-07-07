@@ -22,6 +22,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -48,6 +49,7 @@ const formSchema = z.object({
   membershipStartDate: z.date(),
   transactionDate: z.date(),
   paymentMode: z.enum(['cash', 'card', 'upi', 'bank_transfer', 'other']),
+  notes: z.string().optional(),
 });
 
 interface RenewMembershipModalProps {
@@ -100,6 +102,7 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
       membershipStartDate: new Date(),
       transactionDate: new Date(),
       paymentMode: 'cash' as const,
+      notes: '',
     }
   });
 
@@ -197,6 +200,7 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
         membershipEndDate: newEndDate,
         transactionDate: values.transactionDate,
         paymentMode: values.paymentMode,
+        notes: values.notes || '',
       };
 
       console.log('Renewal data being sent:', updateData);
@@ -212,6 +216,10 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
       const response = await CustomerService.updateCustomer(customer.id, updateData);
 
       // Create transaction record
+      const transactionDescription = values.notes 
+        ? `${values.membershipType.toUpperCase()} membership renewal for ${values.membershipDuration} months (${safeFormatDate(newStartDate, 'PPP')} to ${safeFormatDate(newEndDate, 'PPP')}) - Notes: ${values.notes}`
+        : `${values.membershipType.toUpperCase()} membership renewal for ${values.membershipDuration} months (${safeFormatDate(newStartDate, 'PPP')} to ${safeFormatDate(newEndDate, 'PPP')})`;
+
       await transactionService.createTransaction({
         userId: customer.id,
         gymId: user?.gymId,
@@ -220,7 +228,7 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
         amount: values.membershipFees,
         membershipType: values.membershipType,
         paymentMode: values.paymentMode,
-        description: `${values.membershipType.toUpperCase()} membership renewal for ${values.membershipDuration} months (${safeFormatDate(newStartDate, 'PPP')} to ${safeFormatDate(newEndDate, 'PPP')})`,
+        description: transactionDescription,
         status: 'SUCCESS'
       });
 
@@ -500,6 +508,25 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
                         />
                       </PopoverContent>
                     </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="grid gap-2">
+              <FormField
+                control={form.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Notes</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Enter any additional notes about this renewal..."
+                        className="min-h-[80px]"
+                        {...field}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
