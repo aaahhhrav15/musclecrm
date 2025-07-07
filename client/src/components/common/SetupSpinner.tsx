@@ -29,7 +29,7 @@ const SetupSpinner: React.FC<SetupSpinnerProps> = ({ message }) => {
           transition={{ delay: 0.3, duration: 0.5 }}
           className="mb-2 text-2xl font-semibold"
         >
-          Setting up your FlexCRM
+          Setting up your MuscleCRM
         </motion.h2>
         <motion.p
           initial={{ opacity: 0 }}

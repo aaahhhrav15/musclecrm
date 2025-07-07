@@ -3,7 +3,7 @@ export const API_URL = 'https://flexcrm-ui-suite-production-ec9f.up.railway.app/
 
 // Other configuration settings can be added here
 export const APP_CONFIG = {
-  name: 'FlexCRM',
+  name: 'MuscleCRM',
   version: '1.0.0',
   // Add more configuration as needed
 }; 

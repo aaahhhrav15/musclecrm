@@ -72,7 +72,7 @@ const ContactPage: React.FC = () => {
         <section className="bg-primary/5 py-16 md:py-24">
           <div className="container mx-auto px-4">
             <div className="max-w-3xl mx-auto text-center">
-              <h1 className="text-4xl font-bold tracking-tight md:text-5xl mb-6">Contact FlexCRM</h1>
+              <h1 className="text-4xl font-bold tracking-tight md:text-5xl mb-6">Contact MuscleCRM</h1>
               <p className="text-xl text-muted-foreground mb-8">
                 We're here to help with any questions about our platform. 
                 Get in touch with our team and we'll respond as soon as possible.
@@ -100,8 +100,8 @@ const ContactPage: React.FC = () => {
                     </div>
                     <div>
                       <h3 className="text-lg font-medium">Email</h3>
-                      <p className="text-muted-foreground">info@flexcrm.com</p>
-                      <p className="text-muted-foreground">support@flexcrm.com</p>
+                      <p className="text-muted-foreground">info@musclecrm.com</p>
+                      <p className="text-muted-foreground">support@musclecrm.com</p>
                     </div>
                   </div>
                   

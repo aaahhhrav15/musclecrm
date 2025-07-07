@@ -361,10 +361,10 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen, setIsOpen }
                 className="flex items-center"
               >
                 <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/70 rounded-lg flex items-center justify-center mr-3 shadow-lg">
-                  <span className="text-white font-bold text-sm">F</span>
+                  <span className="text-white font-bold text-sm">M</span>
                 </div>
                 <h2 className="text-xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-                  FlexCRM
+                  MuscleCRM
                 </h2>
               </motion.div>
             </Link>
@@ -493,8 +493,8 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen, setIsOpen }
           <motion.div variants={itemVariants} className="pt-6 mt-auto border-t border-border/50">
             <div className="px-3 py-3 rounded-lg bg-muted/30 border border-border/50">
               <div className="text-xs text-muted-foreground space-y-1">
-                <p className="font-medium text-foreground/80">FlexCRM v1.0</p>
-                <p className="text-xs">© 2025 FlexCRM Inc.</p>
+                <p className="font-medium text-foreground/80">MuscleCRM v1.0</p>
+                <p className="text-xs">© 2025 MuscleCRM Inc.</p>
               </div>
             </div>
           </motion.div>

@@ -10,7 +10,7 @@ const Footer: React.FC = () => {
         <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
           <div>
             <Link to="/" className="inline-block mb-4">
-              <span className="text-xl font-bold text-primary">FlexCRM</span>
+              <span className="text-xl font-bold text-primary">MuscleCRM</span>
             </Link>
             <p className="mt-2 text-sm text-gray-600">
               All-in-one CRM solution for your business, tailored to your industry needs.
@@ -99,7 +99,7 @@ const Footer: React.FC = () => {
         </div>
         <div className="pt-8 mt-8 border-t border-gray-200">
           <p className="text-sm text-gray-500">
-            &copy; {currentYear} FlexCRM. All rights reserved.
+            &copy; {currentYear} MuscleCRM. All rights reserved.
           </p>
         </div>
       </div>
