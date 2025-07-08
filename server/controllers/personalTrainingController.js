@@ -25,6 +25,15 @@ exports.createAssignment = async (req, res) => {
       return res.status(400).json({ error: 'All fields are required.' });
     }
 
+    // Check if customer has an active membership
+    const customer = await Customer.findById(customerId);
+    if (!customer) {
+      return res.status(404).json({ error: 'Customer not found.' });
+    }
+    if (!customer.membershipEndDate || new Date(customer.membershipEndDate) < new Date()) {
+      return res.status(400).json({ error: 'Cannot assign personal training. Customer does not have an active membership.' });
+    }
+
     // Calculate end date
     const start = new Date(startDate);
     const end = new Date(start);
@@ -224,8 +233,22 @@ exports.renewAssignment = async (req, res) => {
       return res.status(400).json({ error: 'All fields are required.' });
     }
 
+    // Find the assignment to get the customerId
+    const assignment = await PersonalTrainingAssignment.findById(id);
+    if (!assignment) {
+      return res.status(404).json({ error: 'Assignment not found.' });
+    }
+    // Check if customer has an active membership
+    const customer = await Customer.findById(assignment.customerId);
+    if (!customer) {
+      return res.status(404).json({ error: 'Customer not found.' });
+    }
+    if (!customer.membershipEndDate || new Date(customer.membershipEndDate) < new Date()) {
+      return res.status(400).json({ error: 'Cannot renew personal training. Customer does not have an active membership.' });
+    }
+
     // Update the assignment
-    const assignment = await PersonalTrainingAssignment.findByIdAndUpdate(
+    const updatedAssignment = await PersonalTrainingAssignment.findByIdAndUpdate(
       id,
       {
         startDate: new Date(startDate),
@@ -237,13 +260,13 @@ exports.renewAssignment = async (req, res) => {
     ).populate('customerId', 'name email phone')
      .populate('trainerId', 'name email');
 
-    if (!assignment) {
+    if (!updatedAssignment) {
       return res.status(404).json({ error: 'Assignment not found.' });
     }
 
     // Update customer's personalTrainer field with full assignment
     await Customer.findByIdAndUpdate(assignment.customerId._id || assignment.customerId, {
-      personalTrainer: assignment
+      personalTrainer: updatedAssignment
     });
 
     // Generate invoice for renewal
@@ -285,7 +308,7 @@ exports.renewAssignment = async (req, res) => {
     });
 
     res.status(200).json({
-      assignment,
+      assignment: updatedAssignment,
       invoice,
       transaction: txn
     });

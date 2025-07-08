@@ -874,16 +874,16 @@ const PersonalTrainingPage: React.FC = () => {
                       <TableRow key={assignment._id} className="hover:bg-muted/50">
                         <TableCell>
                           <div className="flex flex-col">
-                            <span className="font-medium">{assignment.customerId?.name}</span>
-                            {assignment.customerId?.phone && (
+                            <span className="font-medium">{assignment.customerId && assignment.customerId.name ? assignment.customerId.name : 'N/A'}</span>
+                            {assignment.customerId && assignment.customerId.phone && (
                               <span className="text-xs text-muted-foreground">{assignment.customerId.phone}</span>
                             )}
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col">
-                            <span className="font-medium">{assignment.trainerId?.name}</span>
-                            {assignment.trainerId?.email && (
+                            <span className="font-medium">{assignment.trainerId && assignment.trainerId.name ? assignment.trainerId.name : 'N/A'}</span>
+                            {assignment.trainerId && assignment.trainerId.email && (
                               <span className="text-xs text-muted-foreground">{assignment.trainerId.email}</span>
                             )}
                           </div>
@@ -1144,15 +1144,15 @@ const PersonalTrainingPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="font-medium text-sm text-muted-foreground">Customer</label>
-                  <p className="font-medium">{viewAssignment.customerId?.name}</p>
-                  {viewAssignment.customerId?.phone && (
+                  <p className="font-medium">{viewAssignment.customerId && viewAssignment.customerId.name ? viewAssignment.customerId.name : 'N/A'}</p>
+                  {viewAssignment.customerId && viewAssignment.customerId.phone && (
                     <p className="text-sm text-muted-foreground">{viewAssignment.customerId.phone}</p>
                   )}
                 </div>
                 <div>
                   <label className="font-medium text-sm text-muted-foreground">Trainer</label>
-                  <p className="font-medium">{viewAssignment.trainerId?.name}</p>
-                  {viewAssignment.trainerId?.email && (
+                  <p className="font-medium">{viewAssignment.trainerId && viewAssignment.trainerId.name ? viewAssignment.trainerId.name : 'N/A'}</p>
+                  {viewAssignment.trainerId && viewAssignment.trainerId.email && (
                     <p className="text-sm text-muted-foreground">{viewAssignment.trainerId.email}</p>
                   )}
                 </div>

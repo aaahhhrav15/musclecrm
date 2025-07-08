@@ -258,7 +258,17 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({ userId }
               <TableCell>{formatCurrency(transaction.amount)}</TableCell>
               <TableCell>{transaction.paymentMode}</TableCell>
               <TableCell>{transaction.status}</TableCell>
-              <TableCell className="max-w-xs break-words">{transaction.description}</TableCell>
+              <TableCell className="max-w-xs break-words">
+                {(() => {
+                  const desc = transaction.description;
+                  const trainer = transaction.personalTrainingAssignment?.trainerId;
+                  let trainerName = '';
+                  if (trainer && typeof trainer === 'object' && (trainer as { name?: unknown }).name) {
+                    trainerName = (trainer as { name?: string }).name || '';
+                  }
+                  return trainerName ? `${desc} | Trainer: ${trainerName}` : desc;
+                })()}
+              </TableCell>
               <TableCell>
                 <Button variant="ghost" size="icon" onClick={() => handleEdit(transaction)}>
                   <Edit className="h-4 w-4" />

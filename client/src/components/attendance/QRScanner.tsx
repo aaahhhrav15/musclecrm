@@ -6,7 +6,7 @@ import { Loader2, QrCode } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://flexcrm-ui-suite-production-ec9f.up.railway.app/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
 interface QRScannerProps {
   isOpen: boolean;

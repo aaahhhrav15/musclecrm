@@ -31,6 +31,8 @@ interface MembershipStatus {
   variant: BadgeVariant;
 }
 
+type TrainerIdObj = { name?: string; email?: string; phone?: string };
+
 type Trainer = {
   _id: string;
   name: string;
@@ -385,10 +387,10 @@ export const ViewCustomerModal: React.FC<ViewCustomerModalProps> = ({
                       // Find the assignment with the latest endDate
                       const latestAssignment = assignments.reduce((latest, curr) => {
                         if (!latest) return curr;
-                        const latestDate = new Date(latest.endDate || 0);
+                        const latestDate = new Date((latest as PersonalTrainingAssignment).endDate || 0);
                         const currDate = new Date(curr.endDate || 0);
                         return currDate > latestDate ? curr : latest;
-                      }, assignments[0]);
+                      }, assignments[0] as PersonalTrainingAssignment);
                       return (
                         <>
                           <div className="mb-4">
@@ -408,9 +410,9 @@ export const ViewCustomerModal: React.FC<ViewCustomerModalProps> = ({
                               return (
                                 <div key={pta._id} className="border rounded p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
                                   <div>
-                                    <div className="font-medium">Trainer: {trainer?.name || (typeof pta.trainerId === 'object' && 'name' in pta.trainerId ? pta.trainerId.name : 'N/A')}</div>
-                                    <div className="text-sm text-muted-foreground">Email: {trainer?.email || (typeof pta.trainerId === 'object' && 'email' in pta.trainerId ? pta.trainerId.email : 'N/A')}</div>
-                                    <div className="text-sm text-muted-foreground">Phone: {trainer?.phone || (typeof pta.trainerId === 'object' && 'phone' in pta.trainerId ? pta.trainerId.phone : 'N/A')}</div>
+                                    <div className="font-medium">Trainer: {trainer?.name || (typeof pta.trainerId === 'object' && pta.trainerId && (pta.trainerId as TrainerIdObj).name ? (pta.trainerId as TrainerIdObj).name : 'N/A')}</div>
+                                    <div className="text-sm text-muted-foreground">Email: {trainer?.email || (typeof pta.trainerId === 'object' && pta.trainerId && (pta.trainerId as TrainerIdObj).email ? (pta.trainerId as TrainerIdObj).email : 'N/A')}</div>
+                                    <div className="text-sm text-muted-foreground">Phone: {trainer?.phone || (typeof pta.trainerId === 'object' && pta.trainerId && (pta.trainerId as TrainerIdObj).phone ? (pta.trainerId as TrainerIdObj).phone : 'N/A')}</div>
                                   </div>
                                   <div>
                                     <div>Start: {formatDate(pta.startDate)}</div>
