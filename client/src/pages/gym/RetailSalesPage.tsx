@@ -460,7 +460,7 @@ const RetailSalesPage: React.FC = () => {
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.3 }}
-            className="overflow-hidden"
+            className="overflow-hidden -mt-6"
           >
             <Card className="shadow-lg border-0">
               <CardHeader className="pb-4">
@@ -480,7 +480,7 @@ const RetailSalesPage: React.FC = () => {
                           {dateFilter ? dateFilter.toLocaleDateString() : 'All dates'}
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="p-0" align="start">
+                      <PopoverContent className="p-0 overflow-visible" side="bottom" align="start" sideOffset={4}>
                         <Calendar
                           mode="single"
                           selected={dateFilter}

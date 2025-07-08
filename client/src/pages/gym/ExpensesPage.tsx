@@ -74,6 +74,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Skeleton } from '@/components/ui/skeleton';
 import * as Papa from 'papaparse';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Calendar as CalendarIcon } from 'lucide-react';
+import { isSameDay, isSameMonth } from 'date-fns';
 
 interface Expense {
   _id: string;
@@ -123,6 +127,13 @@ const ExpensesPage: React.FC = () => {
     date: format(new Date(), 'yyyy-MM-dd'),
   });
 
+  const [filterMode, setFilterMode] = useState<'daily' | 'monthly'>('daily');
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState<Date | null>(null);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [selectedMonthNumber, setSelectedMonthNumber] = useState<number>(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+
   // **OPTIMIZATION 2: Use React Query to fetch expenses**
   const { data: allExpenses = [], isLoading, error } = useQuery({
     queryKey: ['expenses', gym?._id],
@@ -137,7 +148,7 @@ const ExpensesPage: React.FC = () => {
   });
 
   // **OPTIMIZATION 3: Memoized client-side filtering function**
-  const applyClientSideFilters = useCallback((expenseList: Expense[]) => {
+  const applyClientSideFilters = useCallback((expenseList: Expense[]): Expense[] => {
     let filtered = [...expenseList];
 
     // Apply search filter
@@ -259,8 +270,14 @@ const ExpensesPage: React.FC = () => {
 
   // **OPTIMIZATION 4: Memoized filtered expenses**
   const filteredExpenses = useMemo(() => {
-    return applyClientSideFilters(allExpenses);
-  }, [allExpenses, applyClientSideFilters]);
+    let filtered = applyClientSideFilters(allExpenses);
+    if (filterMode === 'daily' && selectedDate) {
+      filtered = filtered.filter(exp => isSameDay(parseISO(exp.date), selectedDate));
+    } else if (filterMode === 'monthly' && selectedMonth) {
+      filtered = filtered.filter(exp => isSameMonth(parseISO(exp.date), selectedMonth));
+    }
+    return filtered;
+  }, [allExpenses, applyClientSideFilters, filterMode, selectedDate, selectedMonth]);
 
   // **OPTIMIZATION 5: Memoized paginated expenses**
   const paginatedExpenses = useMemo(() => {
@@ -324,7 +341,7 @@ const ExpensesPage: React.FC = () => {
 
   // **OPTIMIZATION 7: Mutations for CRUD operations**
   const createExpenseMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: { amount: string; description: string; category: string; date: string }) => {
       const response = await axiosInstance.post('/gym/expenses', {
         ...data,
         amount: parseFloat(data.amount),
@@ -351,7 +368,7 @@ const ExpensesPage: React.FC = () => {
   });
 
   const updateExpenseMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string, data: any }) => {
+    mutationFn: async ({ id, data }: { id: string; data: { amount: string; description: string; category: string; date: string } }) => {
       const response = await axiosInstance.put(`/gym/expenses/${id}?gymId=${gym?._id}`, {
         ...data,
         amount: parseFloat(data.amount),
@@ -570,6 +587,16 @@ const ExpensesPage: React.FC = () => {
         return 'outline' as const;
     }
   }, []);
+
+  // Helper to get days in month
+  function getDaysInMonth(year: number, month: number) {
+    return new Date(year, month + 1, 0).getDate();
+  }
+
+  // When either month or year changes, update selectedMonth
+  useEffect(() => {
+    setSelectedMonth(new Date(selectedYear, selectedMonthNumber, 1));
+  }, [selectedMonthNumber, selectedYear]);
 
   if (isAuthLoading || isLoading) {
     return (
@@ -793,24 +820,97 @@ const ExpensesPage: React.FC = () => {
                 <SelectItem value="Retail">Retail</SelectItem>
               </SelectContent>
             </Select>
-
-            <Select 
-              value={filters.dateRange} 
-              onValueChange={(value) => setFilters(prev => ({ ...prev, dateRange: value }))}
-            >
-              <SelectTrigger className="w-[140px] h-11">
-                <SelectValue placeholder="Date Range" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Time</SelectItem>
-                <SelectItem value="today">Today</SelectItem>
-                <SelectItem value="this_week">This Week</SelectItem>
-                <SelectItem value="this_month">This Month</SelectItem>
-                <SelectItem value="last_30_days">Last 30 Days</SelectItem>
-                <SelectItem value="this_year">This Year</SelectItem>
-              </SelectContent>
-            </Select>
-
+            {/* Filter Mode Toggle */}
+            <div className="flex gap-2 items-center">
+              <Button
+                size="sm"
+                variant={filterMode === 'daily' ? 'default' : 'outline'}
+                onClick={() => setFilterMode('daily')}
+              >
+                Daily
+              </Button>
+              <Button
+                size="sm"
+                variant={filterMode === 'monthly' ? 'default' : 'outline'}
+                onClick={() => setFilterMode('monthly')}
+              >
+                Monthly
+              </Button>
+            </div>
+            {/* Calendar/Month Picker */}
+            {filterMode === 'daily' && (
+              <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="h-11 w-[180px] justify-start text-left font-normal">
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {selectedDate ? format(selectedDate, 'PPP') : 'Pick a day'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-auto p-0">
+                  <CalendarComponent
+                    mode="single"
+                    selected={selectedDate ?? undefined}
+                    onSelect={(date) => {
+                      setSelectedDate(date ?? null);
+                      setCalendarOpen(false);
+                    }}
+                    initialFocus
+                    captionLayout="dropdown"
+                  />
+                </PopoverContent>
+              </Popover>
+            )}
+            {filterMode === 'monthly' && (
+              <div className="flex gap-2 items-center">
+                <Select
+                  value={selectedMonthNumber.toString()}
+                  onValueChange={val => setSelectedMonthNumber(Number(val))}
+                >
+                  <SelectTrigger className="w-32 h-11">
+                    <SelectValue placeholder="Month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[...Array(12)].map((_, i) => (
+                      <SelectItem key={i} value={i.toString()}>
+                        {new Date(0, i).toLocaleString('default', { month: 'long' })}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={selectedYear.toString()}
+                  onValueChange={val => setSelectedYear(Number(val))}
+                >
+                  <SelectTrigger className="w-28 h-11">
+                    <SelectValue placeholder="Year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 21 }, (_, i) => {
+                      const year = new Date().getFullYear() - 10 + i;
+                      return (
+                        <SelectItem key={year} value={year.toString()}>
+                          {year}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+                {selectedMonth && (
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    onClick={() => {
+                      setSelectedMonth(null);
+                      setSelectedMonthNumber(new Date().getMonth());
+                      setSelectedYear(new Date().getFullYear());
+                    }}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
+            )}
             <Select 
               value={filters.amountRange} 
               onValueChange={(value) => setFilters(prev => ({ ...prev, amountRange: value }))}
@@ -826,7 +926,6 @@ const ExpensesPage: React.FC = () => {
                 <SelectItem value="over_10000">Over ₹10,000</SelectItem>
               </SelectContent>
             </Select>
-
             <Select 
               value={filters.sortBy} 
               onValueChange={(value) => setFilters(prev => ({ ...prev, sortBy: value }))}
@@ -843,7 +942,6 @@ const ExpensesPage: React.FC = () => {
                 <SelectItem value="category">Category</SelectItem>
               </SelectContent>
             </Select>
-
             {hasActiveFilters && (
               <Button 
                 variant="outline" 
