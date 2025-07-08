@@ -17,12 +17,15 @@ axiosInstance.interceptors.response.use(
   (error) => {
     // Handle 401 errors (unauthorized)
     if (error.response?.status === 401) {
-      // Clear any local storage or state if needed
       localStorage.removeItem('user');
-      // Redirect to login page if not already there
-      if (!window.location.pathname.includes('/login')) {
+      // Only redirect to login if on a protected route
+      const protectedPrefixes = ['/dashboard', '/setup'];
+      const currentPath = window.location.pathname;
+      const isProtected = protectedPrefixes.some(prefix => currentPath.startsWith(prefix));
+      if (isProtected && !currentPath.includes('/login')) {
         window.location.href = '/login';
       }
+      // On public pages, do not redirect
     }
     return Promise.reject(error);
   }
