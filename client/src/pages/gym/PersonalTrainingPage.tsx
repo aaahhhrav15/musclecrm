@@ -101,6 +101,7 @@ interface Customer {
   name: string;
   phone?: string;
   email?: string;
+  membershipEndDate?: string;
 }
 
 interface Trainer {
@@ -170,6 +171,7 @@ const PersonalTrainingPage: React.FC = () => {
   const queryClient = useQueryClient();
   const [renewAssignment, setRenewAssignment] = useState<Assignment | null>(null);
   const [isRenewModalOpen, setIsRenewModalOpen] = useState(false);
+  const [isAssigning, setIsAssigning] = useState(false);
 
   // Helper functions for assignment status
   const getAssignmentStatus = (assignment: Assignment) => {
@@ -398,6 +400,19 @@ const PersonalTrainingPage: React.FC = () => {
   // Submit handlers
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (isAssigning) return; // Prevent double submit
+    // Membership check
+    const selectedCustomer = customers.find(c => c._id === form.customerId);
+    if (!selectedCustomer || !selectedCustomer.membershipEndDate || new Date(selectedCustomer.membershipEndDate) < new Date()) {
+      toast({
+        title: "Cannot Assign Trainer",
+        description: "This customer's membership has ended. Please renew their membership before assigning personal training.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsAssigning(true);
+    setOpen(false); // Close modal immediately
     const endDate = calculateEndDate(form.startDate, form.duration);
     const requestData = {
       ...form,
@@ -406,18 +421,13 @@ const PersonalTrainingPage: React.FC = () => {
       fees: Number(form.fees),
       duration: Number(form.duration)
     };
-    
     try {
       const response = await axios.post('/personal-training', requestData);
-      
       toast({
         title: "Success",
         description: "Trainer assigned successfully!",
       });
-      
-      setOpen(false);
       setForm({ customerId: '', trainerId: '', startDate: '', duration: 1, fees: '' });
-      
       // Refresh assignments
       const res = await axios.get(`/personal-training?gymId=${gymId}`);
       setAssignments(Array.isArray(res.data) ? res.data : res.data.assignments || []);
@@ -430,6 +440,8 @@ const PersonalTrainingPage: React.FC = () => {
         description: "Failed to create assignment",
         variant: "destructive",
       });
+    } finally {
+      setIsAssigning(false);
     }
   }
 
@@ -626,7 +638,9 @@ const PersonalTrainingPage: React.FC = () => {
                     <Input type="number" name="fees" value={form.fees} min={0} onChange={handleChange} required />
                   </div>
                   <div>
-                    <Button type="submit" className="w-full">Assign</Button>
+                    <Button type="submit" className="w-full" disabled={isAssigning}>
+                      {isAssigning ? "Assigning..." : "Assign"}
+                    </Button>
                   </div>
                 </form>
               </DialogContent>
@@ -772,7 +786,7 @@ const PersonalTrainingPage: React.FC = () => {
               <CardContent>
                 <div className="space-y-4">
                   {trainers.slice(0, 5).map(trainer => {
-                    const trainerAssignments = assignments.filter(a => a.trainerId._id === trainer._id).length;
+                    const trainerAssignments = assignments.filter(a => a.trainerId && a.trainerId._id === trainer._id).length;
                     return (
                       <div key={trainer._id} className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-gray-50 to-gray-100">
                         <div className="flex items-center space-x-2">
@@ -1333,6 +1347,7 @@ const PersonalTrainingPage: React.FC = () => {
             setRenewAssignment(null);
           }}
           assignment={renewAssignment}
+          membershipEndDate={customers.find(c => c._id === renewAssignment.customerId._id)?.membershipEndDate}
           onRenewed={async () => {
             // Refresh assignments after renewal
             const res = await axios.get(`/personal-training?gymId=${gymId}`);

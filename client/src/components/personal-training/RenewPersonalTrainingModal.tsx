@@ -75,6 +75,7 @@ interface RenewPersonalTrainingModalProps {
   onClose: () => void;
   assignment: Assignment;
   onRenewed?: () => void;
+  membershipEndDate?: string;
 }
 
 function safeFormatDate(date: Date | null | undefined, fmt: string = 'PPP') {
@@ -83,7 +84,7 @@ function safeFormatDate(date: Date | null | undefined, fmt: string = 'PPP') {
 }
 
 export const RenewPersonalTrainingModal: React.FC<RenewPersonalTrainingModalProps> = (props) => {
-  const { isOpen, onClose, assignment, onRenewed } = props;
+  const { isOpen, onClose, assignment, onRenewed, membershipEndDate } = props;
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -156,6 +157,15 @@ export const RenewPersonalTrainingModal: React.FC<RenewPersonalTrainingModalProp
   };
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    // Membership check
+    if (!membershipEndDate || new Date(membershipEndDate) < new Date()) {
+      toast({
+        title: 'Cannot Renew Personal Training',
+        description: "This customer's membership has ended. Please renew their membership before renewing personal training.",
+        variant: 'destructive',
+      });
+      return;
+    }
     try {
       setIsSubmitting(true);
       const currentEndDate = assignment.endDate 
