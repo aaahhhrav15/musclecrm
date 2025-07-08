@@ -56,13 +56,13 @@ exports.generateNutritionPlan = async (req, res) => {
     }
 
     // Create prompt for Gemini
-    const prompt = `Create a detailed nutrition plan in JSON format with the following specifications:
+    const prompt = `Create a detailed indian diet nutrition plan in JSON format with the following specifications:
     - User is ${age} years old, ${gender}, ${height}cm tall, and weighs ${weight}kg
     - Target weight: ${targetWeight}kg
     - Objective: ${objective}
     - Diet type: ${dietType}
-    - Additional requirements: ${additionalDetails || 'None'}
-    - This diet is for Indian lifestyle and food habits.
+    - Requirements: ${additionalDetails || 'None'}
+
 
     The plan should include:
     1. Total daily calories
@@ -107,7 +107,7 @@ exports.generateNutritionPlan = async (req, res) => {
       ]
     }
 
-    Ensure all nutritional values are realistic and appropriate for the user's goals. If specific calorie or protein targets are mentioned in the additional requirements, prioritize those in the plan.`;
+    Ensure all nutritional values are realistic and appropriate for the user's goals. If specific calorie or protein targets or number of meals are mentioned in the requirements, prioritize those in the plan.`;
 
     // Generate response from Gemini
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
