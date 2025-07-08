@@ -83,8 +83,7 @@ const WorkoutPlanForm: React.FC<WorkoutPlanFormProps> = ({
   const addWeek = () => {
     const currentWeeks = form.getValues('weeks');
     const newWeekNumber = currentWeeks.length + 1;
-    
-    form.setValue('weeks', [
+    const newWeeks = [
       ...currentWeeks,
       {
         weekNumber: newWeekNumber,
@@ -95,7 +94,9 @@ const WorkoutPlanForm: React.FC<WorkoutPlanFormProps> = ({
           },
         ],
       },
-    ]);
+    ];
+    form.setValue('weeks', newWeeks);
+    form.setValue('duration', newWeeks.length);
   };
 
   const addDay = (weekIndex: number) => {
@@ -138,6 +139,7 @@ const WorkoutPlanForm: React.FC<WorkoutPlanFormProps> = ({
       week.weekNumber = index + 1;
     });
     form.setValue('weeks', weeks);
+    form.setValue('duration', weeks.length);
   };
 
   const removeDay = (weekIndex: number, dayIndex: number) => {
@@ -200,25 +202,6 @@ const WorkoutPlanForm: React.FC<WorkoutPlanFormProps> = ({
             />
 
             <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="duration"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Duration (weeks)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        {...field}
-                        onChange={(e) => field.onChange(Number(e.target.value))}
-                        min={1}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
               <FormField
                 control={form.control}
                 name="level"
