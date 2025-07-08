@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   DollarSign, 
@@ -83,6 +83,11 @@ const FinancePage: React.FC = () => {
   const [selectedMonth, setSelectedMonth] = useState<Date | null>(null);
   const [filterMode, setFilterMode] = useState<'daily' | 'monthly'>('daily');
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [selectedDayYear, setSelectedDayYear] = useState<number>(new Date().getFullYear());
+  const [selectedDayMonth, setSelectedDayMonth] = useState<number>(new Date().getMonth());
+  const [selectedDay, setSelectedDay] = useState<number>(new Date().getDate());
+  const [selectedMonthNumber, setSelectedMonthNumber] = useState<number>(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
 
   // Fetch customers
   const { data: customersData } = useQuery({
@@ -152,6 +157,21 @@ const FinancePage: React.FC = () => {
         return isSameMonth(invDate, selectedMonth) ? sum + inv.amount : sum;
       }, 0) || 0
     : null;
+
+  // Helper to get days in month
+  function getDaysInMonth(year: number, month: number) {
+    return new Date(year, month + 1, 0).getDate();
+  }
+
+  // When any daily dropdown changes, update selectedDate
+  useEffect(() => {
+    setSelectedDate(new Date(selectedDayYear, selectedDayMonth, selectedDay));
+  }, [selectedDayYear, selectedDayMonth, selectedDay]);
+
+  // When either month or year changes, update selectedMonth
+  useEffect(() => {
+    setSelectedMonth(new Date(selectedYear, selectedMonthNumber, 1));
+  }, [selectedMonthNumber, selectedYear]);
 
   const handleDownloadInvoice = async (invoiceId: string) => {
     try {
@@ -553,31 +573,67 @@ const FinancePage: React.FC = () => {
 
                 {filterMode === 'daily' && (
                   <div className="space-y-3">
-                    <label className="text-sm font-medium text-muted-foreground">Select Date</label>
-                    <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full justify-start">
-                          <CalendarIcon className="h-4 w-4 mr-2" />
-                          {selectedDate ? selectedDate.toLocaleDateString() : 'Pick a day'}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={selectedDate}
-                          onSelect={date => {
-                            setSelectedDate(date);
-                            setCalendarOpen(false);
-                          }}
-                          className="rounded-md border bg-background"
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <label className="text-sm font-medium text-muted-foreground">Select Day, Month & Year</label>
+                    <div className="flex gap-2">
+                      <Select
+                        value={selectedDayYear.toString()}
+                        onValueChange={val => setSelectedDayYear(Number(val))}
+                      >
+                        <SelectTrigger className="w-28">
+                          <SelectValue placeholder="Year" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: 21 }, (_, i) => {
+                            const year = new Date().getFullYear() - 10 + i;
+                            return (
+                              <SelectItem key={year} value={year.toString()}>
+                                {year}
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                      <Select
+                        value={selectedDayMonth.toString()}
+                        onValueChange={val => setSelectedDayMonth(Number(val))}
+                      >
+                        <SelectTrigger className="w-32">
+                          <SelectValue placeholder="Month" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {[...Array(12)].map((_, i) => (
+                            <SelectItem key={i} value={i.toString()}>
+                              {new Date(0, i).toLocaleString('default', { month: 'long' })}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select
+                        value={selectedDay.toString()}
+                        onValueChange={val => setSelectedDay(Number(val))}
+                      >
+                        <SelectTrigger className="w-20">
+                          <SelectValue placeholder="Day" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: getDaysInMonth(selectedDayYear, selectedDayMonth) }, (_, i) => (
+                            <SelectItem key={i + 1} value={(i + 1).toString()}>
+                              {i + 1}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     {selectedDate && (
                       <Button 
                         size="sm" 
                         variant="ghost" 
-                        onClick={() => setSelectedDate(null)} 
+                        onClick={() => {
+                          setSelectedDate(null);
+                          setSelectedDayYear(new Date().getFullYear());
+                          setSelectedDayMonth(new Date().getMonth());
+                          setSelectedDay(new Date().getDate());
+                        }}
                         className="w-full text-muted-foreground hover:text-foreground"
                       >
                         Clear Selection
@@ -588,30 +644,51 @@ const FinancePage: React.FC = () => {
 
                 {filterMode === 'monthly' && (
                   <div className="space-y-3">
-                    <label className="text-sm font-medium text-muted-foreground">Select Month</label>
-                    <Select
-                      value={selectedMonth ? selectedMonth.toISOString() : ''}
-                      onValueChange={val => setSelectedMonth(val ? new Date(val) : null)}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Pick month" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[...Array(12)].map((_, i) => {
-                          const monthDate = new Date(today.getFullYear(), i, 1);
-                          return (
-                            <SelectItem key={i} value={monthDate.toISOString()}>
-                              {monthDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
+                    <label className="text-sm font-medium text-muted-foreground">Select Month & Year</label>
+                    <div className="flex gap-2">
+                      <Select
+                        value={selectedMonthNumber.toString()}
+                        onValueChange={val => setSelectedMonthNumber(Number(val))}
+                      >
+                        <SelectTrigger className="w-32">
+                          <SelectValue placeholder="Month" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {[...Array(12)].map((_, i) => (
+                            <SelectItem key={i} value={i.toString()}>
+                              {new Date(0, i).toLocaleString('default', { month: 'long' })}
                             </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select
+                        value={selectedYear.toString()}
+                        onValueChange={val => setSelectedYear(Number(val))}
+                      >
+                        <SelectTrigger className="w-28">
+                          <SelectValue placeholder="Year" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: 21 }, (_, i) => {
+                            const year = new Date().getFullYear() - 10 + i;
+                            return (
+                              <SelectItem key={year} value={year.toString()}>
+                                {year}
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     {selectedMonth && (
                       <Button 
                         size="sm" 
                         variant="ghost" 
-                        onClick={() => setSelectedMonth(null)} 
+                        onClick={() => {
+                          setSelectedMonth(null);
+                          setSelectedMonthNumber(new Date().getMonth());
+                          setSelectedYear(new Date().getFullYear());
+                        }}
                         className="w-full text-muted-foreground hover:text-foreground"
                       >
                         Clear Selection

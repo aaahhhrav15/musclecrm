@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
@@ -12,10 +12,11 @@ import {
   Search,
   FileText,
   DollarSign,
-  Calendar,
+  Calendar as CalendarIcon,
   TrendingUp,
   Users,
-  Trash2
+  Trash2,
+  X
 } from 'lucide-react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -63,9 +64,11 @@ import { EditInvoiceModal } from '@/components/invoices/EditInvoiceModal';
 import axios from 'axios';
 import { API_URL } from '@/lib/constants';
 import * as Papa from 'papaparse';
+import { addMonths, startOfMonth, endOfMonth, isSameDay, isSameMonth, isWithinInterval } from 'date-fns';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 
 const InvoicesPage: React.FC = () => {
-  const [showFilterModal, setShowFilterModal] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
   const [isCreateInvoiceOpen, setIsCreateInvoiceOpen] = useState(false);
@@ -73,6 +76,16 @@ const InvoicesPage: React.FC = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const queryClient = useQueryClient();
+  const [filterMode, setFilterMode] = useState<'daily' | 'monthly'>('daily');
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState<Date | null>(null);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [selectedMonthNumber, setSelectedMonthNumber] = useState<number>(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [selectedDayYear, setSelectedDayYear] = useState<number>(new Date().getFullYear());
+  const [selectedDayMonth, setSelectedDayMonth] = useState<number>(new Date().getMonth());
+  const [selectedDay, setSelectedDay] = useState<number>(new Date().getDate());
 
   // Fetch invoices
   const { data: invoices, isLoading, error, refetch } = useQuery({
@@ -116,7 +129,26 @@ const InvoicesPage: React.FC = () => {
     };
   }, [invoices]);
 
-  // Filter invoices based on search query
+  // Calculate selected day and month metrics
+  const selectedDayMetrics = React.useMemo(() => {
+    if (filterMode === 'daily' && selectedDate) {
+      const dayInvoices = invoices?.filter(inv => isSameDay(new Date(inv.createdAt), selectedDate)) || [];
+      const total = dayInvoices.reduce((sum, inv) => sum + (inv.amount || 0), 0);
+      return { total, count: dayInvoices.length };
+    }
+    return { total: 0, count: 0 };
+  }, [invoices, filterMode, selectedDate]);
+
+  const selectedMonthMetrics = React.useMemo(() => {
+    if (filterMode === 'monthly' && selectedMonth) {
+      const monthInvoices = invoices?.filter(inv => isSameMonth(new Date(inv.createdAt), selectedMonth)) || [];
+      const total = monthInvoices.reduce((sum, inv) => sum + (inv.amount || 0), 0);
+      return { total, count: monthInvoices.length };
+    }
+    return { total: 0, count: 0 };
+  }, [invoices, filterMode, selectedMonth]);
+
+  // Filter invoices based on search query and date filters
   const filteredInvoices = invoices?.filter(invoice => {
     const query = searchQuery.toLowerCase();
     const customerName = typeof invoice.customerId === 'object' 
@@ -126,12 +158,20 @@ const InvoicesPage: React.FC = () => {
     const description = Array.isArray(invoice.items) && invoice.items.length > 0 
       ? invoice.items.map(item => item.description).join(', ').toLowerCase()
       : '';
+    const invDate = new Date(invoice.createdAt);
     
-    return (
-      customerName.includes(query) ||
-      invoiceNumber.includes(query) ||
-      description.includes(query)
-    );
+    let matchesDate = true;
+    if (filterMode === 'daily' && selectedDate) {
+      matchesDate = isSameDay(invDate, selectedDate);
+    } else if (filterMode === 'monthly' && selectedMonth) {
+      matchesDate = isSameMonth(invDate, selectedMonth);
+    }
+    
+    const matchesSearch = customerName.includes(query) || 
+                         invoiceNumber.includes(query) || 
+                         description.includes(query);
+    
+    return matchesSearch && matchesDate;
   }) || [];
 
   const createInvoiceMutation = useMutation({
@@ -168,7 +208,6 @@ const InvoicesPage: React.FC = () => {
     onSuccess: (data) => {
       console.log('Invoice created successfully:', data);
       
-      // Show success message with transaction information if created
       if (data.transaction) {
         toast.success(`Invoice created successfully! Transaction record has been automatically generated for tracking.`);
       } else {
@@ -176,7 +215,6 @@ const InvoicesPage: React.FC = () => {
       }
       
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      // Also invalidate transactions query to refresh transaction history
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       setIsCreateInvoiceOpen(false);
     },
@@ -294,10 +332,31 @@ const InvoicesPage: React.FC = () => {
     toast.success("Invoice data exported successfully!");
   };
 
+  const clearFilters = () => {
+    setSelectedDate(null);
+    setSelectedMonth(null);
+    setSearchQuery('');
+  };
+
+  // When either month or year changes, update selectedMonth
+  useEffect(() => {
+    setSelectedMonth(new Date(selectedYear, selectedMonthNumber, 1));
+  }, [selectedMonthNumber, selectedYear]);
+
+  // Helper to get days in month
+  function getDaysInMonth(year: number, month: number) {
+    return new Date(year, month + 1, 0).getDate();
+  }
+
+  // When any daily dropdown changes, update selectedDate
+  useEffect(() => {
+    setSelectedDate(new Date(selectedDayYear, selectedDayMonth, selectedDay));
+  }, [selectedDayYear, selectedDayMonth, selectedDay]);
+
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="space-y-6">
+        <div className="space-y-6 p-6">
           <Skeleton className="h-10 w-full" />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[...Array(4)].map((_, i) => (
@@ -313,7 +372,7 @@ const InvoicesPage: React.FC = () => {
   if (error) {
     return (
       <DashboardLayout>
-        <div className="space-y-4">
+        <div className="space-y-4 p-6">
           <div className="text-red-500">Error loading invoices. Please try again.</div>
           <Button onClick={() => refetch()}>Retry</Button>
         </div>
@@ -323,218 +382,390 @@ const InvoicesPage: React.FC = () => {
 
   return (
     <DashboardLayout>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-        className="space-y-8"
-      >
+      <div className="space-y-6 p-6">
         {/* Header Section */}
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 pb-4 border-b">
-          <div className="space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"
+        >
+          <div className="space-y-1">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
               Invoice Management
             </h1>
-            <p className="text-muted-foreground text-lg">
+            <p className="text-muted-foreground">
               Create, track, and manage invoices with comprehensive financial insights.
             </p>
           </div>
-          <div className="flex gap-3">
-            <Button onClick={() => setIsCreateInvoiceOpen(true)} size="lg" className="shadow-sm">
-              <Plus className="mr-2 h-5 w-5" /> New Invoice
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+            <Button onClick={() => setIsCreateInvoiceOpen(true)} className="w-full sm:w-auto">
+              <Plus className="mr-2 h-4 w-4" /> New Invoice
             </Button>
-            <Button variant="outline" size="lg" className="shadow-sm" onClick={handleExport}>
-              <Download className="mr-2 h-5 w-5" /> Export Data
+            <Button variant="outline" onClick={handleExport} className="w-full sm:w-auto">
+              <Download className="mr-2 h-4 w-4" /> Export Data
             </Button>
           </div>
-        </div>
+        </motion.div>
 
-        {/* Insights Dashboard */}
-        <div className="grid grid-cols-1 xl:grid-cols-6 gap-6">
-          {/* Left Column - Main Metrics */}
-          <div className="xl:col-span-4 space-y-6">
-            {/* Primary Metrics Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-              >
-                <Card className="relative overflow-hidden border-0 shadow-lg">
-                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-blue-600/5" />
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Total Invoices</CardTitle>
-                    <div className="h-10 w-10 rounded-full bg-blue-500/10 flex items-center justify-center">
-                      <FileText className="h-5 w-5 text-blue-600" />
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-1">
-                    <div className="text-2xl font-bold">{invoiceInsights.totalInvoices}</div>
-                    <p className="text-xs text-muted-foreground flex items-center">
-                      <TrendingUp className="h-3 w-3 mr-1" />
-                      All invoices
-                    </p>
-                  </CardContent>
-                </Card>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-              >
-                <Card className="relative overflow-hidden border-0 shadow-lg">
-                  <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-green-600/5" />
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Total Revenue</CardTitle>
-                    <div className="h-10 w-10 rounded-full bg-green-500/10 flex items-center justify-center">
-                      <DollarSign className="h-5 w-5 text-green-600" />
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-1">
-                    <div className="text-2xl font-bold">{formatCurrency(invoiceInsights.totalRevenue)}</div>
-                    <p className="text-xs text-muted-foreground">From all invoices</p>
-                  </CardContent>
-                </Card>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-              >
-                <Card className="relative overflow-hidden border-0 shadow-lg">
-                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-purple-600/5" />
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Average Value</CardTitle>
-                    <div className="h-10 w-10 rounded-full bg-purple-500/10 flex items-center justify-center">
-                      <TrendingUp className="h-5 w-5 text-purple-600" />
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-1">
-                    <div className="text-2xl font-bold">{formatCurrency(invoiceInsights.averageInvoiceValue)}</div>
-                    <p className="text-xs text-muted-foreground">Per invoice</p>
-                  </CardContent>
-                </Card>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-              >
-                <Card className="relative overflow-hidden border-0 shadow-lg">
-                  <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-orange-600/5" />
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Today's Revenue</CardTitle>
-                    <div className="h-10 w-10 rounded-full bg-orange-500/10 flex items-center justify-center">
-                      <Calendar className="h-5 w-5 text-orange-600" />
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-1">
-                    <div className="text-2xl font-bold">{formatCurrency(invoiceInsights.todayRevenue)}</div>
-                    <p className="text-xs text-muted-foreground">{invoiceInsights.todayInvoices} invoices today</p>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </div>
-
-            {/* Search Bar */}
-            <div className="w-full">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by invoice number, customer name, or description..."
-                  className="pl-10 h-11 shadow-sm border-muted-foreground/20 focus:ring-2 focus:ring-primary/20"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column - Monthly Breakdown */}
-          <div className="xl:col-span-2 space-y-6">
-            <Card className="shadow-lg border-0">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg font-semibold flex items-center">
-                  <Calendar className="h-5 w-5 mr-2" />
-                  Monthly Overview
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  <div className="p-4 rounded-lg bg-gradient-to-r from-blue-500/10 to-blue-600/5">
-                    <div className="text-sm font-medium text-muted-foreground mb-2">This Month Revenue</div>
-                    <div className="text-2xl font-bold">{formatCurrency(invoiceInsights.thisMonthRevenue)}</div>
-                    <div className="text-xs text-muted-foreground">{invoiceInsights.thisMonthInvoices} invoices generated</div>
-                  </div>
-                  
-                  <div className="p-4 rounded-lg bg-gradient-to-r from-green-500/10 to-green-600/5">
-                    <div className="text-sm font-medium text-muted-foreground mb-2">Average Invoice Value</div>
-                    <div className="text-2xl font-bold">{formatCurrency(invoiceInsights.averageInvoiceValue)}</div>
-                    <div className="text-xs text-muted-foreground">Per invoice average</div>
-                  </div>
+        {/* Metrics Dashboard */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
+            <Card className="relative overflow-hidden border-0 shadow-lg">
+              <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-green-600/5" />
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total Revenue</CardTitle>
+                <div className="h-10 w-10 rounded-full bg-green-500/10 flex items-center justify-center">
+                  <DollarSign className="h-5 w-5 text-green-600" />
                 </div>
+              </CardHeader>
+              <CardContent className="space-y-1">
+                <div className="text-2xl font-bold">{formatCurrency(invoiceInsights.totalRevenue)}</div>
+                <p className="text-xs text-muted-foreground">From all invoices</p>
               </CardContent>
             </Card>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <Card className="relative overflow-hidden border-0 shadow-lg">
+              <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-orange-600/5" />
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Today's Revenue</CardTitle>
+                <div className="h-10 w-10 rounded-full bg-orange-500/10 flex items-center justify-center">
+                  <CalendarIcon className="h-5 w-5 text-orange-600" />
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-1">
+                <div className="text-2xl font-bold">{formatCurrency(invoiceInsights.todayRevenue)}</div>
+                <p className="text-xs text-muted-foreground">{invoiceInsights.todayInvoices} invoices today</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            <Card className="relative overflow-hidden border-0 shadow-lg">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-blue-600/5" />
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Selected Day</CardTitle>
+                <div className="h-10 w-10 rounded-full bg-blue-500/10 flex items-center justify-center">
+                  <CalendarIcon className="h-5 w-5 text-blue-600" />
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-1">
+                <div className="text-2xl font-bold">
+                  {selectedDate
+                    ? formatCurrency(selectedDayMetrics.total)
+                    : formatCurrency(invoiceInsights.todayRevenue)}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {selectedDate
+                    ? `${selectedDayMetrics.count} invoices`
+                    : `${invoiceInsights.todayInvoices} invoices today`}
+                </p>
+              </CardContent>
+            </Card>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+          >
+            <Card className="relative overflow-hidden border-0 shadow-lg">
+              <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-purple-600/5" />
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Selected Month</CardTitle>
+                <div className="h-10 w-10 rounded-full bg-purple-500/10 flex items-center justify-center">
+                  <CalendarIcon className="h-5 w-5 text-purple-600" />
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-1">
+                <div className="text-2xl font-bold">
+                  {selectedMonth
+                    ? formatCurrency(selectedMonthMetrics.total)
+                    : formatCurrency(invoiceInsights.thisMonthRevenue)}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {selectedMonth
+                    ? `${selectedMonthMetrics.count} invoices`
+                    : `${invoiceInsights.thisMonthInvoices} invoices this month`}
+                </p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </motion.div>
+
+        {/* Search and Filters */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="space-y-4"
+        >
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search invoices..."
+                className="pl-10"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => setShowFilters(!showFilters)}
+              className="w-full sm:w-auto"
+            >
+              <Filter className="mr-2 h-4 w-4" />
+              Filters
+              {(selectedDate || selectedMonth) && (
+                <Badge variant="secondary" className="ml-2">
+                  {selectedDate || selectedMonth ? '1' : '0'}
+                </Badge>
+              )}
+            </Button>
           </div>
-        </div>
+
+          {/* Collapsible Filters */}
+          {showFilters && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Card className="border-0 shadow-sm">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold">Filter Options</h3>
+                    <Button variant="ghost" size="sm" onClick={() => setShowFilters(false)}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Filter Mode</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button
+                          size="sm"
+                          variant={filterMode === 'daily' ? 'default' : 'outline'}
+                          onClick={() => setFilterMode('daily')}
+                        >
+                          Daily
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={filterMode === 'monthly' ? 'default' : 'outline'}
+                          onClick={() => setFilterMode('monthly')}
+                        >
+                          Monthly
+                        </Button>
+                      </div>
+                    </div>
+
+                    {filterMode === 'daily' && (
+                      <div className="space-y-3">
+                        <label className="text-sm font-medium text-muted-foreground">Select Day, Month & Year</label>
+                        <div className="flex gap-2">
+                          <Select
+                            value={selectedDayYear.toString()}
+                            onValueChange={val => setSelectedDayYear(Number(val))}
+                          >
+                            <SelectTrigger className="w-28">
+                              <SelectValue placeholder="Year" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Array.from({ length: 21 }, (_, i) => {
+                                const year = new Date().getFullYear() - 10 + i;
+                                return (
+                                  <SelectItem key={year} value={year.toString()}>
+                                    {year}
+                                  </SelectItem>
+                                );
+                              })}
+                            </SelectContent>
+                          </Select>
+                          <Select
+                            value={selectedDayMonth.toString()}
+                            onValueChange={val => setSelectedDayMonth(Number(val))}
+                          >
+                            <SelectTrigger className="w-32">
+                              <SelectValue placeholder="Month" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {[...Array(12)].map((_, i) => (
+                                <SelectItem key={i} value={i.toString()}>
+                                  {new Date(0, i).toLocaleString('default', { month: 'long' })}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Select
+                            value={selectedDay.toString()}
+                            onValueChange={val => setSelectedDay(Number(val))}
+                          >
+                            <SelectTrigger className="w-20">
+                              <SelectValue placeholder="Day" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Array.from({ length: getDaysInMonth(selectedDayYear, selectedDayMonth) }, (_, i) => (
+                                <SelectItem key={i + 1} value={(i + 1).toString()}>
+                                  {i + 1}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {selectedDate && (
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            onClick={() => {
+                              setSelectedDate(null);
+                              setSelectedDayYear(new Date().getFullYear());
+                              setSelectedDayMonth(new Date().getMonth());
+                              setSelectedDay(new Date().getDate());
+                            }}
+                            className="w-full text-muted-foreground hover:text-foreground"
+                          >
+                            Clear Selection
+                          </Button>
+                        )}
+                      </div>
+                    )}
+
+                    {filterMode === 'monthly' && (
+                      <div className="space-y-3">
+                        <label className="text-sm font-medium text-muted-foreground">Select Month & Year</label>
+                        <div className="flex gap-2">
+                          <Select
+                            value={selectedMonthNumber.toString()}
+                            onValueChange={val => setSelectedMonthNumber(Number(val))}
+                          >
+                            <SelectTrigger className="w-32">
+                              <SelectValue placeholder="Month" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {[...Array(12)].map((_, i) => (
+                                <SelectItem key={i} value={i.toString()}>
+                                  {new Date(0, i).toLocaleString('default', { month: 'long' })}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Select
+                            value={selectedYear.toString()}
+                            onValueChange={val => setSelectedYear(Number(val))}
+                          >
+                            <SelectTrigger className="w-28">
+                              <SelectValue placeholder="Year" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Array.from({ length: 21 }, (_, i) => {
+                                const year = new Date().getFullYear() - 10 + i;
+                                return (
+                                  <SelectItem key={year} value={year.toString()}>
+                                    {year}
+                                  </SelectItem>
+                                );
+                              })}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {selectedMonth && (
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            onClick={() => {
+                              setSelectedMonth(null);
+                              setSelectedMonthNumber(new Date().getMonth());
+                              setSelectedYear(new Date().getFullYear());
+                            }}
+                            className="w-full text-muted-foreground hover:text-foreground"
+                          >
+                            Clear Selection
+                          </Button>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Actions</label>
+                      <Button 
+                        variant="ghost" 
+                        onClick={clearFilters} 
+                        className="w-full"
+                        size="sm"
+                      >
+                        Clear All Filters
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+        </motion.div>
 
         {/* Table Section */}
-        <div className="mt-8">
-          <Card className="shadow-lg border-0">
-            <CardHeader className="border-b bg-muted/30">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <Card className="border-0 shadow-sm">
+            <CardHeader className="border-b">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-xl font-semibold">Invoice Directory</CardTitle>
-                <div className="flex items-center gap-3">
-                  <Badge variant="secondary" className="text-sm px-3 py-1">
-                    {filteredInvoices?.length || 0} invoices
-                  </Badge>
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowFilterModal(true)}
-                  >
-                    <Filter className="w-4 h-4 mr-2" />
-                    Filters
-                  </Button>
-                </div>
+                <CardTitle>Invoices ({filteredInvoices?.length || 0})</CardTitle>
+                <Badge variant="secondary">
+                  {filteredInvoices?.length || 0} of {invoices?.length || 0}
+                </Badge>
               </div>
             </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow className="hover:bg-muted/50">
-                      <TableHead className="font-semibold">Customer</TableHead>
-                      <TableHead className="font-semibold">Invoice Number</TableHead>
-                      <TableHead className="font-semibold">Description</TableHead>
-                      <TableHead className="font-semibold">Due Date</TableHead>
-                      <TableHead className="font-semibold">Amount</TableHead>
-                      <TableHead className="font-semibold w-[120px]">Actions</TableHead>
+                    <TableRow>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Invoice #</TableHead>
+                      <TableHead className="hidden md:table-cell">Description</TableHead>
+                      <TableHead className="hidden sm:table-cell">Due Date</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead className="w-[100px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredInvoices?.map((invoice, index) => (
-                      <motion.tr
-                        key={invoice._id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                        className="hover:bg-muted/30 transition-colors"
-                      >
+                      <TableRow key={invoice._id} className="hover:bg-muted/50">
                         <TableCell className="font-medium">
                           {typeof invoice.customerId === 'object' ? invoice.customerId?.name : 'N/A'}
                         </TableCell>
-                        <TableCell className="font-mono text-primary">
+                        <TableCell className="font-mono text-sm">
                           {invoice.invoiceNumber}
                         </TableCell>
-                        <TableCell className="text-muted-foreground">
+                        <TableCell className="hidden md:table-cell text-muted-foreground max-w-[200px] truncate">
                           {Array.isArray(invoice.items) && invoice.items.length > 0 
                             ? invoice.items.map(item => item.description).join(', ') 
                             : '-'}
                         </TableCell>
-                        <TableCell className="text-muted-foreground">
+                        <TableCell className="hidden sm:table-cell text-muted-foreground">
                           {format(new Date(invoice.dueDate), 'MMM d, yyyy')}
                         </TableCell>
                         <TableCell className="font-semibold">
@@ -543,42 +774,47 @@ const InvoicesPage: React.FC = () => {
                         <TableCell>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-muted">
+                              <Button variant="ghost" className="h-8 w-8 p-0">
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48">
                               <DropdownMenuItem onClick={() => handleViewInvoice(invoice)}>
                                 <Eye className="h-4 w-4 mr-2" />
-                                View Invoice
+                                View
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleEditInvoice(invoice)}>
                                 <Pencil className="h-4 w-4 mr-2" />
-                                Edit Invoice
+                                Edit
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleDownloadInvoice(invoice)}>
                                 <Download className="h-4 w-4 mr-2" />
-                                Download PDF
+                                Download
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 className="text-red-600 focus:text-red-600"
                                 onClick={() => handleDeleteInvoice(invoice)}
                               >
                                 <Trash2 className="h-4 w-4 mr-2" />
-                                Delete Invoice
+                                Delete
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
-                      </motion.tr>
+                      </TableRow>
                     ))}
                     {(!filteredInvoices || filteredInvoices.length === 0) && (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                        <TableCell colSpan={6} className="text-center py-12">
                           <div className="flex flex-col items-center space-y-2">
                             <FileText className="h-12 w-12 text-muted-foreground/50" />
                             <div className="text-lg font-medium">No invoices found</div>
-                            <p className="text-sm">Try adjusting your search or filter criteria</p>
+                            <p className="text-sm text-muted-foreground">
+                              {searchQuery || selectedDate || selectedMonth
+                                ? 'Try adjusting your search or filter criteria'
+                                : 'Create your first invoice to get started'
+                              }
+                            </p>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -588,8 +824,8 @@ const InvoicesPage: React.FC = () => {
               </div>
             </CardContent>
           </Card>
-        </div>
-      </motion.div>
+        </motion.div>
+      </div>
 
       {/* Modals */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

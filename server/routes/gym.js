@@ -438,7 +438,7 @@ router.get('/generate-pdf', async (req, res) => {
       });
     }
 
-    // **OPTIMIZATION: Stream PDF directly to response**
+    // Create PDF document
     const doc = new PDFDocument({
       size: 'A4',
       margin: 0,
@@ -459,79 +459,60 @@ router.get('/generate-pdf', async (req, res) => {
     // Pipe the PDF directly to the response
     doc.pipe(res);
 
-    // **OPTIMIZATION: Enhanced color palette and design**
+    // Aesthetic but sober color palette
     const colors = {
-      primary: '#1e293b',
-      secondary: '#475569',
-      accent: '#3b82f6',
-      accent2: '#06b6d4',
-      light: '#f8fafc',
+      primary: '#1f2937',      // Dark gray instead of bright blue
+      secondary: '#6b7280',    // Medium gray
+      accent: '#4f46e5',       // Subtle indigo
+      light: '#f9fafb',        // Very light gray background
       white: '#ffffff',
-      text: '#334155',
-      textLight: '#64748b',
-      border: '#e2e8f0',
-      gradient1: '#3b82f6',
-      gradient2: '#1d4ed8',
-      shadow: '#0f172a20',
-      success: '#10b981',
-      warning: '#f59e0b'
+      text: '#374151',         // Dark gray text
+      textLight: '#9ca3af',    // Light gray text
+      border: '#e5e7eb',       // Light border
+      shadow: '#00000015'      // Very subtle shadow
     };
 
     const pageWidth = doc.page.width;
     const pageHeight = doc.page.height;
 
-    // **ENHANCED BACKGROUND DESIGN**
-    // Main background with subtle gradient
+    // Clean background with subtle texture
     doc.rect(0, 0, pageWidth, pageHeight)
        .fillColor(colors.light)
        .fill();
 
-    // Modern geometric background elements
-    doc.moveTo(0, 0)
-       .lineTo(pageWidth, 0)
-       .lineTo(pageWidth, 140)
-       .quadraticCurveTo(pageWidth * 0.7, 100, pageWidth * 0.3, 120)
-       .quadraticCurveTo(pageWidth * 0.1, 130, 0, 140)
-       .closePath()
-       .fillColor(colors.gradient1)
+    // Blue header area
+    doc.rect(0, 0, pageWidth, 120)
+       .fillColor(colors.accent)
        .fill();
 
-    // Bottom decorative wave
-    doc.moveTo(0, pageHeight - 100)
-       .quadraticCurveTo(pageWidth * 0.3, pageHeight - 140, pageWidth * 0.7, pageHeight - 120)
-       .quadraticCurveTo(pageWidth * 0.9, pageHeight - 110, pageWidth, pageHeight - 100)
-       .lineTo(pageWidth, pageHeight)
-       .lineTo(0, pageHeight)
-       .closePath()
-       .fillColor(colors.gradient2)
+    // Very subtle top border line
+    doc.rect(0, 115, pageWidth, 5)
+       .fillColor(colors.accent)
        .fill();
 
-    // Decorative circles with better positioning
-    const circles = [
-      { x: pageWidth - 80, y: 80, r: 30, alpha: 0.15 },
-      { x: 60, y: pageHeight - 60, r: 25, alpha: 0.10 },
-      { x: pageWidth - 40, y: pageHeight - 40, r: 18, alpha: 0.20 },
-      { x: pageWidth * 0.15, y: pageHeight * 0.3, r: 15, alpha: 0.08 },
-      { x: pageWidth * 0.85, y: pageHeight * 0.7, r: 20, alpha: 0.12 }
+    // Minimal decorative elements - only bottom dots (removed top right dot)
+    const dots = [
+      { x: 60, y: pageHeight - 60, r: 6, alpha: 0.08 },
+      { x: pageWidth - 40, y: pageHeight - 40, r: 4, alpha: 0.12 }
     ];
 
-    circles.forEach(circle => {
-      doc.circle(circle.x, circle.y, circle.r)
-         .fillColor(`${colors.white}${Math.round(circle.alpha * 255).toString(16).padStart(2, '0')}`)
+    dots.forEach(dot => {
+      doc.circle(dot.x, dot.y, dot.r)
+         .fillColor(`${colors.accent}${Math.round(dot.alpha * 255).toString(16).padStart(2, '0')}`)
          .fill();
     });
 
-    // **ENHANCED LOGO SECTION**
-    let currentY = 50;
-    const logoAreaHeight = 120;
-    const logoMaxWidth = Math.min(pageWidth - 100, 300);
-    const logoMaxHeight = 100;
+    // Logo section with clean design
+    let currentY = 40;
+    const logoAreaHeight = 100;
+    const logoMaxWidth = Math.min(pageWidth - 100, 280);
+    const logoMaxHeight = 80;
     
     let hasLogo = false;
     let logoBuffer = null;
     let logoDimensions = { width: 0, height: 0 };
 
-    // **OPTIMIZATION: Better logo processing**
+    // Logo processing (same as before but with cleaner styling)
     if (gym.logo && typeof gym.logo === 'string' && gym.logo.startsWith('data:image/')) {
       try {
         const base64Data = gym.logo.split(',')[1];
@@ -559,7 +540,6 @@ router.get('/generate-pdf', async (req, res) => {
           }
         }
         
-        // Process logo for PDF
         logoBuffer = await sharp(logoBuffer)
           .png()
           .resize(Math.round(logoDimensions.width), Math.round(logoDimensions.height), {
@@ -575,21 +555,17 @@ router.get('/generate-pdf', async (req, res) => {
       }
     }
 
-    // Draw logo or enhanced placeholder
+    // Draw logo or clean placeholder
     if (hasLogo && logoBuffer) {
       const logoX = (pageWidth - logoDimensions.width) / 2;
       const logoY = currentY + (logoAreaHeight - logoDimensions.height) / 2;
       
-      // Enhanced logo background with glow effect
-      doc.circle(logoX + logoDimensions.width/2, logoY + logoDimensions.height/2, Math.max(logoDimensions.width, logoDimensions.height)/2 + 20)
-         .fillColor(`${colors.accent}10`)
-         .fill();
-      
-      doc.rect(logoX - 12, logoY - 12, logoDimensions.width + 24, logoDimensions.height + 24)
+      // Clean logo background - minimal shadow
+      doc.rect(logoX - 8, logoY - 8, logoDimensions.width + 16, logoDimensions.height + 16)
          .fillColor(colors.shadow)
          .fill();
       
-      doc.rect(logoX - 10, logoY - 10, logoDimensions.width + 20, logoDimensions.height + 20)
+      doc.rect(logoX - 6, logoY - 6, logoDimensions.width + 12, logoDimensions.height + 12)
          .fillColor(colors.white)
          .fill();
       
@@ -598,140 +574,104 @@ router.get('/generate-pdf', async (req, res) => {
         height: logoDimensions.height
       });
     } else {
-      // Enhanced placeholder design
-      const placeholderSize = 90;
+      // Clean placeholder design
+      const placeholderSize = 70;
       const placeholderX = (pageWidth - placeholderSize) / 2;
       const placeholderY = currentY + (logoAreaHeight - placeholderSize) / 2;
-      
-      // Gradient background
-      doc.circle(placeholderX + placeholderSize/2, placeholderY + placeholderSize/2, placeholderSize/2 + 10)
-         .fillColor(`${colors.accent}20`)
-         .fill();
       
       doc.circle(placeholderX + placeholderSize/2, placeholderY + placeholderSize/2, placeholderSize/2)
          .fillColor(colors.white)
          .fill();
       
-      doc.circle(placeholderX + placeholderSize/2, placeholderY + placeholderSize/2, placeholderSize/2 - 8)
+      doc.circle(placeholderX + placeholderSize/2, placeholderY + placeholderSize/2, placeholderSize/2 - 6)
          .fillColor(colors.accent)
          .fill();
       
-      // Modern gym icon
+      // Simple gym icon
       doc.fillColor(colors.white)
-         .fontSize(28)
+         .fontSize(20)
          .font('Helvetica-Bold')
-         .text('GYM', placeholderX + placeholderSize/2 - 25, placeholderY + placeholderSize/2 - 12);
+         .text('GYM', placeholderX + placeholderSize/2 - 18, placeholderY + placeholderSize/2 - 8);
     }
 
-    currentY += logoAreaHeight + 25;
+    currentY += logoAreaHeight + 20;
 
-    // **ENHANCED GYM NAME SECTION**
-    const nameCardHeight = 90;
-    const nameCardWidth = pageWidth - 80;
-    const nameCardX = 40;
+    // Gym name section with clean card design
+    const nameCardHeight = 80;
+    const nameCardWidth = pageWidth - 60;
+    const nameCardX = 30;
     
-    // Multi-layer shadow effect
-    doc.rect(nameCardX + 6, currentY + 6, nameCardWidth, nameCardHeight)
-       .fillColor(`${colors.shadow}40`)
+    // Subtle shadow
+    doc.rect(nameCardX + 2, currentY + 2, nameCardWidth, nameCardHeight)
+       .fillColor(colors.shadow)
        .fill();
     
-    doc.rect(nameCardX + 3, currentY + 3, nameCardWidth, nameCardHeight)
-       .fillColor(`${colors.shadow}20`)
-       .fill();
-    
-    // Main card with rounded corners effect
+    // Clean white card
     doc.rect(nameCardX, currentY, nameCardWidth, nameCardHeight)
        .fillColor(colors.white)
        .fill();
     
-    // Gradient accent line
-    doc.rect(nameCardX, currentY, nameCardWidth, 6)
+    // Minimal accent line - thinner and more subtle
+    doc.rect(nameCardX, currentY, nameCardWidth, 3)
        .fillColor(colors.accent)
        .fill();
-    
-    doc.rect(nameCardX, currentY, nameCardWidth/2, 6)
-       .fillColor(colors.accent2)
-       .fill();
 
-    // Gym name with better typography
+    // Clean typography
     doc.fillColor(colors.primary)
-       .fontSize(28)
+       .fontSize(24)
        .font('Helvetica-Bold')
-       .text(gym.name || 'Gym Name', nameCardX + 25, currentY + 20, {
-         width: nameCardWidth - 50,
+       .text(gym.name || 'Gym Name', nameCardX + 20, currentY + 20, {
+         width: nameCardWidth - 40,
          align: 'center'
        });
 
     doc.fillColor(colors.textLight)
-       .fontSize(16)
+       .fontSize(14)
        .font('Helvetica')
-       .text('Digital Attendance System', nameCardX + 25, currentY + 55, {
-         width: nameCardWidth - 50,
+       .text('Digital Attendance System', nameCardX + 20, currentY + 50, {
+         width: nameCardWidth - 40,
          align: 'center'
        });
 
-    currentY += nameCardHeight + 35;
+    currentY += nameCardHeight + 30;
 
-    // **ENHANCED QR CODE SECTION**
+    // QR Code section with clean modern design
     const qrCodeData = `https://web-production-6057.up.railway.app/mark_attendance/${gym.gymCode}`;
     
-    // **OPTIMIZATION: Better QR code generation**
     const qrCodeBuffer = await QRCode.toBuffer(qrCodeData, {
       errorCorrectionLevel: 'H',
       margin: 2,
-      width: 240,
+      width: 220,
       color: {
         dark: colors.primary,
         light: colors.white
       }
     });
 
-    const qrSize = 240;
+    const qrSize = 220;
     const qrX = (pageWidth - qrSize) / 2;
     
-    // Modern QR container with enhanced styling
-    const containerPadding = 30;
+    // Clean QR container
+    const containerPadding = 25;
     const containerSize = qrSize + (containerPadding * 2);
     const containerX = (pageWidth - containerSize) / 2;
     
-    // Multi-layer glow effect
-    doc.circle(containerX + containerSize/2, currentY + containerSize/2, containerSize/2 + 25)
-       .fillColor(`${colors.accent}15`)
+    // Subtle outer glow
+    doc.circle(containerX + containerSize/2, currentY + containerSize/2, containerSize/2 + 12)
+       .fillColor(`${colors.accent}08`)
        .fill();
     
-    doc.circle(containerX + containerSize/2, currentY + containerSize/2, containerSize/2 + 15)
-       .fillColor(`${colors.accent}10`)
-       .fill();
-    
-    // Main container with shadow
-    doc.rect(containerX + 3, currentY + 3, containerSize, containerSize)
-       .fillColor(colors.shadow)
-       .fill();
-    
+    // Clean white container
     doc.rect(containerX, currentY, containerSize, containerSize)
        .fillColor(colors.white)
        .fill();
     
-    // Enhanced border with corner accents
-    const borderWidth = 4;
-    const cornerSize = 20;
-    
-    // Top border with gradient effect
-    doc.rect(containerX, currentY, containerSize, borderWidth)
+    // Minimal border - very thin and subtle
+    doc.rect(containerX, currentY, containerSize, 2)
        .fillColor(colors.accent)
        .fill();
     
-    // Bottom border
-    doc.rect(containerX, currentY + containerSize - borderWidth, containerSize, borderWidth)
-       .fillColor(colors.accent2)
-       .fill();
-    
-    // Corner accents
-    doc.rect(containerX, currentY, cornerSize, cornerSize)
-       .fillColor(colors.accent)
-       .fill();
-    
-    doc.rect(containerX + containerSize - cornerSize, currentY, cornerSize, cornerSize)
+    doc.rect(containerX, currentY + containerSize - 2, containerSize, 2)
        .fillColor(colors.accent)
        .fill();
     
@@ -741,34 +681,26 @@ router.get('/generate-pdf', async (req, res) => {
       height: qrSize
     });
 
-    currentY += containerSize + 30;
+    currentY += containerSize + 25;
 
-    // **ENHANCED GYM CODE DISPLAY**
-    const codeContainerWidth = 320;
+    // Clean gym code display
+    const codeContainerWidth = 280;
     const codeContainerX = (pageWidth - codeContainerWidth) / 2;
-    const codeContainerHeight = 65;
+    const codeContainerHeight = 60;
     
-    // Shadow and main container
-    doc.rect(codeContainerX + 3, currentY + 3, codeContainerWidth, codeContainerHeight)
-       .fillColor(colors.shadow)
-       .fill();
-    
+    // Clean container
     doc.rect(codeContainerX, currentY, codeContainerWidth, codeContainerHeight)
        .fillColor(colors.primary)
        .fill();
     
-    // Gradient highlight
-    doc.rect(codeContainerX, currentY, codeContainerWidth, 3)
-       .fillColor(colors.accent2)
-       .fill();
-    
-    doc.rect(codeContainerX, currentY, codeContainerWidth/3, 3)
-       .fillColor(colors.success)
+    // Subtle highlight
+    doc.rect(codeContainerX, currentY, codeContainerWidth, 2)
+       .fillColor(colors.accent)
        .fill();
 
-    // Code text with better spacing
-    doc.fillColor('#ffffff60')
-       .fontSize(14)
+    // Clean typography
+    doc.fillColor('#ffffff80')
+       .fontSize(12)
        .font('Helvetica')
        .text('GYM CODE', codeContainerX, currentY + 15, {
          width: codeContainerWidth,
@@ -776,61 +708,60 @@ router.get('/generate-pdf', async (req, res) => {
        });
 
     doc.fillColor(colors.white)
-       .fontSize(24)
+       .fontSize(20)
        .font('Helvetica-Bold')
-       .text(gym.gymCode || 'GYM001', codeContainerX, currentY + 35, {
+       .text(gym.gymCode || 'GYM001', codeContainerX, currentY + 32, {
          width: codeContainerWidth,
          align: 'center'
        });
 
     currentY += codeContainerHeight + 25;
 
-    // **ENHANCED INSTRUCTIONS**
+    // Clean instruction text
     doc.fillColor(colors.text)
-       .fontSize(18)
+       .fontSize(16)
        .font('Helvetica-Bold')
        .text('Scan to Mark Attendance', 50, currentY, {
          width: pageWidth - 100,
          align: 'center'
        });
 
-    currentY += 30;
+    currentY += 25;
 
-    // Additional instructions
     doc.fillColor(colors.textLight)
-       .fontSize(12)
+       .fontSize(11)
        .font('Helvetica')
        .text('Point your camera at the QR code above or use any QR scanner app', 50, currentY, {
          width: pageWidth - 100,
          align: 'center'
        });
 
-    // **ENHANCED FOOTER**
-    const footerY = pageHeight - 80;
+    // Blue footer
+    const footerY = pageHeight - 70;
     
-    // Footer background
-    doc.rect(0, footerY - 10, pageWidth, 90)
-       .fillColor(`${colors.primary}95`)
+    // Blue footer background
+    doc.rect(0, footerY - 5, pageWidth, 75)
+       .fillColor(colors.accent)
        .fill();
     
-    doc.fillColor('#ffffff90')
-       .fontSize(12)
+    doc.fillColor(colors.white)
+       .fontSize(11)
        .font('Helvetica-Bold')
-       .text('Smart Gym Management System', 50, footerY + 5, {
+       .text('Smart Gym Management System', 50, footerY + 10, {
          width: pageWidth - 100,
          align: 'center'
        });
 
-    doc.fillColor('#ffffff70')
-       .fontSize(10)
+    doc.fillColor('#ffffff90')
+       .fontSize(9)
        .font('Helvetica')
-       .text('Streamlining fitness experiences with technology', 50, footerY + 22, {
+       .text('Streamlining fitness experiences with technology', 50, footerY + 25, {
          width: pageWidth - 100,
          align: 'center'
        });
 
-    // Add generation timestamp
-    doc.fillColor('#ffffff50')
+    // Generation timestamp
+    doc.fillColor('#ffffff70')
        .fontSize(8)
        .font('Helvetica')
        .text(`Generated on ${new Date().toLocaleString()}`, 50, footerY + 40, {

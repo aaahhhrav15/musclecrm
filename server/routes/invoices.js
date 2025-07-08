@@ -165,6 +165,7 @@ router.delete('/:id', async (req, res) => {
 });
 
 // Generate Professional PDF Invoice
+// Generate Professional PDF Invoice
 router.get('/:id/pdf', auth, async (req, res) => {
   try {
     console.log('Generating professional PDF for invoice:', req.params.id);
@@ -236,7 +237,8 @@ router.get('/:id/pdf', auth, async (req, res) => {
 
     let currentY = 40;
 
-    // Header Section
+    // Header Section - Completely separate gym details and invoice sections
+    
     // Draw gym logo if available
     if (gym && gym.logo && typeof gym.logo === 'string' && gym.logo.startsWith('data:image/')) {
       try {
@@ -249,15 +251,19 @@ router.get('/:id/pdf', auth, async (req, res) => {
       }
     }
 
-    // Gym Details
+    // LEFT SIDE - Gym Details (take full left side)
     doc.fillColor(colors.text)
       .fontSize(24)
       .font('Helvetica-Bold')
       .text(gym?.name || 'Gym Name', 120, currentY + 5);
 
+    let leftSideY = currentY + 35;
+
+    // Address - use full width available for left side
     doc.fillColor(colors.secondary)
       .fontSize(10)
       .font('Helvetica');
+
     let addressLine = '';
     if (gym?.address) {
       addressLine = [
@@ -268,24 +274,61 @@ router.get('/:id/pdf', auth, async (req, res) => {
         gym.address.country
       ].filter(Boolean).join(', ');
     }
-    doc.text(addressLine || 'Address not set', 120, currentY + 30);
-    let phoneLine = '';
-    if (gym?.contactInfo) {
-      phoneLine = [
-        gym.contactInfo.phone ? `Phone: ${gym.contactInfo.phone}` : '',
-        gym.contactInfo.email ? `Email: ${gym.contactInfo.email}` : ''
-      ].filter(Boolean).join(' | ');
-    }
-    doc.text(phoneLine || '', 120, currentY + 42);
 
-    // Invoice Title and Number (Right side)
+    if (addressLine && addressLine !== 'Address not set') {
+      // Split long address into multiple lines manually if needed
+      const words = addressLine.split(' ');
+      let currentLine = '';
+      let lines = [];
+      
+      words.forEach(word => {
+        const testLine = currentLine + (currentLine ? ' ' : '') + word;
+        const testWidth = doc.widthOfString(testLine);
+        
+        if (testWidth > 350 && currentLine) { // Max width for address
+          lines.push(currentLine);
+          currentLine = word;
+        } else {
+          currentLine = testLine;
+        }
+      });
+      
+      if (currentLine) {
+        lines.push(currentLine);
+      }
+
+      // Render each line
+      lines.forEach((line, index) => {
+        doc.text(line, 120, leftSideY + (index * 12));
+      });
+      
+      leftSideY += (lines.length * 12) + 8;
+    } else {
+      doc.text('Address not set', 120, leftSideY);
+      leftSideY += 15;
+    }
+
+    // Phone and Email - separate lines for better readability
+    if (gym?.contactInfo?.phone) {
+      doc.text(`Phone: ${gym.contactInfo.phone}`, 120, leftSideY);
+      leftSideY += 12;
+    }
+
+    if (gym?.contactInfo?.email) {
+      doc.text(`Email: ${gym.contactInfo.email}`, 120, leftSideY);
+      leftSideY += 12;
+    }
+
+    // RIGHT SIDE - Invoice Details (positioned to avoid overlap)
+    const rightSideStartY = currentY;
+    
     doc.fillColor(colors.primary)
        .fontSize(28)
        .font('Helvetica-Bold')
-       .text('INVOICE', 400, currentY, { align: 'right' });
+       .text('INVOICE', 400, rightSideStartY, { align: 'right' });
 
-    // Invoice details box - Made taller to accommodate all content
-    doc.rect(400, currentY + 35, 145, 95)
+    // Invoice details box
+    doc.rect(400, rightSideStartY + 35, 145, 95)
        .fillColor(colors.light)
        .fill()
        .strokeColor(colors.primary)
@@ -295,24 +338,24 @@ router.get('/:id/pdf', auth, async (req, res) => {
     doc.fillColor(colors.text)
        .fontSize(10)
        .font('Helvetica-Bold')
-       .text('Invoice Number:', 410, currentY + 45)
+       .text('Invoice Number:', 410, rightSideStartY + 45)
        .font('Helvetica')
-       .text(invoice.invoiceNumber || 'INV-001', 410, currentY + 58);
+       .text(invoice.invoiceNumber || 'INV-001', 410, rightSideStartY + 58);
 
     doc.font('Helvetica-Bold')
-       .text('Invoice Date:', 410, currentY + 75)
+       .text('Invoice Date:', 410, rightSideStartY + 75)
        .font('Helvetica')
-       .text(formatDate(invoice.createdAt), 410, currentY + 88);
+       .text(formatDate(invoice.createdAt), 410, rightSideStartY + 88);
 
     doc.font('Helvetica-Bold')
-       .text('Due Date:', 410, currentY + 105)
+       .text('Due Date:', 410, rightSideStartY + 105)
        .font('Helvetica')
-       .text(formatDate(invoice.dueDate), 410, currentY + 118);
+       .text(formatDate(invoice.dueDate), 410, rightSideStartY + 118);
 
-    currentY += 100;
+    const rightSideEndY = rightSideStartY + 130;
 
-    // (Status badge removed)
-    currentY += 0;
+    // Set currentY to the maximum of both sections + extra spacing
+    currentY = Math.max(leftSideY, rightSideEndY) + 25;
 
     // Bill To Section
     doc.fillColor(colors.text)
@@ -320,7 +363,18 @@ router.get('/:id/pdf', auth, async (req, res) => {
        .font('Helvetica-Bold')
        .text('BILL TO:', 50, currentY);
 
-    doc.rect(50, currentY + 15, 240, 85)
+    // Calculate dynamic height for Bill To box based on customer info
+    let billToHeight = 85; // Minimum height
+    if (invoice.customerId?.address) {
+      const customerAddressHeight = doc.heightOfString(`Address: ${invoice.customerId.address}`, {
+        width: 220
+      });
+      if (customerAddressHeight > 25) {
+        billToHeight += (customerAddressHeight - 25);
+      }
+    }
+
+    doc.rect(50, currentY + 15, 240, billToHeight)
        .fillColor('#fafafa')
        .fill()
        .strokeColor('#e2e8f0')
@@ -332,20 +386,28 @@ router.get('/:id/pdf', auth, async (req, res) => {
        .font('Helvetica-Bold')
        .text(invoice.customerId?.name || 'N/A', 60, currentY + 25);
 
+    let customerInfoY = currentY + 42;
+
     doc.fillColor(colors.secondary)
        .fontSize(9)
        .font('Helvetica')
-       .text(`Email: ${invoice.customerId?.email || 'N/A'}`, 60, currentY + 42)
-       .text(`Phone: ${invoice.customerId?.phone || 'N/A'}`, 60, currentY + 55);
-
+       .text(`Email: ${invoice.customerId?.email || 'N/A'}`, 60, customerInfoY);
+    
+    customerInfoY += 13;
+    doc.text(`Phone: ${invoice.customerId?.phone || 'N/A'}`, 60, customerInfoY);
+    
+    customerInfoY += 13;
     if (invoice.customerId?.address) {
-      doc.text(`Address: ${invoice.customerId.address}`, 60, currentY + 68, {
-        width: 220,
-        height: 25
+      const addressHeight = doc.heightOfString(`Address: ${invoice.customerId.address}`, {
+        width: 220
       });
+      doc.text(`Address: ${invoice.customerId.address}`, 60, customerInfoY, {
+        width: 220
+      });
+      customerInfoY += addressHeight;
     }
 
-    currentY += 115;
+    currentY += billToHeight + 30;
 
     // Items Table
     const tableStartY = currentY;
@@ -471,7 +533,12 @@ router.get('/:id/pdf', auth, async (req, res) => {
          .font('Helvetica-Bold')
          .text('NOTES:', 50, currentY);
 
-      doc.rect(50, currentY + 15, 495, 45)
+      // Calculate notes height dynamically
+      const notesHeight = Math.max(45, doc.heightOfString(invoice.notes, {
+        width: 475
+      }) + 20);
+
+      doc.rect(50, currentY + 15, 495, notesHeight)
          .fillColor('#f8fafc')
          .fill()
          .strokeColor('#e2e8f0')
@@ -482,11 +549,10 @@ router.get('/:id/pdf', auth, async (req, res) => {
          .fontSize(9)
          .font('Helvetica')
          .text(invoice.notes, 60, currentY + 25, {
-           width: 475,
-           height: 25
+           width: 475
          });
 
-      currentY += 70;
+      currentY += notesHeight + 15;
     }
 
     // Payment Terms
@@ -510,8 +576,8 @@ router.get('/:id/pdf', auth, async (req, res) => {
       doc.text(term, 50, currentY + 18 + (index * 10));
     });
 
-    // Footer
-    const footerY = 750;
+    // Footer - Make sure it's at the bottom of the page
+    const footerY = Math.max(750, currentY + 60);
     addLine(50, footerY, 545, footerY, colors.primary, 1);
 
     doc.fillColor(colors.secondary)
@@ -533,31 +599,6 @@ router.get('/:id/pdf', auth, async (req, res) => {
       message: 'Error generating PDF',
       error: error.message
     });
-  }
-});
-
-// Update invoice status
-router.patch('/:id/status', async (req, res) => {
-  try {
-    const { status } = req.body;
-    if (!['pending', 'paid', 'cancelled'].includes(status)) {
-      return res.status(400).json({ message: 'Invalid status' });
-    }
-
-    const invoice = await Invoice.findByIdAndUpdate(
-      req.params.id,
-      { status },
-      { new: true }
-    );
-
-    if (!invoice) {
-      return res.status(404).json({ message: 'Invoice not found' });
-    }
-
-    res.json(invoice);
-  } catch (error) {
-    console.error('Error updating invoice status:', error);
-    res.status(500).json({ message: 'Error updating invoice status' });
   }
 });
 

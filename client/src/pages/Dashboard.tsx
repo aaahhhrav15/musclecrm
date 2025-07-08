@@ -48,7 +48,7 @@ import { ApiService } from '@/services/ApiService';
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
-  "https://flexcrm-ui-suite-production-ec9f.up.railway.app/api";
+  "http://localhost:5001/api";
 
 interface MetricCardProps {
   title: string;
