@@ -109,7 +109,7 @@ const RetailSalesPage: React.FC = () => {
   const fetchSales = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/gym/retail-sales');
+      const response = await axios.get('/gym/retail-sales');
       setSales(Array.isArray(response.data.data) ? response.data.data : []);
     } catch (error) {
       toast.error('Failed to fetch sales data');
@@ -154,10 +154,10 @@ const RetailSalesPage: React.FC = () => {
       };
 
       if (editingSale) {
-        await axios.put(`/api/gym/retail-sales/${editingSale._id}`, saleData);
+        await axios.put(`/gym/retail-sales/${editingSale._id}`, saleData);
         toast.success('Sale updated successfully');
       } else {
-        await axios.post('/api/gym/retail-sales', saleData);
+        await axios.post('/gym/retail-sales', saleData);
         toast.success('Sale added successfully');
       }
 
@@ -171,7 +171,7 @@ const RetailSalesPage: React.FC = () => {
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this sale?')) {
       try {
-        await axios.delete(`/api/gym/retail-sales/${id}`);
+        await axios.delete(`/gym/retail-sales/${id}`);
         toast.success('Sale deleted successfully');
         fetchSales();
       } catch (error) {
