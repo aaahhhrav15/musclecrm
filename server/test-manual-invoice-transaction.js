@@ -4,7 +4,7 @@ const Invoice = require('./models/Invoice');
 const Transaction = require('./models/Transaction');
 
 // Test configuration
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/flexcrm';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/MuscleCRM';
 
 async function testManualInvoiceTransaction() {
   try {

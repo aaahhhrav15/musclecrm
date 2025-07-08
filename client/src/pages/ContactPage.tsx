@@ -89,7 +89,7 @@ const ContactPage: React.FC = () => {
               <div>
                 <h2 className="text-2xl font-bold mb-6">Get in Touch</h2>
                 <p className="text-muted-foreground mb-8">
-                  Have questions about FlexCRM or need assistance with your account? 
+                  Have questions about MuscleCRM or need assistance with your account? 
                   Our team is ready to help you implement the perfect solution for your business.
                 </p>
                 
@@ -234,7 +234,7 @@ const ContactPage: React.FC = () => {
               
               <div className="space-y-6">
                 <div className="bg-background rounded-lg p-6 shadow-sm">
-                  <h3 className="text-xl font-medium mb-3">How do I get started with FlexCRM?</h3>
+                  <h3 className="text-xl font-medium mb-3">How do I get started with MuscleCRM?</h3>
                   <p className="text-muted-foreground">
                     Getting started is easy! Simply sign up for an account, choose your industry, and follow our simple setup guide. Our onboarding team will help you every step of the way.
                   </p>
@@ -250,14 +250,14 @@ const ContactPage: React.FC = () => {
                 <div className="bg-background rounded-lg p-6 shadow-sm">
                   <h3 className="text-xl font-medium mb-3">Can I switch between different industry modules?</h3>
                   <p className="text-muted-foreground">
-                    Absolutely! FlexCRM is designed to be adaptable. You can switch between industry modules or use multiple modules simultaneously depending on your subscription plan.
+                    Absolutely! MuscleCRM is designed to be adaptable. You can switch between industry modules or use multiple modules simultaneously depending on your subscription plan.
                   </p>
                 </div>
                 
                 <div className="bg-background rounded-lg p-6 shadow-sm">
                   <h3 className="text-xl font-medium mb-3">Do you offer customization for specific business needs?</h3>
                   <p className="text-muted-foreground">
-                    Yes, we offer customization options for businesses with specific requirements. Contact our sales team to discuss your unique needs and how we can tailor FlexCRM for you.
+                    Yes, we offer customization options for businesses with specific requirements. Contact our sales team to discuss your unique needs and how we can tailor MuscleCRM for you.
                   </p>
                 </div>
               </div>

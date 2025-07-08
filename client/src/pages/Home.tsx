@@ -196,7 +196,7 @@ const Home = () => {
       name: 'Sarah Johnson',
       role: 'Owner, FitLife Studio',
       avatar: 'SJ',
-      content: 'FlexCRM transformed our member retention from 60% to 85%. The automated communications and analytics are game-changers.',
+      content: 'MuscleCRM transformed our member retention from 60% to 85%. The automated communications and analytics are game-changers.',
       rating: 5,
       color: 'from-pink-500 to-rose-500'
     },
@@ -368,7 +368,7 @@ const Home = () => {
                 Designed Specifically for Your Industry
               </h2>
               <p className="text-xl text-slate-600 dark:text-slate-300 leading-relaxed">
-                Unlike generic CRMs, FlexCRM understands the unique challenges and opportunities in fitness management.
+                Unlike generic CRMs, MuscleCRM understands the unique challenges and opportunities in fitness management.
               </p>
             </motion.div>
           </div>
@@ -673,7 +673,7 @@ const Home = () => {
                 Loved by Fitness Professionals
               </h2>
               <p className="text-xl text-slate-600 dark:text-slate-300 leading-relaxed">
-                See how FlexCRM is transforming fitness businesses worldwide.
+                See how MuscleCRM is transforming fitness businesses worldwide.
               </p>
             </motion.div>
           </div>
@@ -750,7 +750,7 @@ const Home = () => {
               </h2>
               
               <p className="text-xl text-white/90 mb-10 leading-relaxed max-w-3xl mx-auto">
-                Join thousands of fitness professionals who've already transformed their businesses with FlexCRM. Your members are waiting for a better experience.
+                Join thousands of fitness professionals who've already transformed their businesses with MuscleCRM. Your members are waiting for a better experience.
               </p>
               
               <div className="flex flex-col sm:flex-row gap-4 justify-center mb-10">

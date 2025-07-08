@@ -42,7 +42,7 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Configure CORS
 app.use(cors({
-  origin: ['http://localhost:5173', 'https://flexcrm-ui-suite.vercel.app', 'https://www.musclecrm.com','https://musclecrm.com'], // Your frontend URL
+  origin: ['http://localhost:5173', 'https://MuscleCRM-ui-suite.vercel.app', 'https://www.musclecrm.com','https://musclecrm.com'], // Your frontend URL
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
@@ -163,7 +163,7 @@ app.use('/api/personal-training', personalTrainingRoutes);
 
 // Root route
 app.get('/', (req, res) => {
-  res.send('FlexCRM API is running');
+  res.send('MuscleCRM API is running');
 });
 
 // Error handling middleware

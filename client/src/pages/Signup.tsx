@@ -105,7 +105,7 @@ const Signup: React.FC = () => {
       setSelectedIndustry('gym');
       toast({
         title: 'Account created',
-        description: `Welcome to FlexCRM! Your gym number is: ${response.gym?.gymCode}`,
+        description: `Welcome to MuscleCRM! Your gym number is: ${response.gym?.gymCode}`,
       });
       navigate('/setup');
     } catch (error: unknown) {
@@ -140,7 +140,7 @@ const Signup: React.FC = () => {
           <div className="mb-8 text-center">
             <h1 className="text-3xl font-bold">Register Your Gym</h1>
             <p className="mt-2 text-muted-foreground">
-              Create your FlexCRM account to manage your gym
+              Create your MuscleCRM account to manage your gym
             </p>
           </div>
           

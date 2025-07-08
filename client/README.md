@@ -1,5 +1,5 @@
 
-# FlexCRM - Gym Management System
+# MuscleCRM - Gym Management System
 
 A comprehensive CRM system for gym management with MongoDB backend.
 
@@ -29,13 +29,13 @@ A comprehensive CRM system for gym management with MongoDB backend.
 PORT=5001
 NODE_ENV=development
 FRONTEND_URL=http://localhost:5173
-MONGODB_URI=mongodb://localhost:27017/flexcrm
+MONGODB_URI=mongodb://localhost:27017/MuscleCRM
 JWT_SECRET=your_jwt_secret_key_here
 ```
 
 ### Frontend (.env.development)
 ```
-VITE_API_URL=http://localhost:5001/api
+VITE_API_URL=https://flexcrm-ui-suite-production-ec9f.up.railway.app/api
 ```
 
 ## API Routes

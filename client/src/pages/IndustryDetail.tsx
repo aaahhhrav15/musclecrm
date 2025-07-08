@@ -52,7 +52,7 @@ const IndustryDetail: React.FC = () => {
   const industryData: Record<string, IndustryData> = {
     gym: {
       name: 'gym',
-      title: 'FlexCRM for Gyms & Fitness Centers',
+      title: 'MuscleCRM for Gyms & Fitness Centers',
       subtitle: 'The Complete Fitness Business Solution',
       description: 'Transform your gym operations with our specialized CRM designed exclusively for fitness centers, gyms, and personal trainers. Streamline member management, automate billing, and grow your business.',
       color: 'bg-gradient-to-br from-primary via-primary to-primary/80',
@@ -151,7 +151,7 @@ const IndustryDetail: React.FC = () => {
   };
 
   const stats = [
-    { number: '500+', label: 'Gyms Using FlexCRM', icon: Dumbbell },
+    { number: '500+', label: 'Gyms Using MuscleCRM', icon: Dumbbell },
     { number: '50K+', label: 'Active Members', icon: Users },
     { number: '99.9%', label: 'Uptime Guarantee', icon: Shield },
     { number: '24/7', label: 'Support Available', icon: Clock }
@@ -504,7 +504,7 @@ const IndustryDetail: React.FC = () => {
                 Ready to Transform Your {data.name.charAt(0).toUpperCase() + data.name.slice(1)}?
               </h2>
               <p className="mt-6 text-xl text-white/90 max-w-3xl mx-auto">
-                Join hundreds of successful {data.name} businesses that trust FlexCRM to streamline operations and accelerate growth.
+                Join hundreds of successful {data.name} businesses that trust MuscleCRM to streamline operations and accelerate growth.
               </p>
               
               <div className="flex flex-col justify-center gap-4 mt-10 sm:flex-row">

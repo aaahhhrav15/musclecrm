@@ -3,7 +3,7 @@ const Customer = require('./models/Customer');
 const Invoice = require('./models/Invoice');
 
 // Test configuration
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/flexcrm';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/MuscleCRM';
 
 async function testRenewalInvoiceCreation() {
   try {

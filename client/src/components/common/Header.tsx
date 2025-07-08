@@ -49,7 +49,7 @@ const Header: React.FC<HeaderProps> = ({ transparent = false }) => {
     <header className={headerClass}>
       <div className="container flex items-center justify-between h-16 px-4 mx-auto sm:px-6 lg:px-8">
         <Link to="/" className="flex items-center">
-          <span className="text-xl font-bold text-primary">FlexCRM</span>
+          <span className="text-xl font-bold text-primary">MuscleCRM</span>
         </Link>
 
         {/* Desktop Navigation */}
@@ -162,7 +162,7 @@ const Header: React.FC<HeaderProps> = ({ transparent = false }) => {
             <div className="container flex flex-col h-full p-6">
               <div className="flex items-center justify-between">
                 <Link to="/" className="flex items-center" onClick={() => setIsMenuOpen(false)}>
-                  <span className="text-xl font-bold text-primary">FlexCRM</span>
+                  <span className="text-xl font-bold text-primary">MuscleCRM</span>
                 </Link>
                 <Button variant="ghost" size="icon" onClick={toggleMenu}>
                   <X className="w-5 h-5" />

@@ -90,7 +90,7 @@ const Login: React.FC = () => {
           <div className="mb-8 text-center">
             <h1 className="text-3xl font-bold">Welcome Back</h1>
             <p className="mt-2 text-muted-foreground">
-              Sign in to your FlexCRM account
+              Sign in to your MuscleCRM account
             </p>
           </div>
           

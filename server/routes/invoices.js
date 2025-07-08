@@ -190,7 +190,7 @@ router.get('/:id/pdf', auth, async (req, res) => {
       margins: { top: 40, bottom: 40, left: 50, right: 50 },
       info: {
         Title: `Invoice ${invoice.invoiceNumber}`,
-        Author: gym?.name || 'FlexCRM',
+        Author: gym?.name || 'MuscleCRM',
         Subject: 'Professional Invoice'
       }
     });

@@ -1,7 +1,7 @@
 {
-  "name": "flexcrm-backend",
+  "name": "MuscleCRM-backend",
   "version": "1.0.0",
-  "description": "FlexCRM Gym Management Backend",
+  "description": "MuscleCRM Gym Management Backend",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
