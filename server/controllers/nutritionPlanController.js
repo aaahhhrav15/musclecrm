@@ -62,12 +62,12 @@ exports.generateNutritionPlan = async (req, res) => {
     - Objective: ${objective}
     - Diet type: ${dietType}
     - Additional requirements: ${additionalDetails || 'None'}
+    - This diet is for Indian lifestyle and food habits.
 
     The plan should include:
     1. Total daily calories
     2. Protein, carbs, and fat targets
-    3. 6 meals per day (Breakfast, Mid-Morning Snack, Lunch, Evening Snack, Dinner, Night Snack)
-    4. Each meal should have:
+    3. Each meal should have:
        - Meal type
        - Time
        - Total calories
