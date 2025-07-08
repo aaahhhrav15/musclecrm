@@ -1,11 +1,6 @@
 const mongoose = require('mongoose');
 
 const customerSchema = new mongoose.Schema({
-  userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
   gymId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Gym',
@@ -22,8 +17,7 @@ const customerSchema = new mongoose.Schema({
   },
   email: {
     type: String,
-    required: true,
-    unique: true,
+    required: false,
     trim: true,
     lowercase: true
   },
@@ -97,16 +91,16 @@ const customerSchema = new mongoose.Schema({
 });
 
 // Add indexes for common queries
-customerSchema.index({ userId: 1, email: 1 });
-customerSchema.index({ userId: 1, name: 1 });
+customerSchema.index({ email: 1 });
+customerSchema.index({ name: 1 });
 customerSchema.index({ gymId: 1 });
 customerSchema.index({ personalTrainer: 1 });
 
 // **OPTIMIZATION: Add compound indexes for dashboard queries**
-customerSchema.index({ userId: 1, gymId: 1, membershipEndDate: 1 });
-customerSchema.index({ userId: 1, gymId: 1, joinDate: 1 });
-customerSchema.index({ userId: 1, gymId: 1, birthday: 1 });
-customerSchema.index({ userId: 1, gymId: 1, totalSpent: 1 });
+customerSchema.index({ gymId: 1, membershipEndDate: 1 });
+customerSchema.index({ gymId: 1, joinDate: 1 });
+customerSchema.index({ gymId: 1, birthday: 1 });
+customerSchema.index({ gymId: 1, totalSpent: 1 });
 customerSchema.index({ gymId: 1, membershipEndDate: 1 });
 customerSchema.index({ gymId: 1, joinDate: 1 });
 

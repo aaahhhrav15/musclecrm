@@ -130,7 +130,7 @@ interface ApiCustomerResponse extends ApiResponse {
 
 export interface CustomerFormData {
   name: string;
-  email: string;
+  email?: string;
   phone?: string;
   address?: string;
   source: 'website' | 'referral' | 'walk-in' | 'social_media' | 'other';
@@ -143,6 +143,25 @@ export interface CustomerFormData {
   transactionDate: Date;
   paymentMode: 'cash' | 'card' | 'upi' | 'bank_transfer' | 'other';
   birthday?: Date;
+  totalSpent?: number;
+  notes?: string;
+}
+
+export interface CustomerApiUpdateData {
+  name?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  source?: 'website' | 'referral' | 'walk-in' | 'social_media' | 'other';
+  membershipType?: 'none' | 'basic' | 'premium' | 'vip';
+  membershipFees?: number;
+  membershipDuration?: number;
+  joinDate?: string;
+  membershipStartDate?: string;
+  membershipEndDate?: string;
+  transactionDate?: string;
+  paymentMode?: 'cash' | 'card' | 'upi' | 'bank_transfer' | 'other';
+  birthday?: string;
   totalSpent?: number;
   notes?: string;
 }
@@ -275,7 +294,7 @@ export const CustomerService = {
   /**
    * Update an existing customer
    */
-  updateCustomer: async (id: string, customerData: Partial<CustomerFormData>): Promise<ApiCustomerResponse> => {
+  updateCustomer: async (id: string, customerData: CustomerApiUpdateData): Promise<ApiCustomerResponse> => {
     try {
       const response = await ApiService.put<ApiCustomerResponse>(`/customers/${id}`, customerData);
       return response;

@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const customerFormSchema = z.object({
   name: z.string().min(1, 'Name is required'),
-  email: z.string().email('Invalid email address'),
+  email: z.string().email('Invalid email address').optional(),
   phone: z.string().optional(),
   address: z.string().optional(),
   source: z.enum(['website', 'referral', 'walk-in', 'social_media', 'other']),

@@ -36,7 +36,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { CustomerService, Customer } from '@/services/CustomerService';
+import { CustomerService, Customer, CustomerApiUpdateData } from '@/services/CustomerService';
 import transactionService from '@/services/transactionService';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
@@ -63,6 +63,29 @@ interface RenewMembershipModalProps {
 function safeFormatDate(date: Date | null | undefined, fmt: string = 'PPP') {
   if (!date || !(date instanceof Date) || isNaN(date.getTime())) return 'N/A';
   return format(date, fmt);
+}
+
+// Helper to convert Date objects to ISO strings for API calls
+function convertDatesToISO(data: {
+  membershipType: 'none' | 'basic' | 'premium' | 'vip';
+  membershipFees: number;
+  membershipDuration: number;
+  membershipStartDate: Date;
+  membershipEndDate: Date;
+  transactionDate: Date;
+  paymentMode: 'cash' | 'card' | 'upi' | 'bank_transfer' | 'other';
+  notes: string;
+}): CustomerApiUpdateData {
+  return {
+    membershipType: data.membershipType,
+    membershipFees: data.membershipFees,
+    membershipDuration: data.membershipDuration,
+    membershipStartDate: data.membershipStartDate.toISOString(),
+    membershipEndDate: data.membershipEndDate.toISOString(),
+    transactionDate: data.transactionDate.toISOString(),
+    paymentMode: data.paymentMode,
+    notes: data.notes,
+  };
 }
 
 export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
@@ -203,7 +226,9 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
         notes: values.notes || '',
       };
 
-      console.log('Renewal data being sent:', updateData);
+      // Convert dates to ISO strings for API call
+      const apiData = convertDatesToISO(updateData);
+      console.log('Renewal data being sent:', apiData);
       console.log('Current customer data:', {
         membershipType: customer.membershipType,
         membershipFees: customer.membershipFees,
@@ -213,12 +238,25 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
       });
       
       // Update customer membership
-      const response = await CustomerService.updateCustomer(customer.id, updateData);
+      const response = await CustomerService.updateCustomer(customer.id, apiData);
 
-      // Create transaction record
-      const transactionDescription = values.notes 
-        ? `${values.membershipType.toUpperCase()} membership renewal for ${values.membershipDuration} months (${safeFormatDate(newStartDate, 'PPP')} to ${safeFormatDate(newEndDate, 'PPP')}) - Notes: ${values.notes}`
-        : `${values.membershipType.toUpperCase()} membership renewal for ${values.membershipDuration} months (${safeFormatDate(newStartDate, 'PPP')} to ${safeFormatDate(newEndDate, 'PPP')})`;
+      // Create transaction record with correct date range
+      let transactionDescription: string;
+      
+      if (currentEndDate > today) {
+        // Current membership is active - show from current end date + 1 day to new end date
+        const renewalStartDate = new Date(currentEndDate);
+        renewalStartDate.setDate(renewalStartDate.getDate() + 1); // Add 1 day to current end date
+        
+        transactionDescription = values.notes 
+          ? `${values.membershipType.toUpperCase()} membership renewal for ${values.membershipDuration} months (${safeFormatDate(renewalStartDate, 'PPP')} to ${safeFormatDate(newEndDate, 'PPP')}) - Notes: ${values.notes}`
+          : `${values.membershipType.toUpperCase()} membership renewal for ${values.membershipDuration} months (${safeFormatDate(renewalStartDate, 'PPP')} to ${safeFormatDate(newEndDate, 'PPP')})`;
+      } else {
+        // Current membership has expired - show from start date to end date
+        transactionDescription = values.notes 
+          ? `${values.membershipType.toUpperCase()} membership renewal for ${values.membershipDuration} months (${safeFormatDate(newStartDate, 'PPP')} to ${safeFormatDate(newEndDate, 'PPP')}) - Notes: ${values.notes}`
+          : `${values.membershipType.toUpperCase()} membership renewal for ${values.membershipDuration} months (${safeFormatDate(newStartDate, 'PPP')} to ${safeFormatDate(newEndDate, 'PPP')})`;
+      }
 
       await transactionService.createTransaction({
         userId: customer.id,
@@ -459,7 +497,7 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
                       <span className="font-medium">Current End Date:</span> {safeFormatDate(renewalPreview.currentEndDate, "PPP")}
                     </p>
                     <p className="text-blue-800">
-                      <span className="font-medium">New Start Date:</span> {safeFormatDate(renewalPreview.newStartDate, "PPP")}
+                      <span className="font-medium">Start Date:</span> {safeFormatDate(renewalPreview.newStartDate, "PPP")}
                     </p>
                     <p className="text-blue-800">
                       <span className="font-medium">New End Date:</span> {safeFormatDate(renewalPreview.newEndDate, "PPP")}

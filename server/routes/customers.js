@@ -282,7 +282,6 @@ router.post('/', async (req, res) => {
     
     const customer = new Customer({
       ...req.body,
-      userId: req.user._id,
       gymId: req.gymId,
       gymCode,
       membershipEndDate, // Store calculated end date in database
@@ -438,14 +437,20 @@ router.put('/:id', async (req, res) => {
 
     // **OPTIMIZATION: Auto-calculate membership end date when start date or duration changes**
     if (membershipStartDate || membershipDuration !== undefined) {
-      const startDate = membershipStartDate || customer.membershipStartDate;
-      const duration = membershipDuration !== undefined ? membershipDuration : customer.membershipDuration;
-      
-      if (startDate && duration && duration > 0) {
-        const calculatedEndDate = calculateMembershipEndDate(startDate, duration);
-        updates.membershipEndDate = calculatedEndDate;
+      // If membershipEndDate is also provided, this is likely a renewal - use the provided end date
+      if (membershipEndDate !== undefined) {
+        updates.membershipEndDate = membershipEndDate;
       } else {
-        updates.membershipEndDate = null;
+        // This is a new membership setup - calculate end date
+        const startDate = membershipStartDate || customer.membershipStartDate;
+        const duration = membershipDuration !== undefined ? membershipDuration : customer.membershipDuration;
+        
+        if (startDate && duration && duration > 0) {
+          const calculatedEndDate = calculateMembershipEndDate(startDate, duration);
+          updates.membershipEndDate = calculatedEndDate;
+        } else {
+          updates.membershipEndDate = null;
+        }
       }
     } else if (membershipEndDate !== undefined) {
       // Only use provided end date if start date and duration are not being updated
@@ -478,10 +483,60 @@ router.put('/:id', async (req, res) => {
       console.log(`Updated totalSpent for customer ${updatedCustomer.name}: ${totalSpent}`);
     }
 
+    // Create invoice for membership renewal if membership fees > 0
+    let invoice = null;
+    const feesToUse = membershipFees !== undefined ? membershipFees : updatedCustomer.membershipFees;
+    if (feesToUse > 0) {
+      try {
+        // Get the last invoice number to generate the next one
+        const lastInvoice = await Invoice.findOne({}, {}, { sort: { 'invoiceNumber': -1 } }).lean();
+        
+        let nextNumber = 1;
+        if (lastInvoice && lastInvoice.invoiceNumber) {
+          const lastNumber = parseInt(lastInvoice.invoiceNumber.replace('INV', ''));
+          if (!isNaN(lastNumber)) {
+            nextNumber = lastNumber + 1;
+          }
+        }
+        
+        const invoiceNumber = `INV${String(nextNumber).padStart(5, '0')}`;
+        const membershipTypeToUse = membershipType || updatedCustomer.membershipType;
+        const membershipDurationToUse = membershipDuration || updatedCustomer.membershipDuration;
+        
+        const membershipItem = {
+          description: `${membershipTypeToUse.toUpperCase()} Membership Renewal - ${membershipDurationToUse} months`,
+          quantity: 1,
+          unitPrice: feesToUse,
+          amount: feesToUse
+        };
+
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + 7);
+
+        invoice = new Invoice({
+          userId: req.user._id,
+          gymId: req.gymId,
+          customerId: updatedCustomer._id,
+          invoiceNumber,
+          amount: feesToUse,
+          currency: 'INR',
+          status: 'pending',
+          dueDate,
+          items: [membershipItem],
+          notes: `Membership renewal fees for ${updatedCustomer.name} - ${membershipTypeToUse.toUpperCase()} plan for ${membershipDurationToUse} months`
+        });
+
+        await invoice.save();
+      } catch (invoiceError) {
+        console.error('Failed to create renewal invoice:', invoiceError);
+      }
+    }
+
     res.json({
       success: true,
       message: 'Customer updated successfully',
-      customer: updatedCustomer
+      customer: updatedCustomer,
+      invoice: invoice ? invoice.toObject() : null
     });
   } catch (error) {
     console.error('Error updating customer:', error);
