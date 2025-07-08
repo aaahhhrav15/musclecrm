@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
-import axios from 'axios';
+import axios from '@/lib/axios';
 import {
   Dialog,
   DialogContent,
