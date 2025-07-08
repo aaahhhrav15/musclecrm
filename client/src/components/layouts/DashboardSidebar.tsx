@@ -425,14 +425,6 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen, setIsOpen }
                     active={location.pathname === '/dashboard/notifications'}
                   />
                 </motion.div>
-                <motion.div variants={itemVariants}>
-                  <SidebarItem
-                    icon={<BarChart3 className="w-5 h-5" />}
-                    label="Analytics"
-                    href="/dashboard/analytics"
-                    active={location.pathname === '/dashboard/analytics'}
-                  />
-                </motion.div>
               </div>
             </div>
 
