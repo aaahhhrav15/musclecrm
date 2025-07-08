@@ -100,7 +100,6 @@ const ContactPage: React.FC = () => {
                     </div>
                     <div>
                       <h3 className="text-lg font-medium">Email</h3>
-                      <p className="text-muted-foreground">info@musclecrm.com</p>
                       <p className="text-muted-foreground">support@musclecrm.com</p>
                     </div>
                   </div>
@@ -111,8 +110,8 @@ const ContactPage: React.FC = () => {
                     </div>
                     <div>
                       <h3 className="text-lg font-medium">Phone</h3>
-                      <p className="text-muted-foreground">+1 (555) 123-4567</p>
-                      <p className="text-muted-foreground">Mon-Fri: 9am - 6pm EST</p>
+                      <p className="text-muted-foreground">+91 9798893573</p>
+                      <p className="text-muted-foreground">Mon-Fri: 9am - 6pm</p>
                     </div>
                   </div>
                   
@@ -122,21 +121,9 @@ const ContactPage: React.FC = () => {
                     </div>
                     <div>
                       <h3 className="text-lg font-medium">Office</h3>
-                      <p className="text-muted-foreground">123 Business Avenue</p>
-                      <p className="text-muted-foreground">Suite 200</p>
-                      <p className="text-muted-foreground">New York, NY 10001</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start">
-                    <div className="mr-4 mt-1">
-                      <MessageSquare className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-medium">Live Chat</h3>
-                      <p className="text-muted-foreground">
-                        Available on our website during business hours.
-                      </p>
+                      <p className="text-muted-foreground">A-203 Rizvi Palace</p>
+                      <p className="text-muted-foreground">Hill Road, Bandra West</p>
+                      <p className="text-muted-foreground">Mumbai-400050, Maharashtra, India</p>
                     </div>
                   </div>
                 </div>
@@ -236,28 +223,14 @@ const ContactPage: React.FC = () => {
                 <div className="bg-background rounded-lg p-6 shadow-sm">
                   <h3 className="text-xl font-medium mb-3">How do I get started with MuscleCRM?</h3>
                   <p className="text-muted-foreground">
-                    Getting started is easy! Simply sign up for an account, choose your industry, and follow our simple setup guide. Our onboarding team will help you every step of the way.
+                    Getting started is easy! Simply sign up for an account, and follow our simple setup guide. Our onboarding team will help you every step of the way.
                   </p>
                 </div>
                 
                 <div className="bg-background rounded-lg p-6 shadow-sm">
                   <h3 className="text-xl font-medium mb-3">Is there a free trial available?</h3>
                   <p className="text-muted-foreground">
-                    Yes, we offer a 14-day free trial for all new users. No credit card required to get started. You can explore all features during the trial period.
-                  </p>
-                </div>
-                
-                <div className="bg-background rounded-lg p-6 shadow-sm">
-                  <h3 className="text-xl font-medium mb-3">Can I switch between different industry modules?</h3>
-                  <p className="text-muted-foreground">
-                    Absolutely! MuscleCRM is designed to be adaptable. You can switch between industry modules or use multiple modules simultaneously depending on your subscription plan.
-                  </p>
-                </div>
-                
-                <div className="bg-background rounded-lg p-6 shadow-sm">
-                  <h3 className="text-xl font-medium mb-3">Do you offer customization for specific business needs?</h3>
-                  <p className="text-muted-foreground">
-                    Yes, we offer customization options for businesses with specific requirements. Contact our sales team to discuss your unique needs and how we can tailor MuscleCRM for you.
+                    Yes, we offer a 7-day free trial for all new users. No credit card required to get started. You can explore all features during the trial period.
                   </p>
                 </div>
               </div>
