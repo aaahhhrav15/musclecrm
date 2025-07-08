@@ -38,7 +38,7 @@ export const GymProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     const fetchGymInfo = async () => {
       // Only fetch gym info if user is authenticated and is from gym industry
-      if (!isAuthenticated || user?.industry !== 'gym') {
+      if (!isAuthenticated || !user || user.industry !== 'gym') {
         setLoading(false);
         setGym(null);
         return;
