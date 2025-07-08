@@ -97,6 +97,8 @@ const RetailSalesPage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
+  const [actionLoading, setActionLoading] = useState<string | null>(null); // Track loading for add/edit/delete
+
   useEffect(() => {
     fetchSales();
   }, []);
@@ -147,35 +149,64 @@ const RetailSalesPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setActionLoading('submit');
+    const saleData = {
+      ...formData,
+      totalAmount: formData.quantity * formData.price
+    };
+    let optimisticSale: RetailSale | null = null;
     try {
-      const saleData = {
-        ...formData,
-        totalAmount: formData.quantity * formData.price
-      };
-
       if (editingSale) {
+        // Optimistically update the sale in state
+        setSales(prev => prev.map(s => s._id === editingSale._id ? { ...editingSale, ...saleData } : s));
+        handleCloseDialog();
         await axios.put(`/gym/retail-sales/${editingSale._id}`, saleData);
         toast.success('Sale updated successfully');
       } else {
-        await axios.post('/gym/retail-sales', saleData);
+        // Optimistically add the sale to state with a temp ID
+        optimisticSale = {
+          _id: 'temp-' + Date.now(),
+          gymId: user?.gymId || '',
+          saleDate: (formData.saleDate instanceof Date ? formData.saleDate.toISOString() : (typeof formData.saleDate === 'string' ? formData.saleDate : new Date().toISOString())),
+          productName: formData.productName,
+          quantity: formData.quantity,
+          price: formData.price,
+          totalAmount: formData.quantity * formData.price
+        };
+        setSales(prev => [optimisticSale, ...prev]);
+        handleCloseDialog();
+        const response = await axios.post('/gym/retail-sales', saleData);
+        // Replace temp sale with real one from server
+        setSales(prev => [response.data.data, ...prev.filter(s => s._id !== optimisticSale._id)]);
         toast.success('Sale added successfully');
       }
-
-      handleCloseDialog();
-      fetchSales();
     } catch (error) {
+      // Revert optimistic update
+      if (editingSale) {
+        fetchSales();
+      } else if (optimisticSale) {
+        setSales(prev => prev.filter(s => s._id !== optimisticSale._id));
+      }
       toast.error('Failed to save sale');
+    } finally {
+      setActionLoading(null);
     }
   };
 
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this sale?')) {
+      setActionLoading(id);
+      // Optimistically remove the sale
+      const prevSales = sales;
+      setSales(prev => prev.filter(s => s._id !== id));
       try {
         await axios.delete(`/gym/retail-sales/${id}`);
         toast.success('Sale deleted successfully');
-        fetchSales();
       } catch (error) {
+        setSales(prevSales); // Revert
         toast.error('Failed to delete sale');
+      } finally {
+        setActionLoading(null);
       }
     }
   };
@@ -281,10 +312,10 @@ const RetailSalesPage: React.FC = () => {
             </p>
           </div>
           <div className="flex gap-3">
-            <Button onClick={() => setOpenDialog(true)} size="lg" className="shadow-sm">
+            <Button onClick={() => setOpenDialog(true)} size="lg" className="shadow-sm" disabled={actionLoading === 'submit'}>
               <PlusCircle className="mr-2 h-5 w-5" /> Add Sale
             </Button>
-            <Button variant="outline" size="lg" className="shadow-sm" onClick={handleExport}>
+            <Button variant="outline" size="lg" className="shadow-sm" onClick={handleExport} disabled={actionLoading === 'submit'}>
               <Download className="mr-2 h-5 w-5" /> Export Data
             </Button>
           </div>
@@ -550,7 +581,7 @@ const RetailSalesPage: React.FC = () => {
                     : 'Get started by recording your first sale.'}
                 </p>
                 {!searchQuery && !dateFilter && (
-                  <Button onClick={() => setOpenDialog(true)}>
+                  <Button onClick={() => setOpenDialog(true)} disabled={actionLoading === 'submit'}>
                     <PlusCircle className="h-4 w-4 mr-2" />
                     Record Your First Sale
                   </Button>
@@ -597,18 +628,19 @@ const RetailSalesPage: React.FC = () => {
                           <TableCell>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-muted">
+                                <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-muted" disabled={actionLoading === sale._id}>
                                   <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-48">
-                                <DropdownMenuItem onClick={() => handleOpenDialog(sale)}>
+                                <DropdownMenuItem onClick={() => handleOpenDialog(sale)} disabled={actionLoading === sale._id}>
                                   <Edit className="h-4 w-4 mr-2" />
                                   Edit Sale
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   className="text-red-600 focus:text-red-600"
                                   onClick={() => handleDelete(sale._id)}
+                                  disabled={actionLoading === sale._id}
                                 >
                                   <Trash2 className="h-4 w-4 mr-2" />
                                   Delete Sale
@@ -772,10 +804,10 @@ const RetailSalesPage: React.FC = () => {
               </div>
             )}
             <DialogFooter className="gap-3">
-              <Button type="button" variant="outline" onClick={handleCloseDialog}>
+              <Button type="button" variant="outline" onClick={handleCloseDialog} disabled={actionLoading === 'submit'}>
                 Cancel
               </Button>
-              <Button type="submit" className="min-w-[100px]">
+              <Button type="submit" className="min-w-[100px]" disabled={actionLoading === 'submit'}>
                 {editingSale ? 'Update Sale' : 'Add Sale'}
               </Button>
             </DialogFooter>

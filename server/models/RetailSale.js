@@ -34,4 +34,6 @@ const retailSaleSchema = new mongoose.Schema({
   timestamps: true
 });
 
+retailSaleSchema.index({ gymId: 1, saleDate: -1 });
+
 module.exports = mongoose.model('RetailSale', retailSaleSchema); 
