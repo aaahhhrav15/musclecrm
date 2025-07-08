@@ -1,10 +1,10 @@
+// This file is now intentionally left blank to prevent unwanted redirects.
+// If not used in routing, it can be deleted.
 
 import React from 'react';
-import { Navigate } from 'react-router-dom';
 
 const Index: React.FC = () => {
-  // Redirect directly to the dashboard or home page depending on auth status
-  return <Navigate to="/dashboard" replace />;
+  return null;
 };
 
 export default Index;
