@@ -264,10 +264,10 @@ export default function InvoiceForm({ open, onClose, onSubmit }: InvoiceFormProp
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-hidden flex flex-col top-[5vh] translate-y-0">
         {/* Gym Logo at the top */}
         {gym?.logo && (
-          <div className="flex justify-center mb-2">
+          <div className="flex justify-center mb-2 flex-shrink-0">
             <img
               src={gym.logo}
               alt="Gym Logo"
@@ -276,14 +276,14 @@ export default function InvoiceForm({ open, onClose, onSubmit }: InvoiceFormProp
             />
           </div>
         )}
-        <DialogHeader>
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>Create New Invoice</DialogTitle>
           <DialogDescription>
             Fill in the details to create a new invoice.
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 overflow-y-auto flex-1 pr-2">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="customerId">Customer</Label>
@@ -484,22 +484,23 @@ export default function InvoiceForm({ open, onClose, onSubmit }: InvoiceFormProp
             </div>
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? (
-                <>
-                  <span className="mr-2">Creating...</span>
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                </>
-              ) : (
-                'Create Invoice'
-              )}
-            </Button>
-          </DialogFooter>
         </form>
+        
+        <DialogFooter className="flex-shrink-0 pt-4 border-t bg-background">
+          <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={loading} onClick={form.handleSubmit(handleSubmit)}>
+            {loading ? (
+              <>
+                <span className="mr-2">Creating...</span>
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              </>
+            ) : (
+              'Create Invoice'
+            )}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

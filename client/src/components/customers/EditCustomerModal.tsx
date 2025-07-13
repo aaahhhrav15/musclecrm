@@ -175,8 +175,16 @@ const formSchema = z.object({
   address: z.string().optional(),
   source: z.enum(['website', 'referral', 'walk-in', 'social_media', 'other']),
   membershipType: z.enum(['none', 'basic', 'premium', 'vip']),
-  membershipFees: z.number().min(0, 'Membership fees must be a positive number'),
-  membershipDuration: z.number().min(0, 'Membership duration must be a positive number'),
+  membershipFees: z.string().refine((val) => {
+    if (val === '') return true; // Allow empty string
+    const num = parseFloat(val);
+    return !isNaN(num) && num >= 0;
+  }, 'Membership fees must be a positive number'),
+  membershipDuration: z.string().refine((val) => {
+    if (val === '') return true; // Allow empty string
+    const num = parseInt(val);
+    return !isNaN(num) && num >= 0;
+  }, 'Membership duration must be a positive number'),
   joinDate: z.date(),
   membershipStartDate: z.date(),
   membershipEndDate: z.date().optional(),
@@ -217,8 +225,8 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
       address: customer.address || '',
       source: (customer.source as 'website' | 'referral' | 'walk-in' | 'social_media' | 'other') || 'other',
       membershipType: (customer.membershipType as 'none' | 'basic' | 'premium' | 'vip') || 'none',
-      membershipFees: customer.membershipFees || 0,
-      membershipDuration: customer.membershipDuration || 0,
+      membershipFees: customer.membershipFees ? customer.membershipFees.toString() : '',
+      membershipDuration: customer.membershipDuration ? customer.membershipDuration.toString() : '',
       joinDate: customer.joinDate ? new Date(customer.joinDate) : new Date(),
       membershipStartDate: customer.membershipStartDate ? new Date(customer.membershipStartDate) : new Date(),
       membershipEndDate: customer.membershipEndDate ? new Date(customer.membershipEndDate) : undefined,
@@ -236,9 +244,9 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
         const startDate = form.getValues('membershipStartDate');
         const duration = form.getValues('membershipDuration');
         
-        if (startDate && duration > 0) {
+        if (startDate && duration && duration !== '' && parseInt(duration) > 0) {
           const endDate = new Date(startDate);
-          endDate.setMonth(endDate.getMonth() + duration);
+          endDate.setMonth(endDate.getMonth() + parseInt(duration));
           form.setValue('membershipEndDate', endDate);
         }
       }
@@ -256,11 +264,15 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
     try {
       setIsSubmitting(true);
       
+      // Convert string values to numbers, defaulting to 0 if empty
+      const membershipFees = values.membershipFees ? parseFloat(values.membershipFees) : 0;
+      const membershipDuration = values.membershipDuration ? parseInt(values.membershipDuration) : 0;
+      
       // Calculate membershipEndDate based on startDate and duration
       let calculatedEndDate = undefined;
-      if (values.membershipStartDate && values.membershipDuration && values.membershipDuration > 0) {
+      if (values.membershipStartDate && membershipDuration > 0) {
         const endDate = new Date(values.membershipStartDate);
-        endDate.setMonth(endDate.getMonth() + values.membershipDuration);
+        endDate.setMonth(endDate.getMonth() + membershipDuration);
         calculatedEndDate = endDate;
       }
       
@@ -272,8 +284,8 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
         address: values.address || '',
         source: values.source,
         membershipType: values.membershipType,
-        membershipFees: Number(values.membershipFees),
-        membershipDuration: Number(values.membershipDuration),
+        membershipFees: membershipFees,
+        membershipDuration: membershipDuration,
         joinDate: values.joinDate,
         membershipStartDate: values.membershipStartDate,
         membershipEndDate: calculatedEndDate,
@@ -281,7 +293,7 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
         paymentMode: values.paymentMode,
         notes: values.notes || '',
         birthday: values.birthday,
-        totalSpent: Number(values.membershipFees) // Ensure totalSpent is included
+        totalSpent: membershipFees // Ensure totalSpent is included
       };
 
       const response = await CustomerService.updateCustomer(customer.id, formattedData);
@@ -342,12 +354,12 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
 
   return (
     <Dialog open={isDialogOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-hidden flex flex-col top-[5vh] translate-y-0">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>Edit Customer</DialogTitle>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 overflow-y-auto flex-1 pr-2">
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -470,10 +482,9 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
                         step="0.01" 
                         placeholder="Enter membership fees" 
                         {...field}
-                        value={field.value || 0}
+                        value={field.value}
                         onChange={(e) => {
-                          const value = e.target.value === '' ? 0 : parseFloat(e.target.value);
-                          field.onChange(isNaN(value) ? 0 : value);
+                          field.onChange(e.target.value);
                         }}
                       />
                     </FormControl>
@@ -494,10 +505,9 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
                         step="1" 
                         placeholder="Enter membership duration in months" 
                         {...field}
-                        value={field.value || 0}
+                        value={field.value}
                         onChange={(e) => {
-                          const value = e.target.value === '' ? 0 : parseInt(e.target.value);
-                          field.onChange(isNaN(value) ? 0 : value);
+                          field.onChange(e.target.value);
                         }}
                       />
                     </FormControl>
@@ -651,13 +661,14 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
               )}
             />
             
-            <DialogFooter>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Saving..." : "Save Changes"}
-              </Button>
-            </DialogFooter>
           </form>
         </Form>
+        
+        <DialogFooter className="flex-shrink-0 pt-4 border-t bg-background">
+          <Button type="submit" disabled={isSubmitting} onClick={form.handleSubmit(onSubmit)}>
+            {isSubmitting ? "Saving..." : "Save Changes"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
