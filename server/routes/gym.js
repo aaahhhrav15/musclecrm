@@ -237,23 +237,30 @@ router.put('/info', upload.single('logo'), handleMulterError, async (req, res) =
     // Handle logo upload if provided
     if (logoFile) {
       try {
-        // Process the uploaded image
+        console.log('Processing logo file:', logoFile.originalname, logoFile.mimetype, logoFile.size);
+        
+        // Process the uploaded image with better error handling
         const processedImageBuffer = await sharp(logoFile.buffer)
           .resize(300, 300, { 
             fit: 'inside', 
-            withoutEnlargement: true 
+            withoutEnlargement: true,
+            background: { r: 255, g: 255, b: 255, alpha: 1 }
           })
-          .jpeg({ quality: 80 })
+          .png({ quality: 90 })
           .toBuffer();
 
+        console.log('Image processed successfully, buffer size:', processedImageBuffer.length);
+        
         // Convert to base64
-        const base64Logo = `data:image/jpeg;base64,${processedImageBuffer.toString('base64')}`;
+        const base64Logo = `data:image/png;base64,${processedImageBuffer.toString('base64')}`;
         updateData.logo = base64Logo;
+        
+        console.log('Base64 logo created, length:', base64Logo.length);
       } catch (error) {
         console.error('Error processing logo:', error);
         return res.status(400).json({ 
           success: false, 
-          message: 'Error processing logo image' 
+          message: 'Error processing logo image: ' + error.message 
         });
       }
     }
@@ -332,22 +339,27 @@ router.put('/logo', upload.single('logo'), handleMulterError, async (req, res) =
     }
 
     try {
+      console.log('Processing logo file:', req.file.originalname, req.file.mimetype, req.file.size);
+      
       // **OPTIMIZATION: Enhanced image processing with Sharp**
       const processedImageBuffer = await sharp(req.file.buffer)
         .resize(512, 512, { 
           fit: 'inside', 
           withoutEnlargement: true,
-          background: { r: 255, g: 255, b: 255, alpha: 0 }
+          background: { r: 255, g: 255, b: 255, alpha: 1 }
         })
-        .jpeg({ 
-          quality: 85, 
-          progressive: true,
-          mozjpeg: true 
+        .png({ 
+          quality: 90,
+          compressionLevel: 6
         })
         .toBuffer();
 
+      console.log('Image processed successfully, buffer size:', processedImageBuffer.length);
+
       // Convert to base64 with optimized MIME type
-      const base64Logo = `data:image/jpeg;base64,${processedImageBuffer.toString('base64')}`;
+      const base64Logo = `data:image/png;base64,${processedImageBuffer.toString('base64')}`;
+      
+      console.log('Base64 logo created, length:', base64Logo.length);
 
       // **OPTIMIZATION: Update only the logo field**
       await Gym.findByIdAndUpdate(gymId, { logo: base64Logo });
@@ -411,30 +423,17 @@ router.delete('/logo', async (req, res) => {
   }
 });
 
-// **OPTIMIZED: Generate PDF with enhanced design and caching**
+// **OPTIMIZED: Generate PDF with fresh data and no caching**
 router.get('/generate-pdf', async (req, res) => {
   try {
     const gymId = req.gymId;
-    let gym;
-
-    // Try to get gym from cache first
-    const cacheKey = getGymCacheKey(gymId);
-    const cachedData = gymCache.get(cacheKey);
     
-    if (isCacheValid(cachedData)) {
-      gym = cachedData.data;
-    } else {
-      gym = await Gym.findById(gymId).lean();
-      if (!gym) {
-        return res.status(404).json({ 
-          success: false, 
-          message: 'Gym not found' 
-        });
-      }
-      // Cache the gym data
-      gymCache.set(cacheKey, {
-        data: gym,
-        timestamp: Date.now()
+    // Always fetch fresh gym data - no caching for QR generation
+    const gym = await Gym.findById(gymId).lean();
+    if (!gym) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Gym not found' 
       });
     }
 
@@ -451,10 +450,12 @@ router.get('/generate-pdf', async (req, res) => {
       }
     });
 
-    // Set response headers for inline PDF viewing
+    // Set response headers for inline PDF viewing with no caching
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${gym.name.replace(/[^a-zA-Z0-9]/g, '_')}_qr_code.pdf"`);
-    res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
 
     // Pipe the PDF directly to the response
     doc.pipe(res);
@@ -636,7 +637,7 @@ router.get('/generate-pdf', async (req, res) => {
     currentY += nameCardHeight + 30;
 
     // QR Code section with clean modern design
-    const qrCodeData = `https://web-production-6057.up.railway.app/mark_attendance/${gym.gymCode}`;
+    const qrCodeData = `https://web-production-6057.up.railway.app/mark_attendance/${gym.gymCode}?t=${Date.now()}`;
     
     const qrCodeBuffer = await QRCode.toBuffer(qrCodeData, {
       errorCorrectionLevel: 'H',

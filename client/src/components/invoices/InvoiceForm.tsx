@@ -272,7 +272,12 @@ export default function InvoiceForm({ open, onClose, onSubmit }: InvoiceFormProp
               src={gym.logo}
               alt="Gym Logo"
               className="w-24 h-24 object-contain rounded-lg border"
-              onError={e => (e.currentTarget.style.display = 'none')}
+              onLoad={() => console.log('Invoice logo loaded successfully:', gym.logo?.substring(0, 100) + '...')}
+              onError={(e) => {
+                console.error('Invoice logo failed to load:', gym.logo?.substring(0, 100) + '...');
+                console.error('Error event:', e);
+                e.currentTarget.style.display = 'none';
+              }}
             />
           </div>
         )}

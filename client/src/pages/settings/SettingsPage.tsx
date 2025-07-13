@@ -232,7 +232,13 @@ const SettingsPage: React.FC = () => {
     // Create preview
     const reader = new FileReader();
     reader.onloadend = () => {
-      setLogoPreview(reader.result as string);
+      const result = reader.result as string;
+      console.log('FileReader result length:', result.length);
+      console.log('FileReader result preview:', result.substring(0, 100) + '...');
+      setLogoPreview(result);
+    };
+    reader.onerror = (error) => {
+      console.error('FileReader error:', error);
     };
     reader.readAsDataURL(file);
 
@@ -272,7 +278,7 @@ const SettingsPage: React.FC = () => {
         description: "Please wait while we generate your PDF...",
       });
 
-      const response = await axiosInstance.get('/gym/generate-pdf', {
+      const response = await axiosInstance.get(`/gym/generate-pdf?t=${Date.now()}`, {
         responseType: 'blob'
       });
 
@@ -367,6 +373,14 @@ const SettingsPage: React.FC = () => {
         
         // Clear the logo from form after successful save
         personalForm.setValue('logo', null);
+        
+        // Clear gym cache to ensure fresh data for QR generation
+        try {
+          await axiosInstance.delete('/gym/cache');
+          console.log('Gym cache cleared successfully');
+        } catch (cacheError) {
+          console.warn('Failed to clear gym cache:', cacheError);
+        }
         
         toast({
           title: "Success",
@@ -784,6 +798,12 @@ const SettingsPage: React.FC = () => {
                           src={logoPreview}
                           alt="Gym Logo"
                           className="w-full h-full object-contain rounded-lg border-2 border-border shadow-md transition-transform duration-200"
+                          onLoad={() => console.log('Logo loaded successfully:', logoPreview.substring(0, 100) + '...')}
+                          onError={(e) => {
+                            console.error('Logo failed to load:', logoPreview.substring(0, 100) + '...');
+                            console.error('Error event:', e);
+                            e.currentTarget.style.display = 'none';
+                          }}
                         />
                         {isEditing && (
                           <button
