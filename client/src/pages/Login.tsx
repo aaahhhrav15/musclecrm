@@ -80,7 +80,7 @@ const Login: React.FC = () => {
     <div className="flex flex-col min-h-screen">
       <Header />
       
-      <div className="flex flex-col items-center justify-center flex-1 px-4 py-12">
+      <div className="flex flex-col items-center justify-center flex-1 px-4 py-12 pt-20">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

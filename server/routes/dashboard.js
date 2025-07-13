@@ -61,6 +61,15 @@ router.get('/', auth, async (req, res) => {
       return res.status(401).json({ success: false, message: 'User not authenticated' });
     }
 
+    // **FIX: Ensure gym context is ready before proceeding**
+    if (!gymId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Gym context not ready',
+        ready: false 
+      });
+    }
+
     // **OPTIMIZATION: Check cache first**
     const cacheKey = getCacheKey(userId, gymId);
     const cachedData = dashboardCache.get(cacheKey);

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import axiosInstance from '@/lib/axios';
 import { useIndustry } from './IndustryContext';
@@ -67,6 +68,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const { setSelectedIndustry } = useIndustry();
+  const navigate = useNavigate();
 
   // Check for token in cookies on load
   useEffect(() => {
@@ -241,6 +243,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         title: "Logged out",
         description: "You have been successfully logged out.",
       });
+      
+      // Redirect to home page after logout
+      navigate('/');
     }
   };
 

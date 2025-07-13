@@ -35,7 +35,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    // Navigation is now handled in the AuthContext logout function
   };
 
   // Show loading state while checking authentication

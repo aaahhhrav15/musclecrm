@@ -156,7 +156,7 @@ router.delete('/:id', auth, async (req, res) => {
 
         const userId = transaction.userId; // Store userId before deletion
         
-        await transaction.remove();
+        await Transaction.deleteOne({ _id: req.params.id });
         
         // Update customer's totalSpent
         try {
@@ -174,6 +174,7 @@ router.delete('/:id', auth, async (req, res) => {
         
         res.json({ message: 'Transaction deleted' });
     } catch (error) {
+        console.error('Transaction delete error:', error);
         res.status(500).json({ message: error.message });
     }
 });

@@ -30,6 +30,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useIndustry } from "@/context/IndustryContext";
 import { useGym } from "@/context/GymContext";
+import { useAuth } from "@/context/AuthContext";
 import axiosInstance from "@/lib/axios";
 import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -48,7 +49,7 @@ import { ApiService } from '@/services/ApiService';
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
-  "https://flexcrm-ui-suite-production-ec9f.up.railway.app/api";
+  "http://localhost:5001/api";
 
 interface MetricCardProps {
   title: string;
@@ -338,20 +339,37 @@ type ModalType =
   | "todayFollowUps";
 
 const Dashboard: React.FC = () => {
-  const { gym } = useGym();
+  const { gym, loading: gymLoading } = useGym();
+  const { loading: authLoading } = useAuth();
   
   // **OPTIMIZATION: Stabilize gym ID to prevent unnecessary re-renders**
   const stableGymId = useMemo(() => gym?._id, [gym?._id]);
+  
+  // **FIX: Wait for both auth and gym contexts to finish loading**
+  const isReady = !authLoading && !gymLoading && !!stableGymId;
   
   // **OPTIMIZATION: Single dashboard query that gets all metrics including POS expenses**
   const dashboardQuery = useQuery({
     queryKey: ["dashboardMetrics", stableGymId],
     queryFn: async () => {
-      if (!stableGymId) return defaultMetrics;
+      if (!stableGymId) {
+        console.log('No gym ID available, returning default metrics');
+        return defaultMetrics;
+      }
+      
+      console.log('Making dashboard API call with gym ID:', stableGymId);
       const response = await axiosInstance.get(`/dashboard`);
-      return response.data.metrics || defaultMetrics;
+      
+      // **FIX: Validate response data**
+      if (!response.data || !response.data.metrics) {
+        console.warn('Invalid dashboard response:', response.data);
+        return defaultMetrics;
+      }
+      
+      console.log('Dashboard API response:', response.data.metrics);
+      return response.data.metrics;
     },
-    enabled: !!stableGymId,
+    enabled: isReady,
     staleTime: 120000, // 2 minutes (matching backend cache)
     refetchOnWindowFocus: false,
     refetchOnMount: false,
@@ -370,12 +388,25 @@ const Dashboard: React.FC = () => {
       });
       return customers;
     },
-    enabled: !!stableGymId,
+    enabled: isReady,
     staleTime: 60000, // 1 minute
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     refetchInterval: false,
     retry: 1,
+  });
+  
+  // Debug logging
+  console.log('Dashboard loading states:', {
+    authLoading,
+    gymLoading,
+    stableGymId: !!stableGymId,
+    isReady,
+    dashboardQuery: {
+      isLoading: dashboardQuery.isLoading,
+      isError: dashboardQuery.isError,
+      data: !!dashboardQuery.data
+    }
   });
 
   // **OPTIMIZATION: Memoized calculations using stored end dates from database**
@@ -716,8 +747,44 @@ const Dashboard: React.FC = () => {
 
   // **OPTIMIZATION: Stabilized loading state check**
   const isLoading = useMemo(() => {
-    return dashboardQuery.isLoading || customerQuery.isLoading;
-  }, [dashboardQuery.isLoading, customerQuery.isLoading]);
+    return authLoading || gymLoading || dashboardQuery.isLoading || customerQuery.isLoading;
+  }, [authLoading, gymLoading, dashboardQuery.isLoading, customerQuery.isLoading]);
+
+  // **FIX: Check if we have actual data, not just loading state**
+  const hasData = useMemo(() => {
+    if (!dashboardQuery.data) return false;
+    
+    // Check if we have meaningful data (not just default values)
+    const data = dashboardQuery.data;
+    const hasMembersData = data.members && (
+      data.members.totalMembers > 0 || 
+      data.members.activeMembers > 0 || 
+      data.members.inactiveMembers > 0 ||
+      data.members.totalMemberAmount > 0
+    );
+    
+    const hasExpenseData = data.expenses && (
+      data.expenses.totalGymExpense > 0 ||
+      data.expenses.monthlyGymExpense > 0
+    );
+    
+    const hasPosData = data.pos && (
+      data.pos.totalRetailSales > 0 ||
+      data.pos.totalRetailExpense > 0
+    );
+    
+    console.log('Data validation:', {
+      hasMembersData,
+      hasExpenseData,
+      hasPosData,
+      dataKeys: Object.keys(data),
+      membersData: data.members,
+      expensesData: data.expenses,
+      posData: data.pos
+    });
+    
+    return hasMembersData || hasExpenseData || hasPosData || Object.keys(data).length > 0;
+  }, [dashboardQuery.data]);
 
   // **OPTIMIZATION: Early return with memoized loading component**
   const LoadingComponent = useMemo(() => (
@@ -734,7 +801,22 @@ const Dashboard: React.FC = () => {
     </DashboardLayout>
   ), []);
 
-  if (isLoading) {
+  // **FIX: Show loading until we have actual data, not just when queries are loading**
+  // Add a small delay to prevent flash of 0 values
+  const [showContent, setShowContent] = useState(false);
+  
+  useEffect(() => {
+    if (!isLoading && hasData) {
+      const timer = setTimeout(() => {
+        setShowContent(true);
+      }, 100); // Small delay to ensure smooth transition
+      return () => clearTimeout(timer);
+    } else {
+      setShowContent(false);
+    }
+  }, [isLoading, hasData]);
+  
+  if (isLoading || !hasData || !showContent) {
     return LoadingComponent;
   }
 

@@ -84,13 +84,13 @@ const App = () => (
   <LocalizationProvider dateAdapter={AdapterDateFns}>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <IndustryProvider>
-          <AuthProvider>
-            <ToastProvider>
-              <GymProvider>
-                <Toaster />
-                <Sonner />
-                <BrowserRouter>
+        <BrowserRouter>
+          <IndustryProvider>
+            <AuthProvider>
+              <ToastProvider>
+                <GymProvider>
+                  <Toaster />
+                  <Sonner />
                   <ScrollToTop />
                   <Routes>
                     {/* Public routes */}
@@ -143,11 +143,11 @@ const App = () => (
                     {/* Catch-all route */}
                     <Route path="*" element={<NotFound />} />
                   </Routes>
-                </BrowserRouter>
-              </GymProvider>
-            </ToastProvider>
-          </AuthProvider>
-        </IndustryProvider>
+                </GymProvider>
+              </ToastProvider>
+            </AuthProvider>
+          </IndustryProvider>
+        </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
   </LocalizationProvider>
