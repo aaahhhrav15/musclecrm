@@ -424,7 +424,7 @@ const IndustryDetail: React.FC = () => {
               <CardHeader className="text-center pt-12 pb-8">
                 <CardTitle className="text-3xl font-bold">{data.name.charAt(0).toUpperCase() + data.name.slice(1)} CRM Package</CardTitle>
                 <div className="flex items-baseline justify-center gap-2 mt-4">
-                  <span className="text-5xl font-bold">₹99</span>
+                  <span className="text-5xl font-bold">₹600</span>
                   <span className="text-xl text-muted-foreground">/month</span>
                 </div>
                 <p className="mt-4 text-muted-foreground">

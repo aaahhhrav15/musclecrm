@@ -33,7 +33,6 @@ const expensesRoutes = require('./routes/expenses');
 const leadsRouter = require('./routes/leads');
 const personalTrainingRoutes = require('./routes/personalTraining');
 
-
 const app = express();
 
 // Increase payload size limit to 50MB

@@ -490,9 +490,6 @@ const TrainersPage: React.FC = () => {
                                 </div>
                                 <div>
                                   <div className="font-medium text-foreground">{trainer.name}</div>
-                                  <div className="text-sm text-muted-foreground">
-                                    {trainer.clients ? `${trainer.clients} clients` : 'No clients yet'}
-                                  </div>
                                 </div>
                               </div>
                             </TableCell>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -8,7 +8,7 @@ import {
   CreditCard, 
   ChevronRight, 
   ArrowRight, 
-  CheckIcon,
+  Check,
   Star,
   Zap,
   Shield,
@@ -40,6 +40,8 @@ import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
 
 const Home = () => {
+  const [isYearly, setIsYearly] = useState(false);
+
   // Stats data with enhanced visuals
   const stats = [
     { 
@@ -129,32 +131,37 @@ const Home = () => {
 
   // Enhanced pricing with better visual hierarchy
   const pricing = [
+          {
+        title: 'Monthly',
+        originalPrice: '₹600',
+        price: '₹600',
+        period: '/month',
+        description: 'Perfect for growing fitness businesses',
+        features: [
+          { text: 'Unlimited members', included: true },
+          { text: 'Advanced scheduling & automation', included: true },
+          { text: 'Automated billing & invoicing', included: true },
+          { text: 'Email & SMS notifications', included: true },
+          { text: 'Advanced analytics dashboard', included: true },
+          { text: 'Mobile app & integrations', included: true },
+          { text: 'Equipment tracking', included: true },
+          { text: 'Custom reports', included: true },
+          { text: 'API access', included: true }
+        ],
+        buttonText: 'Pay Monthly',
+        buttonLink: '/signup',
+        popular: false,
+        badge: null,
+        savings: null
+      },
     {
-      title: 'Starter',
-      price: '₹49',
-      period: '/month',
-      description: 'Perfect for boutique studios and small gyms',
+      title: 'Yearly',
+      originalPrice: '₹7,200',
+      price: '₹6,120',
+      period: '/year',
+      description: 'Save 15% with annual billing',
       features: [
-        { text: 'Up to 500 members', included: true },
-        { text: 'Basic scheduling & bookings', included: true },
-        { text: 'Payment processing', included: true },
-        { text: 'Email notifications', included: true },
-        { text: 'Basic analytics', included: true },
-        { text: 'Mobile app access', included: true },
-        { text: 'SMS notifications', included: false },
-        { text: 'Advanced reporting', included: false },
-        { text: 'API access', included: false }
-      ],
-      buttonText: 'Start Free Trial',
-      buttonLink: '/signup',
-      popular: false
-    },
-    {
-      title: 'Professional',
-      price: '₹99',
-      period: '/month',
-      description: 'Ideal for growing fitness businesses',
-      features: [
+        { text: 'Everything in Monthly plan', included: true },
         { text: 'Unlimited members', included: true },
         { text: 'Advanced scheduling & automation', included: true },
         { text: 'Automated billing & invoicing', included: true },
@@ -163,31 +170,14 @@ const Home = () => {
         { text: 'Mobile app & integrations', included: true },
         { text: 'Equipment tracking', included: true },
         { text: 'Custom reports', included: true },
-        { text: 'API access', included: true }
+        { text: 'API access', included: true },
+        { text: 'Priority customer support', included: true }
       ],
-      buttonText: 'Start Free Trial',
-      buttonLink: '/signup',
-      popular: true
-    },
-    {
-      title: 'Enterprise',
-      price: 'Custom',
-      period: '',
-      description: 'For large gym chains and franchises',
-      features: [
-        { text: 'Everything in Professional', included: true },
-        { text: 'Multi-location management', included: true },
-        { text: 'White-label mobile apps', included: true },
-        { text: 'Advanced integrations', included: true },
-        { text: 'Custom workflows', included: true },
-        { text: 'Dedicated success manager', included: true },
-        { text: 'Priority support', included: true },
-        { text: 'Custom training', included: true },
-        { text: 'SLA guarantee', included: true }
-      ],
-      buttonText: 'Contact Sales',
-      buttonLink: '/contact',
-      popular: false
+              buttonText: 'Pay Yearly',
+        buttonLink: '/signup',
+        popular: true,
+        badge: 'Most Popular',
+        savings: 'Save ₹1,080/year'
     }
   ];
 
@@ -307,15 +297,15 @@ const Home = () => {
                 className="flex flex-wrap justify-center items-center gap-6 text-sm text-slate-500 dark:text-slate-400"
               >
                 <div className="flex items-center gap-2">
-                  <CheckIcon className="w-4 h-4 text-green-500" />
+                  <Check className="w-4 h-4 text-green-500" />
                   <span>14-day free trial</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <CheckIcon className="w-4 h-4 text-green-500" />
+                  <Check className="w-4 h-4 text-green-500" />
                   <span>No credit card required</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <CheckIcon className="w-4 h-4 text-green-500" />
+                  <Check className="w-4 h-4 text-green-500" />
                   <span>Setup in 5 minutes</span>
                 </div>
               </motion.div>
@@ -529,126 +519,269 @@ const Home = () => {
               <h2 className="text-4xl font-bold mb-6 bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
                 Choose Your Perfect Plan
               </h2>
-              <p className="text-xl text-slate-600 dark:text-slate-300 leading-relaxed">
+              <p className="text-xl text-slate-600 dark:text-slate-300 leading-relaxed mb-8">
                 Flexible pricing that grows with your business. Start free, scale when ready.
               </p>
+
+              {/* Billing Toggle */}
+              <div className="inline-flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+                <button
+                  onClick={() => setIsYearly(false)}
+                  className={cn(
+                    "px-6 py-3 text-sm font-medium rounded-lg transition-all duration-200",
+                    !isYearly 
+                      ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm" 
+                      : "text-slate-600 dark:text-slate-400"
+                  )}
+                >
+                  Monthly
+                </button>
+                <button
+                  onClick={() => setIsYearly(true)}
+                  className={cn(
+                    "px-6 py-3 text-sm font-medium rounded-lg transition-all duration-200 relative",
+                    isYearly 
+                      ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm" 
+                      : "text-slate-600 dark:text-slate-400"
+                  )}
+                >
+                  Yearly
+                  <Badge className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-1.5 py-0.5">
+                    Save 15%
+                  </Badge>
+                </button>
+              </div>
             </motion.div>
           </div>
 
-          <div className="grid lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
-            {pricing.map((plan, index) => (
-              <motion.div
-                key={plan.title}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                viewport={{ once: true }}
-                className="relative"
-              >
-                <Card className={cn(
-                  "h-full transition-all duration-300 hover:shadow-2xl border-0",
-                  plan.popular 
-                    ? "bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950 ring-2 ring-blue-500/20 dark:ring-blue-400/20 shadow-xl scale-105" 
-                    : "bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-lg"
-                )}>
-                  {plan.popular && (
-                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                      <Badge className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2">
-                        <TrendingUp className="w-4 h-4 mr-1" />
-                        Most Popular
-                      </Badge>
-                    </div>
-                  )}
-                  
-                  <CardHeader className="text-center pb-6">
-                    <CardTitle className="text-2xl font-bold text-slate-900 dark:text-white">
-                      {plan.title}
-                    </CardTitle>
-                    <div className="flex items-baseline justify-center gap-2 mb-2">
-                      <span className="text-4xl font-bold text-slate-900 dark:text-white">
-                        {plan.price}
-                      </span>
-                      {plan.period && (
-                        <span className="text-slate-600 dark:text-slate-300">
-                          {plan.period}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-slate-600 dark:text-slate-300">
-                      {plan.description}
-                    </p>
-                  </CardHeader>
-                  
-                  <CardContent className="px-6 pb-6">
-                    <ul className="space-y-4 mb-8">
-                      {plan.features.map((feature, featureIndex) => (
-                        <li key={featureIndex} className="flex items-start gap-3">
-                          <div className="flex-shrink-0 w-5 h-5 mt-0.5">
-                            {feature.included ? (
-                              <CheckIcon className="w-5 h-5 text-green-500" />
-                            ) : (
-                              <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700"></div>
-                            )}
-                          </div>
-                          <span className={cn(
-                            "text-sm leading-relaxed",
-                            feature.included 
-                              ? "text-slate-700 dark:text-slate-200" 
-                              : "text-slate-500 dark:text-slate-400"
-                          )}>
-                            {feature.text}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
+          <div className="max-w-5xl mx-auto">
+            <div className="grid lg:grid-cols-1 gap-8 lg:gap-12 pt-8">
+              {pricing.map((plan, index) => {
+                const isCurrentPlan = isYearly ? plan.title === 'Yearly' : plan.title === 'Monthly';
+                
+                if (!isCurrentPlan) return null;
+                
+                return (
+                  <motion.div
+                    key={plan.title}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, delay: index * 0.1 }}
+                    viewport={{ once: true }}
+                    className="relative max-w-4xl mx-auto"
+                  >
+                    {/* Popular badge positioned outside the card */}
+                    {plan.popular && (
+                      <div className="flex justify-center mb-4">
+                        <Badge className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 text-sm font-semibold shadow-lg">
+                          <TrendingUp className="w-4 h-4 mr-2" />
+                          {plan.badge}
+                        </Badge>
+                      </div>
+                    )}
                     
-                    <Button 
-                      asChild 
-                      className={cn(
-                        "w-full font-semibold",
-                        plan.popular 
-                          ? "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg" 
-                          : "bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100"
+                    <Card className={cn(
+                      "h-full transition-all duration-300 hover:shadow-2xl border-0 relative overflow-hidden",
+                      plan.popular 
+                        ? "bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-950 dark:via-indigo-950 dark:to-purple-950 ring-2 ring-blue-500/20 dark:ring-blue-400/20 shadow-xl" 
+                        : "bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm shadow-lg hover:shadow-xl"
+                    )}>
+                      {/* Background decoration for popular plan */}
+                      {plan.popular && (
+                        <>
+                          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-400/10 to-purple-400/10 rounded-full blur-3xl"></div>
+                          <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-br from-indigo-400/10 to-blue-400/10 rounded-full blur-2xl"></div>
+                        </>
                       )}
-                    >
-                      <Link to={plan.buttonLink}>
-                        {plan.buttonText}
-                        {plan.title === 'Enterprise' ? (
-                          <Crown className="w-4 h-4 ml-2" />
-                        ) : (
-                          <ArrowRight className="w-4 h-4 ml-2" />
+                      
+                      <CardHeader className="text-center pb-8 pt-12">
+                        <div className="flex justify-center items-center gap-3 mb-4">
+                          <div className={cn(
+                            "w-12 h-12 rounded-xl flex items-center justify-center",
+                            plan.popular 
+                              ? "bg-gradient-to-r from-blue-500 to-purple-600" 
+                              : "bg-gradient-to-r from-slate-600 to-slate-700"
+                          )}>
+                            <CreditCard className="w-6 h-6 text-white" />
+                          </div>
+                          <CardTitle className="text-3xl font-bold text-slate-900 dark:text-white">
+                            {plan.title}
+                          </CardTitle>
+                        </div>
+
+                        {plan.savings && (
+                          <div className="mb-4">
+                            <Badge className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 px-3 py-1">
+                              <Sparkles className="w-3 h-3 mr-1" />
+                              {plan.savings}
+                            </Badge>
+                          </div>
                         )}
-                      </Link>
-                    </Button>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
+                        
+                        <div className="flex items-baseline justify-center gap-2 mb-4">
+                          {plan.savings && (
+                            <span className="text-2xl text-slate-400 dark:text-slate-500 line-through font-semibold">
+                              {plan.originalPrice}
+                            </span>
+                          )}
+                          <span className="text-5xl font-bold text-slate-900 dark:text-white">
+                            {plan.price}
+                          </span>
+                          {plan.period && (
+                            <span className="text-xl text-slate-600 dark:text-slate-300 font-medium">
+                              {plan.period}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-lg text-slate-600 dark:text-slate-300 font-medium">
+                          {plan.description}
+                        </p>
+                      </CardHeader>
+                      
+                      <CardContent className="px-8 pb-8">
+                        <div className="grid md:grid-cols-2 gap-6 mb-10">
+                          <div>
+                            <h4 className="font-semibold text-slate-900 dark:text-white mb-4">Core Features</h4>
+                            <ul className="space-y-3">
+                              {plan.features.slice(0, Math.ceil(plan.features.length / 2)).map((feature, featureIndex) => (
+                                <li key={featureIndex} className="flex items-start gap-3">
+                                  <div className="flex-shrink-0 w-5 h-5 mt-0.5">
+                                    {feature.included ? (
+                                      <div className="w-5 h-5 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                                        <Check className="w-3 h-3 text-green-600 dark:text-green-400" />
+                                      </div>
+                                    ) : (
+                                      <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-slate-500"></div>
+                                      </div>
+                                    )}
+                                  </div>
+                                  <span className={cn(
+                                    "text-sm leading-relaxed font-medium",
+                                    feature.included 
+                                      ? "text-slate-700 dark:text-slate-200" 
+                                      : "text-slate-500 dark:text-slate-400"
+                                  )}>
+                                    {feature.text}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                          
+                          <div>
+                            <h4 className="font-semibold text-slate-900 dark:text-white mb-4">Advanced Features</h4>
+                            <ul className="space-y-3">
+                              {plan.features.slice(Math.ceil(plan.features.length / 2)).map((feature, featureIndex) => (
+                                <li key={featureIndex} className="flex items-start gap-3">
+                                  <div className="flex-shrink-0 w-5 h-5 mt-0.5">
+                                    {feature.included ? (
+                                      <div className="w-5 h-5 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                                        <Check className="w-3 h-3 text-green-600 dark:text-green-400" />
+                                      </div>
+                                    ) : (
+                                      <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-slate-500"></div>
+                                      </div>
+                                    )}
+                                  </div>
+                                  <span className={cn(
+                                    "text-sm leading-relaxed font-medium",
+                                    feature.included 
+                                      ? "text-slate-700 dark:text-slate-200" 
+                                      : "text-slate-500 dark:text-slate-400"
+                                  )}>
+                                    {feature.text}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                        
+                        <Button 
+                          asChild 
+                          size="lg"
+                          className={cn(
+                            "w-full font-semibold text-lg py-4 transition-all duration-200 group",
+                            plan.popular 
+                              ? "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5" 
+                              : "bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                          )}
+                        >
+                          <Link to={plan.buttonLink}>
+                            {plan.buttonText}
+                            <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                          </Link>
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                );
+              })}
+            </div>
           </div>
 
-          {/* Pricing footer */}
+          {/* Enhanced pricing footer with better trust indicators */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.3 }}
             viewport={{ once: true }}
-            className="text-center mt-12"
+            className="text-center mt-16"
           >
-            <p className="text-slate-600 dark:text-slate-300 mb-4">
-              All plans include 14-day free trial • No setup fees • Cancel anytime
-            </p>
-            <div className="flex flex-wrap justify-center gap-6 text-sm text-slate-500 dark:text-slate-400">
-              <div className="flex items-center gap-2">
-                <Shield className="w-4 h-4" />
-                <span>Bank-level security</span>
+            <div className="max-w-4xl mx-auto">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-6">
+                Everything you need to succeed
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <div className="flex flex-col items-center p-4 rounded-xl bg-slate-50 dark:bg-slate-800">
+                  <div className="w-12 h-12 mb-3 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                    <Check className="w-6 h-6 text-green-600 dark:text-green-400" />
+                  </div>
+                  <span className="font-medium text-slate-900 dark:text-white">14-day free trial</span>
+                  <span className="text-sm text-slate-600 dark:text-slate-400">No commitment required</span>
+                </div>
+                
+                <div className="flex flex-col items-center p-4 rounded-xl bg-slate-50 dark:bg-slate-800">
+                  <div className="w-12 h-12 mb-3 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                    <Timer className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <span className="font-medium text-slate-900 dark:text-white">5-minute setup</span>
+                  <span className="text-sm text-slate-600 dark:text-slate-400">Get started instantly</span>
+                </div>
+                
+                <div className="flex flex-col items-center p-4 rounded-xl bg-slate-50 dark:bg-slate-800">
+                  <div className="w-12 h-12 mb-3 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                    <Shield className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <span className="font-medium text-slate-900 dark:text-white">Bank-level security</span>
+                  <span className="text-sm text-slate-600 dark:text-slate-400">Your data is protected</span>
+                </div>
+                
+                <div className="flex flex-col items-center p-4 rounded-xl bg-slate-50 dark:bg-slate-800">
+                  <div className="w-12 h-12 mb-3 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+                    <Heart className="w-6 h-6 text-orange-600 dark:text-orange-400" />
+                  </div>
+                  <span className="font-medium text-slate-900 dark:text-white">24/7 support</span>
+                  <span className="text-sm text-slate-600 dark:text-slate-400">We're here to help</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Zap className="w-4 h-4" />
-                <span>99.9% uptime guarantee</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Heart className="w-4 h-4" />
-                <span>24/7 customer support</span>
+
+              <div className="flex flex-wrap justify-center gap-6 text-sm text-slate-500 dark:text-slate-400">
+                <div className="flex items-center gap-2">
+                  <Star className="w-4 h-4 text-yellow-500 fill-current" />
+                  <span>4.9/5 customer rating</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-green-500" />
+                  <span>99.9% uptime guarantee</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-blue-500" />
+                  <span>GDPR compliant</span>
+                </div>
               </div>
             </div>
           </motion.div>
@@ -781,7 +914,7 @@ const Home = () => {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-2xl mx-auto">
                 <div className="flex flex-col items-center text-white/80">
                   <div className="w-12 h-12 mb-3 rounded-full bg-white/20 flex items-center justify-center">
-                    <CheckIcon className="w-6 h-6" />
+                    <Check className="w-6 h-6" />
                   </div>
                   <span className="font-medium">14-day free trial</span>
                   <span className="text-sm">No commitment required</span>
