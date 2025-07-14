@@ -75,6 +75,19 @@ const gymSchema = new mongoose.Schema({
       default: 0
     }
   },
+  // Subscription fields
+  subscriptionStartDate: {
+    type: Date,
+    default: null
+  },
+  subscriptionEndDate: {
+    type: Date,
+    default: null
+  },
+  subscriptionDuration: {
+    type: String, // e.g., '1 month', '1 year'
+    default: null
+  },
   createdAt: {
     type: Date,
     default: Date.now

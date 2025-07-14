@@ -33,6 +33,9 @@ const expensesRoutes = require('./routes/expenses');
 const leadsRouter = require('./routes/leads');
 const personalTrainingRoutes = require('./routes/personalTraining');
 
+const auth = require('./middleware/auth');
+const checkSubscription = require('./middleware/checkSubscription');
+
 const app = express();
 
 // Increase payload size limit to 50MB
@@ -130,6 +133,37 @@ app.get('/uploads/logos/:filename', (req, res) => {
   // Stream the file
   const stream = fs.createReadStream(filePath);
   stream.pipe(res);
+});
+
+// Global authentication middleware for all /api routes except auth and subscription
+app.use((req, res, next) => {
+  const excluded = [
+    '/api/auth',
+    '/api/subscription-plans',
+    '/api/subscriptions'
+  ];
+  if (excluded.some(path => req.path.startsWith(path))) {
+    return next();
+  }
+  return auth(req, res, next);
+});
+
+// Global subscription check middleware (after auth)
+app.use((req, res, next) => {
+  const excluded = [
+    '/api/auth',
+    '/api/subscription-plans',
+    '/api/subscriptions',
+    '/api/gym',                // Allow gym info/settings
+    '/api/gym/',               // Allow gym info/settings (trailing slash)
+    '/api/gym/settings',       // If you have a settings endpoint
+    '/api/gym/info',           // If you have a gym info endpoint
+    '/api/dashboard/settings'  // If you have a dashboard settings endpoint
+  ];
+  if (excluded.some(path => req.path.startsWith(path))) {
+    return next();
+  }
+  return checkSubscription(req, res, next);
 });
 
 // Routes

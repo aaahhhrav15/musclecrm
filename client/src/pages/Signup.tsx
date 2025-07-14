@@ -47,6 +47,7 @@ const Signup: React.FC = () => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [logoBase64, setLogoBase64] = useState<string | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -73,6 +74,7 @@ const Signup: React.FC = () => {
       const reader = new FileReader();
       reader.onloadend = () => {
         setLogoPreview(reader.result as string);
+        setLogoBase64(reader.result as string); // Save base64 string
       };
       reader.readAsDataURL(file);
     }
@@ -84,7 +86,7 @@ const Signup: React.FC = () => {
     setIsLoading(true);
     try {
       console.log('Calling signup function...');
-      // Call signup with all fields as an object
+      // Call signup with all fields as an object, sending base64 logo
       const response = await signup({
         name: values.gymName,
         email: values.email,
@@ -99,7 +101,7 @@ const Signup: React.FC = () => {
           zipCode: values.address.zipCode,
           country: values.address.country,
         },
-        logo: values.logo || undefined,
+        logo: logoBase64 || undefined, // Send base64 string
       });
       console.log('Signup successful:', response);
       setSelectedIndustry('gym');
@@ -170,6 +172,20 @@ const Signup: React.FC = () => {
                         <FormLabel>Email</FormLabel>
                         <FormControl>
                           <Input placeholder="gym@example.com" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  {/* Password field added below */}
+                  <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Password</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="Enter password" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -266,20 +282,6 @@ const Signup: React.FC = () => {
                   
                   <FormField
                     control={form.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Password</FormLabel>
-                        <FormControl>
-                          <Input type="password" placeholder="••••••••" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
                     name="logo"
                     render={({ field: { value, onChange, ...field } }) => (
                       <FormItem>
@@ -300,6 +302,7 @@ const Signup: React.FC = () => {
                                   className="absolute -top-2 -right-2 rounded-full w-6 h-6 p-0"
                                   onClick={() => {
                                     setLogoPreview(null);
+                                    setLogoBase64(null); // Clear base64
                                     form.setValue('logo', null);
                                   }}
                                 >

@@ -21,6 +21,7 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import NotFound from "./pages/NotFound";
 import ContactPage from "./pages/ContactPage";
+import SubscriptionsPage from "./pages/SubscriptionsPage";
 
 // Core CRM Pages
 import CustomersPage from "./pages/customers/CustomersPage";
@@ -77,6 +78,7 @@ const ProtectedRoute = ({ element }: { element: React.ReactNode }) => {
   return <>{element}</>;
 };
 
+import ProtectedSubscriptionRoute from './components/ProtectedSubscriptionRoute';
 import ViewWorkoutPlanPage from '@/pages/workout-plans/ViewWorkoutPlanPage';
 import ViewBookingPage from "./pages/bookings/ViewBookingPage";
 
@@ -99,46 +101,47 @@ const App = () => (
                     <Route path="/login" element={<Login />} />
                     <Route path="/signup" element={<Signup />} />
                     <Route path="/contact" element={<ContactPage />} />
+                    <Route path="/subscriptions" element={<SubscriptionsPage />} />
                     
                     {/* Protected routes */}
-                    <Route path="/setup" element={<ProtectedRoute element={<SetupPage />} />} />
-                    <Route path="/dashboard" element={<ProtectedRoute element={<Dashboard />} />} />
-                    <Route path="/dashboard/customers" element={<ProtectedRoute element={<CustomersPage />} />} />
-                    <Route path="/dashboard/bookings" element={<ProtectedRoute element={<BookingsPage />} />} />
-                    <Route path="/dashboard/invoices" element={<ProtectedRoute element={<InvoicesPage />} />} />
-                    <Route path="/dashboard/notifications" element={<ProtectedRoute element={<NotificationsPage />} />} />
-                    <Route path="/dashboard/analytics" element={<ProtectedRoute element={<AnalyticsPage />} />} />
+                    <Route path="/setup" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><SetupPage /></ProtectedSubscriptionRoute>} />} />
+                    <Route path="/dashboard" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><Dashboard /></ProtectedSubscriptionRoute>} />} />
+                    <Route path="/dashboard/customers" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><CustomersPage /></ProtectedSubscriptionRoute>} />} />
+                    <Route path="/dashboard/bookings" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><BookingsPage /></ProtectedSubscriptionRoute>} />} />
+                    <Route path="/dashboard/invoices" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><InvoicesPage /></ProtectedSubscriptionRoute>} />} />
+                    <Route path="/dashboard/notifications" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><NotificationsPage /></ProtectedSubscriptionRoute>} />} />
+                    <Route path="/dashboard/analytics" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><AnalyticsPage /></ProtectedSubscriptionRoute>} />} />
                     <Route path="/dashboard/settings" element={<ProtectedRoute element={<SettingsPage />} />} />
                     
                     {/* Gym Module Routes */}
-                    <Route path="/dashboard/gym/staff" element={<ProtectedRoute element={<GymStaffPage />} />} />
-                    <Route path="/dashboard/gym/finance" element={<ProtectedRoute element={<GymFinancePage />} />} />
-                    <Route path="/dashboard/gym/attendance" element={<ProtectedRoute element={<GymAttendancePage />} />} />
-                    <Route path="/dashboard/gym/class-schedule" element={<ProtectedRoute element={<ClassSchedulePage />} />} />
-                    <Route path="/dashboard/gym/membership-plans" element={<ProtectedRoute element={<MembershipPlansPage />} />} />
-                    <Route path="/dashboard/gym/nutrition-plans" element={<ProtectedRoute element={<NutritionPlansPage />} />} />
-                    <Route path="/dashboard/gym/events-workshops" element={<ProtectedRoute element={<EventsWorkshopsPage />} />} />
-                    <Route path="/dashboard/gym/waiver-forms" element={<ProtectedRoute element={<WaiverFormsPage />} />} />
-                    <Route path="/dashboard/gym/communications" element={<ProtectedRoute element={<MemberCommunicationsPage />} />} />
-                    <Route path="/dashboard/gym/health-assessments" element={<ProtectedRoute element={<HealthAssessmentsPage />} />} />
-                    <Route path="/dashboard/gym/expenses" element={<ProtectedRoute element={<ExpensesPage />} />} />
-                    <Route path="/dashboard/gym/personal-training" element={<ProtectedRoute element={<PersonalTrainingPage />} />} />
+                    <Route path="/dashboard/gym/staff" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><GymStaffPage /></ProtectedSubscriptionRoute>} />} />
+                    <Route path="/dashboard/gym/finance" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><GymFinancePage /></ProtectedSubscriptionRoute>} />} />
+                    <Route path="/dashboard/gym/attendance" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><GymAttendancePage /></ProtectedSubscriptionRoute>} />} />
+                    <Route path="/dashboard/gym/class-schedule" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><ClassSchedulePage /></ProtectedSubscriptionRoute>} />} />
+                    <Route path="/dashboard/gym/membership-plans" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><MembershipPlansPage /></ProtectedSubscriptionRoute>} />} />
+                    <Route path="/dashboard/gym/nutrition-plans" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><NutritionPlansPage /></ProtectedSubscriptionRoute>} />} />
+                    <Route path="/dashboard/gym/events-workshops" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><EventsWorkshopsPage /></ProtectedSubscriptionRoute>} />} />
+                    <Route path="/dashboard/gym/waiver-forms" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><WaiverFormsPage /></ProtectedSubscriptionRoute>} />} />
+                    <Route path="/dashboard/gym/communications" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><MemberCommunicationsPage /></ProtectedSubscriptionRoute>} />} />
+                    <Route path="/dashboard/gym/health-assessments" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><HealthAssessmentsPage /></ProtectedSubscriptionRoute>} />} />
+                    <Route path="/dashboard/gym/expenses" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><ExpensesPage /></ProtectedSubscriptionRoute>} />} />
+                    <Route path="/dashboard/gym/personal-training" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><PersonalTrainingPage /></ProtectedSubscriptionRoute>} />} />
                     
                     {/* Existing Gym Routes */}
-                    <Route path="/dashboard/gym/trainers" element={<ProtectedRoute element={<TrainersPage />} />} />
-                    <Route path="/dashboard/gym/trainers/new" element={<ProtectedRoute element={<CreateTrainerPage />} />} />
-                    <Route path="/dashboard/gym/trainers/:id/edit" element={<ProtectedRoute element={<EditTrainerPage />} />} />
-                    <Route path="/dashboard/gym/trainers/:id" element={<ProtectedRoute element={<ViewTrainerPage />} />} />
-                    <Route path="/dashboard/gym/workout-plans" element={<ProtectedRoute element={<WorkoutPlansPage />} />} />
-                    <Route path="/dashboard/gym/workout-plans/create" element={<ProtectedRoute element={<CreateWorkoutPlanPage />} />} />
-                    <Route path="/dashboard/gym/workout-plans/assigned" element={<ProtectedRoute element={<AssignedWorkoutPlansPage />} />} />
-                    <Route path="/dashboard/gym/workout-plans/:id/edit" element={<ProtectedRoute element={<EditWorkoutPlanPage />} />} />
-                    <Route path="/dashboard/gym/workout-plans/:id/assign" element={<ProtectedRoute element={<AssignWorkoutPlanPage />} />} />
-                    <Route path="/dashboard/gym/workout-plans/:id" element={<ProtectedRoute element={<ViewWorkoutPlanPage />} />} />
-                    <Route path="/dashboard/gym/retail-sales" element={<ProtectedRoute element={<RetailSalesPage />} />} />
-                    <Route path="/dashboard/gym/leads" element={<ProtectedRoute element={<GymLeadsPage />} />} />
+                    <Route path="/dashboard/gym/trainers" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><TrainersPage /></ProtectedSubscriptionRoute>} />} />
+                    <Route path="/dashboard/gym/trainers/new" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><CreateTrainerPage /></ProtectedSubscriptionRoute>} />} />
+                    <Route path="/dashboard/gym/trainers/:id/edit" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><EditTrainerPage /></ProtectedSubscriptionRoute>} />} />
+                    <Route path="/dashboard/gym/trainers/:id" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><ViewTrainerPage /></ProtectedSubscriptionRoute>} />} />
+                    <Route path="/dashboard/gym/workout-plans" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><WorkoutPlansPage /></ProtectedSubscriptionRoute>} />} />
+                    <Route path="/dashboard/gym/workout-plans/create" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><CreateWorkoutPlanPage /></ProtectedSubscriptionRoute>} />} />
+                    <Route path="/dashboard/gym/workout-plans/assigned" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><AssignedWorkoutPlansPage /></ProtectedSubscriptionRoute>} />} />
+                    <Route path="/dashboard/gym/workout-plans/:id/edit" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><EditWorkoutPlanPage /></ProtectedSubscriptionRoute>} />} />
+                    <Route path="/dashboard/gym/workout-plans/:id/assign" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><AssignWorkoutPlanPage /></ProtectedSubscriptionRoute>} />} />
+                    <Route path="/dashboard/gym/workout-plans/:id" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><ViewWorkoutPlanPage /></ProtectedSubscriptionRoute>} />} />
+                    <Route path="/dashboard/gym/retail-sales" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><RetailSalesPage /></ProtectedSubscriptionRoute>} />} />
+                    <Route path="/dashboard/gym/leads" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><GymLeadsPage /></ProtectedSubscriptionRoute>} />} />
                     {/* Booking Routes */}
-                    <Route path="/dashboard/bookings/:id" element={<ProtectedRoute element={<ViewBookingPage />} />} />
+                    <Route path="/dashboard/bookings/:id" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><ViewBookingPage /></ProtectedSubscriptionRoute>} />} />
                     
                     {/* Catch-all route */}
                     <Route path="*" element={<NotFound />} />

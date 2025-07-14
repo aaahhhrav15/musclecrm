@@ -142,19 +142,18 @@ router.post('/register', async (req, res) => {
 router.use(auth);
 router.use(gymAuth);
 
+// Utility function to check if gym subscription is active
+function isSubscriptionActive(gym) {
+  if (!gym.subscriptionEndDate) return false;
+  return new Date(gym.subscriptionEndDate) >= new Date();
+}
+
 // **OPTIMIZED: Get gym information with caching**
+// Get gym information without caching
 router.get('/info', async (req, res) => {
   try {
     const gymId = req.gymId;
-    const cacheKey = getGymCacheKey(gymId);
-    const cachedData = gymCache.get(cacheKey);
-
-    // Return cached data if valid
-    if (isCacheValid(cachedData)) {
-      return res.json({ success: true, gym: cachedData.data });
-    }
-
-    // **OPTIMIZATION: Use lean query for better performance**
+    // Always fetch fresh data from the database
     const gym = await Gym.findById(gymId).lean();
     if (!gym) {
       return res.status(404).json({ 
@@ -162,14 +161,7 @@ router.get('/info', async (req, res) => {
         message: 'Gym not found' 
       });
     }
-
-    // Cache the result
-    gymCache.set(cacheKey, {
-      data: gym,
-      timestamp: Date.now()
-    });
-
-    res.json({ success: true, gym });
+    res.json({ success: true, gym, subscriptionActive: isSubscriptionActive(gym) });
   } catch (error) {
     console.error('Error fetching gym info:', error);
     res.status(500).json({ 

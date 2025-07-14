@@ -100,10 +100,9 @@ const generateToken = (userId) => {
 };
 
 // Register a new user
-router.post('/register', upload.single('logo'), async (req, res) => {
+router.post('/register', async (req, res) => {
   try {
-    const { name, email, password, industry, role, gymName, phone, address } = req.body;
-    const logo = req.file ? `/uploads/logos/${req.file.filename}` : undefined;
+    const { name, email, password, industry, role, gymName, phone, address, logo } = req.body;
 
     // Parse address if it's a JSON string
     let parsedAddress;
@@ -143,7 +142,7 @@ router.post('/register', upload.single('logo'), async (req, res) => {
       const newGym = new Gym({
         gymCode,
         name: gymName,
-        logo: logo,
+        logo: logo, // base64 string
         address: parsedAddress,
         contactInfo: {
           phone: phone,

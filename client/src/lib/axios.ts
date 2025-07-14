@@ -13,7 +13,19 @@ const axiosInstance = axios.create({
 
 // Add a request interceptor to handle errors
 axiosInstance.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Redirect to subscriptions page if backend signals subscription is required
+    if (
+      response.data &&
+      response.data.redirectToSubscription &&
+      window.location.pathname !== '/subscriptions'
+    ) {
+      window.location.href = '/subscriptions';
+      // Optionally, reject the promise to prevent further processing
+      return Promise.reject(new Error('Redirecting to subscriptions page'));
+    }
+    return response;
+  },
   (error) => {
     // Handle 401 errors (unauthorized)
     if (error.response?.status === 401) {

@@ -27,7 +27,6 @@ const Header: React.FC<HeaderProps> = ({ transparent = false }) => {
   React.useEffect(() => {
     if (gym) {
       console.log('Gym data in header:', gym);
-      console.log('Logo URL:', gym.logo);
     }
   }, [gym]);
 
@@ -73,7 +72,7 @@ const Header: React.FC<HeaderProps> = ({ transparent = false }) => {
           <Link to="/industries/gym" className="text-sm font-medium transition-colors hover:text-primary">
             Gym
           </Link>
-          <Link to="/pricing" className="text-sm font-medium transition-colors hover:text-primary">
+          <Link to="/subscriptions" className="text-sm font-medium transition-colors hover:text-primary">
             Pricing
           </Link>
           <Link to="/contact" className="text-sm font-medium transition-colors hover:text-primary">
@@ -210,7 +209,7 @@ const Header: React.FC<HeaderProps> = ({ transparent = false }) => {
                   Gym
                 </Link>
                 <Link 
-                  to="/pricing" 
+                  to="/subscriptions" 
                   className="text-xl font-medium hover:text-primary"
                   onClick={() => setIsMenuOpen(false)}
                 >

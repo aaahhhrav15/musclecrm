@@ -53,7 +53,7 @@ interface AuthContextType {
       zipCode: string;
       country: string;
     };
-    logo?: File | null;
+    logo?: string | null; // base64 string
   }) => Promise<SignupResponse>;
   logout: () => void;
   updateUserProfile: (userData: Partial<User>) => Promise<void>;
@@ -91,17 +91,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setIsAuthenticated(true);
           setSelectedIndustry(userData.industry);
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         // Only show error toast if not on auth pages and not a 401 error
         const isAuthPage = window.location.pathname.includes('/login') || 
                           window.location.pathname.includes('/signup');
-        if (error.response?.status !== 401 && !isAuthPage) {
-          console.error('Auth check error:', error);
-          toast({
-            title: "Authentication error",
-            description: "There was a problem verifying your session. Please log in again.",
-            variant: "destructive",
-          });
+        if (error && typeof error === 'object' && 'response' in error) {
+          const err = error as { response?: { status?: number } };
+          if (err.response?.status !== 401 && !isAuthPage) {
+            console.error('Auth check error:', error);
+            toast({
+              title: "Authentication error",
+              description: "There was a problem verifying your session. Please log in again.",
+              variant: "destructive",
+            });
+          }
         }
         setUser(null);
         setIsAuthenticated(false);
@@ -146,15 +149,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           description: "Welcome back to the system!",
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Login error:', error);
-      
+      let errorMessage = "Invalid credentials. Please try again.";
+      if (error && typeof error === 'object' && 'response' in error) {
+        const err = error as { response?: { data?: { message?: string } } };
+        errorMessage = err.response?.data?.message || errorMessage;
+      }
       toast({
         title: "Login failed",
-        description: error.response?.data?.message || "Invalid credentials. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
-      
       throw error;
     } finally {
       setLoading(false);
@@ -175,24 +181,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       zipCode: string;
       country: string;
     };
-    logo?: File | null;
+    logo?: string | null; // base64 string
   }): Promise<SignupResponse> => {
     console.log('AuthContext signup called with data:', data);
     setLoading(true);
     try {
-      const formData = new FormData();
-      formData.append('name', data.name);
-      formData.append('email', data.email);
-      formData.append('password', data.password);
-      formData.append('industry', data.industry);
-      if (data.gymName) formData.append('gymName', data.gymName);
-      if (data.phone) formData.append('phone', data.phone);
-      if (data.address) formData.append('address', JSON.stringify(data.address));
-      if (data.logo) formData.append('logo', data.logo);
-
-      console.log('Sending FormData to /auth/register...');
-      const response = await axiosInstance.post('/auth/register', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+      // Send as JSON, not FormData
+      const response = await axiosInstance.post('/auth/register', data, {
+        headers: { 'Content-Type': 'application/json' },
       });
       console.log('Backend response:', response.data);
 
@@ -215,11 +211,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return response.data;
       }
       throw new Error('Signup failed');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Signup error:', error);
+      let errorMessage = "There was a problem creating your account.";
+      if (error && typeof error === 'object' && 'response' in error) {
+        const err = error as { response?: { data?: { message?: string } } };
+        errorMessage = err.response?.data?.message || errorMessage;
+      }
       toast({
         title: "Signup failed",
-        description: error.response?.data?.message || "There was a problem creating your account.",
+        description: errorMessage,
         variant: "destructive",
       });
       throw error;
@@ -261,15 +262,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           description: "Your profile has been successfully updated.",
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Profile update error:', error);
-      
+      let errorMessage = "There was a problem updating your profile.";
+      if (error && typeof error === 'object' && 'response' in error) {
+        const err = error as { response?: { data?: { message?: string } } };
+        errorMessage = err.response?.data?.message || errorMessage;
+      }
       toast({
         title: "Update failed",
-        description: error.response?.data?.message || "There was a problem updating your profile.",
+        description: errorMessage,
         variant: "destructive",
       });
-      
       throw error;
     }
   };
