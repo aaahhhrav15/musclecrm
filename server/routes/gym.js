@@ -144,8 +144,11 @@ router.use(gymAuth);
 
 // Utility function to check if gym subscription is active
 function isSubscriptionActive(gym) {
-  if (!gym.subscriptionEndDate) return false;
-  return new Date(gym.subscriptionEndDate) >= new Date();
+  const now = new Date();
+  if (!gym.subscriptionStartDate || !gym.subscriptionEndDate) return false;
+  const start = new Date(gym.subscriptionStartDate);
+  const end = new Date(gym.subscriptionEndDate);
+  return start <= now && now <= end;
 }
 
 // **OPTIMIZED: Get gym information with caching**
