@@ -32,6 +32,7 @@ const transactionsRoutes = require('./routes/transactions');
 const expensesRoutes = require('./routes/expenses');
 const leadsRouter = require('./routes/leads');
 const personalTrainingRoutes = require('./routes/personalTraining');
+const paymentRoutes = require('./routes/payment');
 
 const auth = require('./middleware/auth');
 const checkSubscription = require('./middleware/checkSubscription');
@@ -154,6 +155,7 @@ app.use((req, res, next) => {
     '/api/auth',
     '/api/subscription-plans',
     '/api/subscriptions',
+    '/api/payment',            // Allow payment endpoints
     '/api/gym',                // Allow gym info/settings
     '/api/gym/',               // Allow gym info/settings (trailing slash)
     '/api/gym/settings',       // If you have a settings endpoint
@@ -192,6 +194,7 @@ app.use('/api/gym/retail-sales', retailSalesRoutes);
 app.use('/api/transactions', transactionsRoutes);
 app.use('/api/leads', leadsRouter);
 app.use('/api/personal-training', personalTrainingRoutes);
+app.use('/api/payment', paymentRoutes);
 
 
 // Root route

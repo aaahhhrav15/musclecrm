@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import * as React from 'react';
 import { motion } from 'framer-motion';
 import { 
   CreditCard, 
@@ -18,6 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
+import axios from 'axios';
 
 const pricing = [
   {
@@ -68,6 +69,70 @@ const pricing = [
     savings: 'Save ₹1,080/year'
   }
 ];
+
+const loadRazorpayScript = () => {
+  return new Promise((resolve) => {
+    if (document.getElementById('razorpay-script')) return resolve(true);
+    const script = document.createElement('script');
+    script.id = 'razorpay-script';
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
+
+const handlePay = async (_amount, planType) => {
+  console.log('handlePay called with:', { planType });
+  const scriptLoaded = await loadRazorpayScript();
+  if (!scriptLoaded) {
+    alert('Failed to load Razorpay. Please try again.');
+    return;
+  }
+  try {
+    // Call backend to create order
+    const { data } = await axios.post('/api/payment/create-order', {
+      planType,
+      currency: 'INR',
+      notes: { plan: planType }
+    });
+    console.log('create-order API response:', data);
+    if (!data.success) throw new Error('Order creation failed');
+    const order = data.order;
+    const options = {
+      key: import.meta.env.VITE_RAZORPAY_KEY_ID, // Use Vite environment variable
+      amount: order.amount,
+      currency: order.currency,
+      name: 'MuscleCRM',
+      description: `${planType} Subscription`,
+      order_id: order.id,
+      handler: async function (response) {
+        console.log('Razorpay payment response:', response);
+        // Verify payment
+        const verifyRes = await axios.post('/api/payment/verify', {
+          razorpay_order_id: response.razorpay_order_id,
+          razorpay_payment_id: response.razorpay_payment_id,
+          razorpay_signature: response.razorpay_signature,
+          planType
+        });
+        console.log('verify API response:', verifyRes.data);
+        if (verifyRes.data.success) {
+          alert('Payment successful! Subscription activated.');
+          window.location.reload();
+        } else {
+          alert('Payment verification failed.');
+        }
+      },
+      prefill: {},
+      theme: { color: '#6366f1' },
+    };
+    const rzp = new (window.Razorpay as any)(options);
+    rzp.open();
+  } catch (err) {
+    console.error('Payment error:', err);
+    alert('Payment failed: ' + (err.response?.data?.message || err.message));
+  }
+};
 
 // Enhanced PricingCard component with fixed badge positioning
 const PricingCard = ({ 
@@ -227,7 +292,7 @@ const PricingCard = ({
                 ? "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5" 
                 : "bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
             )}
-            onClick={() => window.location.href = buttonLink}
+            onClick={() => handlePay(parseInt(price.replace(/[^0-9]/g, '')), title)}
           >
             {buttonText}
             <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
@@ -239,7 +304,7 @@ const PricingCard = ({
 };
 
 const SubscriptionsPage = () => {
-  const [isYearly, setIsYearly] = useState(false);
+  const [isYearly, setIsYearly] = React.useState(false);
 
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
@@ -380,5 +445,11 @@ const SubscriptionsPage = () => {
     </div>
   );
 };
+
+declare global {
+  interface Window {
+    Razorpay: unknown;
+  }
+}
 
 export default SubscriptionsPage;

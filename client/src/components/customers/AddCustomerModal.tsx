@@ -128,7 +128,7 @@ const EnhancedDatePicker = ({
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="max-h-[200px]">
-              {years.reverse().map((year) => (
+              {years.map((year) => (
                 <SelectItem key={year} value={year.toString()}>
                   {year}
                 </SelectItem>
@@ -173,9 +173,9 @@ const EnhancedDatePicker = ({
 
 const formSchema = z.object({
   name: z.string().min(1, 'Name is required'),
-  email: z.string().email('Invalid email address'),
+  email: z.string().email('Invalid email address').optional().or(z.literal('')),
   phone: z.string()
-    .regex(/^\d{10}$/, 'Phone number must be exactly 10 digits'),
+    .regex(/^[0-9]{10}$/, 'Phone number must be exactly 10 digits'),
   address: z.string().optional(),
   source: z.enum(['website', 'referral', 'walk-in', 'social_media', 'other']),
   membershipType: z.enum(['none', 'basic', 'premium', 'vip']),
@@ -315,7 +315,7 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to create customer",
+        description: error?.response?.data?.message || error?.message || "Failed to create customer",
         variant: "destructive",
       });
     } finally {

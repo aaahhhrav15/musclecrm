@@ -367,7 +367,11 @@ router.post('/', async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating customer:', error);
-    res.status(500).json({ success: false, message: 'Error creating customer' });
+    // Handle duplicate phone number error
+    if (error.code === 11000 && error.keyPattern && error.keyPattern.phone) {
+      return res.status(400).json({ success: false, message: 'Phone number already exists' });
+    }
+    res.status(500).json({ success: false, message: error.message || 'Error creating customer' });
   }
 });
 

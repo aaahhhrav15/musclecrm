@@ -125,7 +125,7 @@ const EnhancedDatePicker = ({
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="max-h-[200px]">
-              {years.reverse().map((year) => (
+              {years.map((year) => (
                 <SelectItem key={year} value={year.toString()}>
                   {year}
                 </SelectItem>
