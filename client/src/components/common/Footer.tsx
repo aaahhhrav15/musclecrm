@@ -99,7 +99,7 @@ const Footer: React.FC = () => {
         </div>
         <div className="pt-8 mt-8 border-t border-gray-200">
           <p className="text-sm text-gray-500">
-            &copy; {currentYear} MuscleCRM. All rights reserved.
+            &copy; {currentYear} MeeraAI Technologies. All rights reserved.
           </p>
         </div>
       </div>

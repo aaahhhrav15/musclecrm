@@ -4,6 +4,7 @@ const WorkoutPlan = require('../models/WorkoutPlan');
 const auth = require('../middleware/auth');
 const { gymAuth } = require('../middleware/gymAuth');
 const AssignedWorkoutPlan = require('../models/AssignedWorkoutPlan');
+const axios = require('axios');
 
 // Apply both auth and gymAuth middleware to all routes
 router.use(auth);
@@ -94,6 +95,17 @@ router.post('/assign', async (req, res) => {
 
     await assignedPlan.save();
 
+    // Send notification to app
+    axios.post('http://13.233.43.147/send-notification', {
+      user_id: memberId,
+      title: 'Your Workout Plan has been Updated ☑️',
+      body: 'Happy Workout'
+    })
+    .then(() => {
+      console.log('Workout plan notification sent to app');
+    })
+    .catch(err => console.error('Workout plan notification error:', err?.response?.data || err.message));
+
     res.status(201).json({
       message: 'Workout plan assigned successfully',
       assignedPlan
@@ -118,6 +130,34 @@ router.delete('/assigned/:id', async (req, res) => {
   } catch (error) {
     console.error('Error deleting assigned workout plan:', error);
     res.status(500).json({ message: 'Error deleting assigned workout plan' });
+  }
+});
+
+// Update an assigned workout plan
+router.put('/assigned/:id', async (req, res) => {
+  try {
+    const assignedPlan = await AssignedWorkoutPlan.findOneAndUpdate(
+      { _id: req.params.id, gymId: req.gymId },
+      req.body,
+      { new: true }
+    );
+    if (!assignedPlan) {
+      return res.status(404).json({ message: 'Assigned workout plan not found' });
+    }
+    // Send notification to app
+    axios.post('http://13.233.43.147/send-notification', {
+      user_id: assignedPlan.memberId,
+      title: 'Your Workout Plan has been Updated ☑️',
+      body: 'Happy Workout'
+    })
+    .then(() => {
+      console.log('Workout plan notification sent to app');
+    })
+    .catch(err => console.error('Workout plan notification error:', err?.response?.data || err.message));
+    res.json({ message: 'Assigned workout plan updated successfully', assignedPlan });
+  } catch (error) {
+    console.error('Error updating assigned workout plan:', error);
+    res.status(500).json({ message: 'Error updating assigned workout plan' });
   }
 });
 

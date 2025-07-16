@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => ({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'https://api.musclecrm.com',
+        target: 'http://localhost:5001',
         changeOrigin: true,
         secure: false,
       }

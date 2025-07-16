@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
 import axios from 'axios';
+import { ApiService } from '@/services/ApiService';
 
 const pricing = [
   {
@@ -91,7 +92,7 @@ const handlePay = async (_amount, planType) => {
   }
   try {
     // Call backend to create order
-    const { data } = await axios.post('/api/payment/create-order', {
+    const data = await ApiService.post('/payment/create-order', {
       planType,
       currency: 'INR',
       notes: { plan: planType }
@@ -109,14 +110,14 @@ const handlePay = async (_amount, planType) => {
       handler: async function (response) {
         console.log('Razorpay payment response:', response);
         // Verify payment
-        const verifyRes = await axios.post('/api/payment/verify', {
+        const verifyRes = await ApiService.post('/payment/verify', {
           razorpay_order_id: response.razorpay_order_id,
           razorpay_payment_id: response.razorpay_payment_id,
           razorpay_signature: response.razorpay_signature,
           planType
         });
-        console.log('verify API response:', verifyRes.data);
-        if (verifyRes.data.success) {
+        console.log('verify API response:', verifyRes);
+        if (verifyRes.success) {
           alert('Payment successful! Subscription activated.');
           window.location.reload();
         } else {

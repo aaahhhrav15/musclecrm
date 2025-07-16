@@ -1,6 +1,8 @@
 const express = require('express');
 const Notification = require('../models/Notification');
 const auth = require('../middleware/auth');
+const axios = require('axios');
+const Gym = require('../models/Gym');
 
 const router = express.Router();
 
@@ -180,6 +182,12 @@ router.post('/gym', auth, async (req, res) => {
     if (!title || !message || !type) {
       return res.status(400).json({ success: false, message: 'title, message, and type are required' });
     }
+    // Fetch gymCode from Gym model if gymId is present
+    let gymCode = undefined;
+    if (gymId) {
+      const gym = await Gym.findById(gymId).lean();
+      gymCode = gym?.gymCode;
+    }
     // If broadcast, create a single broadcast notification
     if (broadcast) {
       const newNotification = await Notification.create({
@@ -195,6 +203,15 @@ router.post('/gym', auth, async (req, res) => {
           : undefined,
         broadcast: true
       });
+      // Send to external notification endpoint if gymCode and type are present
+      if (gymCode && type) {
+        axios.post('https://web-production-0271d.up.railway.app/send-gym-notification', {
+          gym_code: gymCode,
+          title,
+          body: message,
+          type
+        }).catch(err => console.error('External notification error:', err?.response?.data || err.message));
+      }
       return res.status(201).json({ success: true, notification: newNotification });
     }
     // Otherwise, create for all gym members (legacy)
@@ -211,6 +228,19 @@ router.post('/gym', auth, async (req, res) => {
         : undefined,
       broadcast: false
     });
+    // Send to external notification endpoint if gymCode and type are present
+    if (gymCode && type) {
+      axios.post('http://13.233.43.147/send-gym-notification', {
+        gym_code: gymCode,
+        title,
+        body: message,
+        type
+      })
+      .then(() => {
+        console.log('Gym notification sent to app');
+      })
+      .catch(err => console.error('External notification error:', err?.response?.data || err.message));
+    }
     res.status(201).json({ success: true, notification: newNotification });
   } catch (error) {
     console.error('Create gym notification error:', error);

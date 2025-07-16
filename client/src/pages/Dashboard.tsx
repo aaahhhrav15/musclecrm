@@ -49,7 +49,7 @@ import { ApiService } from '@/services/ApiService';
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
-  "https://api.musclecrm.com/api";
+  "http://localhost:5001/api";
 
 interface MetricCardProps {
   title: string;
