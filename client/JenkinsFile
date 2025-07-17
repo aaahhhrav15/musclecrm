@@ -1,32 +1,38 @@
 pipeline {
   agent any
 
-  tools {
-    nodejs 'Node18'  // This should match the name you set in Jenkins global tools
-  }
-
   environment {
-    AWS_ACCESS_KEY_ID     = credentials('aws-creds')
-    AWS_SECRET_ACCESS_KEY = credentials('aws-creds')
-    CI = "true"
+    AWS_ACCESS_KEY_ID = credentials('aws-access-key')       // Replace with your Jenkins secret ID
+    AWS_SECRET_ACCESS_KEY = credentials('aws-secret-key')   // Replace with your Jenkins secret ID
+    CLOUDFRONT_DISTRIBUTION_ID = 'E21O8U7YKLATRS'        // Replace with actual distribution ID
   }
 
   stages {
+    stage('Clean Workspace') {
+      steps {
+        cleanWs()
+      }
+    }
+
     stage('Checkout Code') {
       steps {
-        echo "🔁 Cloning GitHub repo..."
-        git credentialsId: 'github-creds', url: 'https://github.com/aaahhhrav15/musclecrm.git', branch: 'main'
+        echo '📦 Checking out code...'
+        checkout scm
       }
     }
 
     stage('Install Dependencies') {
+      tools {
+        nodejs "Node18"  // Defined in Jenkins global tool config
+      }
       steps {
         dir('client') {
-          echo "📦 Installing frontend dependencies..."
+          echo "📥 Installing frontend dependencies..."
           sh '''
             node -v
             npm -v
-            npm install
+            npm config set registry https://registry.npmmirror.com
+            npm install --verbose
           '''
         }
       }
@@ -35,46 +41,41 @@ pipeline {
     stage('Build React App') {
       steps {
         dir('client') {
-          echo "⚙️ Building frontend..."
-          withCredentials([file(credentialsId: 'frontend-dev', variable: 'ENV_FILE')]) {
-            sh '''
-              cp $ENV_FILE .env
-              npm run build
-            '''
-          }
+          echo '🔧 Building React app...'
+          sh 'npm run build'
         }
       }
     }
 
     stage('Deploy to S3') {
       steps {
-        dir('client') {
-          echo "🚀 Deploying to S3..."
-          sh '''
-            aws s3 sync build/ s3://musclecrm-frontend --delete
-          '''
+        withEnv(["PATH+AWS=/usr/local/bin"]) { // Add AWS CLI path if needed
+          echo '🚀 Deploying to S3...'
+          dir('client') {
+            sh 'aws s3 sync build/ s3://musclecrm-frontend --delete'
+          }
         }
       }
     }
 
     stage('Invalidate CloudFront') {
       steps {
-        echo "🔄 Invalidating CloudFront cache..."
+        echo '🧹 Invalidating CloudFront cache...'
         sh '''
           aws cloudfront create-invalidation \
-            --distribution-id E21O8U7YKLATRS \
-            --paths "/*"
-          '''
+          --distribution-id $CLOUDFRONT_DISTRIBUTION_ID \
+          --paths "/*"
+        '''
       }
     }
   }
 
   post {
     success {
-      echo '✅ Frontend deployed successfully!'
+      echo '✅ Deployment completed successfully!'
     }
     failure {
-      echo '❌ Deployment failed.'
+      echo '❌ Deployment failed. Please check logs.'
     }
   }
 }
