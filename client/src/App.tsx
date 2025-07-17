@@ -22,6 +22,8 @@ import Signup from "./pages/Signup";
 import NotFound from "./pages/NotFound";
 import ContactPage from "./pages/ContactPage";
 import SubscriptionsPage from "./pages/SubscriptionsPage";
+import BlogsPage from "./pages/Blogs";
+import AboutPage from "./pages/About";
 import TermsAndConditions from "./pages/TermsAndConditions";
 
 // Core CRM Pages
@@ -104,6 +106,8 @@ const App = () => (
                     <Route path="/contact" element={<ContactPage />} />
                     <Route path="/subscriptions" element={<SubscriptionsPage />} />
                     <Route path="/terms" element={<TermsAndConditions />} />
+                    <Route path="/blogs" element={<BlogsPage />} />
+                    <Route path="/about" element={<AboutPage />} />
                     
                     {/* Protected routes */}
                     <Route path="/setup" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><SetupPage /></ProtectedSubscriptionRoute>} />} />

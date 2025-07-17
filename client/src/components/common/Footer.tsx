@@ -60,13 +60,8 @@ const Footer: React.FC = () => {
                 </Link>
               </li>
               <li>
-                <Link to="/blog" className="text-sm text-gray-600 hover:text-primary">
+                <Link to="/blogs" className="text-sm text-gray-600 hover:text-primary">
                   Blog
-                </Link>
-              </li>
-              <li>
-                <Link to="/careers" className="text-sm text-gray-600 hover:text-primary">
-                  Careers
                 </Link>
               </li>
             </ul>
@@ -79,11 +74,11 @@ const Footer: React.FC = () => {
                   Contact
                 </Link>
               </li>
-              <li>
+              {/* <li>
                 <Link to="/documentation" className="text-sm text-gray-600 hover:text-primary">
                   Documentation
                 </Link>
-              </li>
+              </li> */}
               <li>
                 <Link to="/terms" className="text-sm text-gray-600 hover:text-primary">
                   Terms and Conditions
