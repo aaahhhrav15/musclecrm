@@ -18,17 +18,14 @@ pipeline {
     }
 
     stage('Install Dependencies') {
-      steps {
-        dir('client') {
-          echo "📦 Installing frontend dependencies..."
-          sh '''
-            node -v
-            npm -v
-            npm install
-          '''
+        steps {
+            dir('client') {
+             echo "📦 Installing frontend dependencies..."
+             sh 'bash -c "node -v && npm -v && npm install"'
+            }
         }
-      }
     }
+
 
     stage('Build React App') {
       steps {
