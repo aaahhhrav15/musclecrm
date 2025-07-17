@@ -28,14 +28,18 @@ pipeline {
     }
 
     stage('Build React App') {
-      steps {
-        dir('client') {
-          echo "⚙️ Building frontend..."
-          withCredentials([file(credentialsId: 'frontend-dev', variable: 'ENV_FILE')]) {
-            sh '/bin/bash -c "cp $ENV_FILE .env && npm run build"'
-          }
+        steps {
+            dir('client') {
+            echo "⚙️ Building frontend..."
+            withCredentials([file(credentialsId: 'frontend-dev', variable: 'ENV_FILE')]) {
+            sh '''
+            rm -f .env
+            cp $ENV_FILE .env
+            npm run build
+            '''
+            }
         }
-      }
+        }
     }
 
     stage('Deploy to S3 and Invalidate') {
