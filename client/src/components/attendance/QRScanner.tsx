@@ -6,7 +6,7 @@ import { Loader2, QrCode } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://api.musclecrm.com/api';
+const API_URL = `${import.meta.env.VITE_API_URL}/api`;
 
 interface QRScannerProps {
   isOpen: boolean;

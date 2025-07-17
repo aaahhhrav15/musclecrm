@@ -9,8 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'react-hot-toast';
 import axios from 'axios';
 
-const API_BASE_URL = 'https://api.musclecrm.com';
-
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 interface Customer {
   _id: string;
   userId: string;

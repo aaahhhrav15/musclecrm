@@ -92,8 +92,7 @@ interface AttendanceHistoryApiResponse {
   };
 }
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://api.musclecrm.com/api';
-
+const API_URL = `${import.meta.env.VITE_API_URL}/api`;
 const AttendancePage: React.FC = () => {
   const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState('today');
