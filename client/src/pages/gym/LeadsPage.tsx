@@ -739,7 +739,7 @@ const LeadsPage: React.FC = () => {
 
       {/* Lead Form Modal */}
       <Dialog open={showModal} onOpenChange={setShowModal}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingLead ? 'Edit Lead' : 'Add New Lead'}</DialogTitle>
           </DialogHeader>
