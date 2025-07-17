@@ -7,6 +7,7 @@ pipeline {
 
   environment {
     CI = "true"
+    PATH = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
   }
 
   stages {
@@ -19,7 +20,7 @@ pipeline {
 
     stage('Install Dependencies') {
       steps {
-          dir('client') {
+        dir('client') {
           echo "📦 Installing frontend dependencies..."
           sh '/bin/bash -c "node -v && npm -v && npm install"'
         }
@@ -31,10 +32,7 @@ pipeline {
         dir('client') {
           echo "⚙️ Building frontend..."
           withCredentials([file(credentialsId: 'frontend-dev', variable: 'ENV_FILE')]) {
-            sh '''
-              cp $ENV_FILE .env
-              npm run build
-            '''
+            sh '/bin/bash -c "cp $ENV_FILE .env && npm run build"'
           }
         }
       }
@@ -46,11 +44,10 @@ pipeline {
           usernamePassword(credentialsId: 'aws-creds', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')
         ]) {
           dir('client') {
-            echo "🚀 Deploying to S3..."
+            echo "🚀 Deploying to S3 and invalidating CloudFront cache..."
             sh '''
-              aws s3 sync build/ s3://musclecrm-frontend --delete
-              echo "🔄 Invalidating CloudFront cache..."
-              aws cloudfront create-invalidation --distribution-id E21O8U7YKLATRS --paths "/*"
+              /opt/homebrew/bin/aws s3 sync build/ s3://musclecrm-frontend --delete
+              /opt/homebrew/bin/aws cloudfront create-invalidation --distribution-id E21O8U7YKLATRS --paths "/*"
             '''
           }
         }
