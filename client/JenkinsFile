@@ -1,38 +1,30 @@
 pipeline {
   agent any
 
+  tools {
+    nodejs 'Node18'
+  }
+
   environment {
-    AWS_ACCESS_KEY_ID = credentials('aws-access-key')       // Replace with your Jenkins secret ID
-    AWS_SECRET_ACCESS_KEY = credentials('aws-secret-key')   // Replace with your Jenkins secret ID
-    CLOUDFRONT_DISTRIBUTION_ID = 'E21O8U7YKLATRS'        // Replace with actual distribution ID
+    CI = "true"
   }
 
   stages {
-    stage('Clean Workspace') {
-      steps {
-        cleanWs()
-      }
-    }
-
     stage('Checkout Code') {
       steps {
-        echo '📦 Checking out code...'
-        checkout scm
+        echo "🔁 Cloning GitHub repo..."
+        git credentialsId: 'github-creds', url: 'https://github.com/aaahhhrav15/musclecrm.git', branch: 'main'
       }
     }
 
     stage('Install Dependencies') {
-      tools {
-        nodejs "Node18"  // Defined in Jenkins global tool config
-      }
       steps {
         dir('client') {
-          echo "📥 Installing frontend dependencies..."
+          echo "📦 Installing frontend dependencies..."
           sh '''
             node -v
             npm -v
-            npm config set registry https://registry.npmmirror.com
-            npm install --verbose
+            npm install
           '''
         }
       }
@@ -41,41 +33,41 @@ pipeline {
     stage('Build React App') {
       steps {
         dir('client') {
-          echo '🔧 Building React app...'
-          sh 'npm run build'
-        }
-      }
-    }
-
-    stage('Deploy to S3') {
-      steps {
-        withEnv(["PATH+AWS=/usr/local/bin"]) { // Add AWS CLI path if needed
-          echo '🚀 Deploying to S3...'
-          dir('client') {
-            sh 'aws s3 sync build/ s3://musclecrm-frontend --delete'
+          echo "⚙️ Building frontend..."
+          withCredentials([file(credentialsId: 'frontend-dev', variable: 'ENV_FILE')]) {
+            sh '''
+              cp $ENV_FILE .env
+              npm run build
+            '''
           }
         }
       }
     }
 
-    stage('Invalidate CloudFront') {
+    stage('Deploy to S3 and Invalidate') {
       steps {
-        echo '🧹 Invalidating CloudFront cache...'
-        sh '''
-          aws cloudfront create-invalidation \
-          --distribution-id $CLOUDFRONT_DISTRIBUTION_ID \
-          --paths "/*"
-        '''
+        withCredentials([
+          usernamePassword(credentialsId: 'aws-creds', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')
+        ]) {
+          dir('client') {
+            echo "🚀 Deploying to S3..."
+            sh '''
+              aws s3 sync build/ s3://musclecrm-frontend --delete
+              echo "🔄 Invalidating CloudFront cache..."
+              aws cloudfront create-invalidation --distribution-id E21O8U7YKLATRS --paths "/*"
+            '''
+          }
+        }
       }
     }
   }
 
   post {
     success {
-      echo '✅ Deployment completed successfully!'
+      echo '✅ Frontend deployed successfully!'
     }
     failure {
-      echo '❌ Deployment failed. Please check logs.'
+      echo '❌ Deployment failed.'
     }
   }
 }
