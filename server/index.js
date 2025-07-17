@@ -33,6 +33,7 @@ const expensesRoutes = require('./routes/expenses');
 const leadsRouter = require('./routes/leads');
 const personalTrainingRoutes = require('./routes/personalTraining');
 const paymentRoutes = require('./routes/payment');
+const subscriptionPlansRoutes = require('./routes/subscriptionPlans');
 
 const auth = require('./middleware/auth');
 const checkSubscription = require('./middleware/checkSubscription');
@@ -195,6 +196,7 @@ app.use('/api/transactions', transactionsRoutes);
 app.use('/api/leads', leadsRouter);
 app.use('/api/personal-training', personalTrainingRoutes);
 app.use('/api/payment', paymentRoutes);
+app.use('/api/subscription-plans', subscriptionPlansRoutes);
 
 
 // Root route

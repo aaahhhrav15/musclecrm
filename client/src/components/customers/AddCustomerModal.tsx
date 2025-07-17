@@ -76,7 +76,14 @@ const EnhancedDatePicker = ({
   };
 
   const handleDateSelect = (date) => {
+    // Always call onChange, even if the date is the same, to mark the field as touched
     onChange(date);
+    setTimeout(() => {
+      // If using react-hook-form, trigger validation for the field if possible
+      if (typeof window !== 'undefined' && window.dispatchEvent) {
+        window.dispatchEvent(new Event('input'));
+      }
+    }, 0);
     setIsOpen(false);
   };
 
@@ -493,7 +500,7 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                     <FormControl>
                       <EnhancedDatePicker
                         value={field.value}
-                        onChange={field.onChange}
+                        onChange={date => form.setValue('joinDate', date, { shouldValidate: true, shouldTouch: true })}
                         placeholder="Pick join date"
                       />
                     </FormControl>
@@ -511,7 +518,7 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                     <FormControl>
                       <EnhancedDatePicker
                         value={field.value}
-                        onChange={field.onChange}
+                        onChange={date => form.setValue('membershipStartDate', date, { shouldValidate: true, shouldTouch: true })}
                         placeholder="Pick start date"
                       />
                     </FormControl>
@@ -549,7 +556,7 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                     <FormControl>
                       <EnhancedDatePicker
                         value={field.value}
-                        onChange={field.onChange}
+                        onChange={date => form.setValue('transactionDate', date, { shouldValidate: true, shouldTouch: true })}
                         placeholder="Pick transaction date"
                       />
                     </FormControl>

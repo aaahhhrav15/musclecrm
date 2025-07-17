@@ -18,6 +18,8 @@ interface Gym {
     email: string;
     website: string;
   };
+  subscriptionStartDate?: string;
+  subscriptionEndDate?: string;
 }
 
 interface GymContextType {

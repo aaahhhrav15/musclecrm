@@ -3,6 +3,7 @@ const Razorpay = require('razorpay');
 const crypto = require('crypto');
 const router = express.Router();
 const Gym = require('../models/Gym');
+const SubscriptionPlan = require('../models/SubscriptionPlan');
 
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID;
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
@@ -18,12 +19,13 @@ router.post('/create-order', async (req, res) => {
   console.log('Received create-order request:', req.body);
   try {
     const { planType, currency = 'INR', receipt, notes } = req.body;
-    let amount;
-    if (planType === 'Yearly') {
-      amount = 6120;
-    } else {
-      amount = 600;
+    // Fetch price from MongoDB
+    let duration = planType && planType.toLowerCase() === 'yearly' ? 'yearly' : 'monthly';
+    const plan = await SubscriptionPlan.findOne({ duration });
+    if (!plan) {
+      return res.status(400).json({ success: false, message: 'Subscription plan not found' });
     }
+    const amount = plan.price;
     if (!amount) {
       return res.status(400).json({ success: false, message: 'Amount is required' });
     }
@@ -57,6 +59,11 @@ router.post('/verify', async (req, res) => {
       const gymId = req.gym?._id;
       if (!gymId) {
         return res.status(400).json({ success: false, message: 'Gym ID not found in request' });
+      }
+      // Fetch gym and check if subscription is still active
+      const gym = await Gym.findById(gymId);
+      if (gym && gym.subscriptionEndDate && new Date(gym.subscriptionEndDate) >= new Date()) {
+        return res.status(400).json({ success: false, message: 'Subscription is still active. Renewal is only allowed after expiry.' });
       }
       const now = new Date();
       let endDate;

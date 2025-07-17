@@ -20,6 +20,8 @@ import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
 import axios from 'axios';
 import { ApiService } from '@/services/ApiService';
+import { useGym } from '@/context/GymContext';
+import { useToast } from '@/hooks/use-toast';
 
 const pricing = [
   {
@@ -83,7 +85,20 @@ const loadRazorpayScript = () => {
   });
 };
 
-const handlePay = async (_amount, planType) => {
+// Specify Razorpay handler and window types
+interface RazorpayResponse {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}
+
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
+
+const handlePay = async (_amount: number, planType: string) => {
   console.log('handlePay called with:', { planType });
   const scriptLoaded = await loadRazorpayScript();
   if (!scriptLoaded) {
@@ -97,9 +112,12 @@ const handlePay = async (_amount, planType) => {
       currency: 'INR',
       notes: { plan: planType }
     });
+    if (typeof data !== 'object' || !data || typeof (data as any).success !== 'boolean' || !(data as any).order) {
+      throw new Error('Order creation failed');
+    }
+    const { success, order } = data as { success: boolean; order: any };
     console.log('create-order API response:', data);
-    if (!data.success) throw new Error('Order creation failed');
-    const order = data.order;
+    if (!success) throw new Error('Order creation failed');
     const options = {
       key: import.meta.env.VITE_RAZORPAY_KEY_ID, // Use Vite environment variable
       amount: order.amount,
@@ -107,7 +125,7 @@ const handlePay = async (_amount, planType) => {
       name: 'MuscleCRM',
       description: `${planType} Subscription`,
       order_id: order.id,
-      handler: async function (response) {
+      handler: async function (response: RazorpayResponse) {
         console.log('Razorpay payment response:', response);
         // Verify payment
         const verifyRes = await ApiService.post('/payment/verify', {
@@ -116,8 +134,7 @@ const handlePay = async (_amount, planType) => {
           razorpay_signature: response.razorpay_signature,
           planType
         });
-        console.log('verify API response:', verifyRes);
-        if (verifyRes.success) {
+        if (typeof verifyRes === 'object' && verifyRes && (verifyRes as any).success) {
           alert('Payment successful! Subscription activated.');
           window.location.reload();
         } else {
@@ -127,11 +144,17 @@ const handlePay = async (_amount, planType) => {
       prefill: {},
       theme: { color: '#6366f1' },
     };
-    const rzp = new (window.Razorpay as any)(options);
+    const rzp = new window.Razorpay(options);
     rzp.open();
-  } catch (err) {
+  } catch (err: unknown) {
     console.error('Payment error:', err);
-    alert('Payment failed: ' + (err.response?.data?.message || err.message));
+    let message = 'Payment failed.';
+    if (err && typeof err === 'object' && 'response' in err && (err as any).response?.data?.message) {
+      message = (err as any).response.data.message;
+    } else if (err instanceof Error) {
+      message = err.message;
+    }
+    alert('Payment failed: ' + message);
   }
 };
 
@@ -149,6 +172,22 @@ const PricingCard = ({
   badge, 
   savings 
 }) => {
+  const { toast } = useToast();
+  const { gym } = useGym();
+  const isSubscriptionActive = gym?.subscriptionEndDate && new Date(gym.subscriptionEndDate) >= new Date();
+
+  const handlePayWithCheck = async (_amount: number, planType: string) => {
+    if (isSubscriptionActive) {
+      toast({
+        title: 'Subscription Active',
+        description: 'You already have an active subscription. Renewal is only allowed after expiry.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    await handlePay(_amount, planType);
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -293,7 +332,7 @@ const PricingCard = ({
                 ? "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5" 
                 : "bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
             )}
-            onClick={() => handlePay(parseInt(price.replace(/[^0-9]/g, '')), title)}
+            onClick={() => handlePayWithCheck(parseInt(price.replace(/[^0-9]/g, '')), title)}
           >
             {buttonText}
             <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
@@ -306,6 +345,21 @@ const PricingCard = ({
 
 const SubscriptionsPage = () => {
   const [isYearly, setIsYearly] = React.useState(false);
+  const { gym } = useGym();
+  const { toast } = useToast();
+  const isSubscriptionActive = gym?.subscriptionEndDate && new Date(gym.subscriptionEndDate) >= new Date();
+
+  const handlePayWithCheck = async (_amount: number, planType: string) => {
+    if (isSubscriptionActive) {
+      toast({
+        title: 'Subscription Active',
+        description: 'You already have an active subscription. Renewal is only allowed after expiry.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    await handlePay(_amount, planType);
+  };
 
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
@@ -446,11 +500,5 @@ const SubscriptionsPage = () => {
     </div>
   );
 };
-
-declare global {
-  interface Window {
-    Razorpay: unknown;
-  }
-}
 
 export default SubscriptionsPage;

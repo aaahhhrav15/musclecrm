@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 
-const API_BASE_URL = 'https://api.musclecrm.com';
+const API_BASE_URL = 'http://localhost:5001';
 
 const WaiverFormsPage: React.FC = () => {
   const handleDownload = async () => {
