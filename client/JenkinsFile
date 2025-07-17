@@ -1,0 +1,72 @@
+pipeline {
+  agent any
+
+  environment {
+    AWS_ACCESS_KEY_ID     = credentials('aws-creds')
+    AWS_SECRET_ACCESS_KEY = credentials('aws-creds')
+    CI = "true"
+  }
+
+  stages {
+    stage('Checkout Code') {
+      steps {
+        echo "Cloning private GitHub repo..."
+        git credentialsId: 'github-creds', url: 'https://github.com/aaahhhrav15/musclecrm.git', branch: 'main'
+      }
+    }
+
+    stage('Install Dependencies') {
+      steps {
+        dir('client') {
+          echo "Installing frontend dependencies..."
+          sh 'npm install'
+        }
+      }
+    }
+
+    stage('Build React App') {
+      steps {
+        dir('client') {
+          echo "Building frontend..."
+          withCredentials([file(credentialsId: 'frontend-dev', variable: 'ENV_FILE')]) {
+            sh '''
+              cp $ENV_FILE .env
+              npm run build
+            '''
+          }
+        }
+      }
+    }
+
+    stage('Deploy to S3') {
+      steps {
+        dir('client') {
+          echo "Deploying frontend to S3..."
+          sh '''
+            aws s3 sync build/ s3://musclecrm-frontend --delete
+          '''
+        }
+      }
+    }
+
+    stage('Invalidate CloudFront') {
+      steps {
+        echo "Invalidating CloudFront cache..."
+        sh '''
+          aws cloudfront create-invalidation \
+            --distribution-id E21O8U7YKLATRS \
+            --paths "/*"
+        '''
+      }
+    }
+  }
+
+  post {
+    success {
+      echo '✅ Frontend deployed successfully!'
+    }
+    failure {
+      echo '❌ Deployment failed.'
+    }
+  }
+}
