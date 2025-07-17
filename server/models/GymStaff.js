@@ -27,7 +27,7 @@ const gymStaffSchema = new mongoose.Schema({
   },
   dateOfBirth: {
     type: Date,
-    required: true
+    // required: true // Remove required
   },
   position: {
     type: String,
@@ -55,8 +55,13 @@ const gymStaffSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Add compound index to ensure unique trainer per gym
-gymStaffSchema.index({ gymId: 1, trainerId: 1 }, { unique: true });
+// Only enforce uniqueness when trainerId is not null
+// Remove the old index if present in the DB
+// gymStaffSchema.index({ gymId: 1, trainerId: 1 }, { unique: true });
+gymStaffSchema.index(
+  { gymId: 1, trainerId: 1 },
+  { unique: true, partialFilterExpression: { trainerId: { $type: 'objectId' } } }
+);
 
 const GymStaff = mongoose.model('GymStaff', gymStaffSchema);
 

@@ -57,7 +57,7 @@ export const StaffForm: React.FC<StaffFormProps> = ({ onSuccess, initialData }) 
     e.preventDefault();
     setIsLoading(true);
 
-    if (!formData.name || !formData.email || !formData.phone || !formData.position || !formData.hireDate || !formData.dateOfBirth) {
+    if (!formData.name || !formData.email || !formData.phone || !formData.position || !formData.hireDate) {
       toast.error('Please fill in all required fields');
       setIsLoading(false);
       return;
@@ -136,7 +136,7 @@ export const StaffForm: React.FC<StaffFormProps> = ({ onSuccess, initialData }) 
           type="date"
           value={formData.dateOfBirth}
           onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
-          required
+          // required removed
         />
       </div>
 
