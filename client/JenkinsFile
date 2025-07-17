@@ -1,6 +1,10 @@
 pipeline {
   agent any
 
+  tools {
+    nodejs 'Node18'  // This should match the name you set in Jenkins global tools
+  }
+
   environment {
     AWS_ACCESS_KEY_ID     = credentials('aws-creds')
     AWS_SECRET_ACCESS_KEY = credentials('aws-creds')
@@ -10,7 +14,7 @@ pipeline {
   stages {
     stage('Checkout Code') {
       steps {
-        echo "Cloning private GitHub repo..."
+        echo "🔁 Cloning GitHub repo..."
         git credentialsId: 'github-creds', url: 'https://github.com/aaahhhrav15/musclecrm.git', branch: 'main'
       }
     }
@@ -18,8 +22,12 @@ pipeline {
     stage('Install Dependencies') {
       steps {
         dir('client') {
-          echo "Installing frontend dependencies..."
-          sh 'npm install'
+          echo "📦 Installing frontend dependencies..."
+          sh '''
+            node -v
+            npm -v
+            npm install
+          '''
         }
       }
     }
@@ -27,7 +35,7 @@ pipeline {
     stage('Build React App') {
       steps {
         dir('client') {
-          echo "Building frontend..."
+          echo "⚙️ Building frontend..."
           withCredentials([file(credentialsId: 'frontend-dev', variable: 'ENV_FILE')]) {
             sh '''
               cp $ENV_FILE .env
@@ -41,7 +49,7 @@ pipeline {
     stage('Deploy to S3') {
       steps {
         dir('client') {
-          echo "Deploying frontend to S3..."
+          echo "🚀 Deploying to S3..."
           sh '''
             aws s3 sync build/ s3://musclecrm-frontend --delete
           '''
@@ -51,12 +59,12 @@ pipeline {
 
     stage('Invalidate CloudFront') {
       steps {
-        echo "Invalidating CloudFront cache..."
+        echo "🔄 Invalidating CloudFront cache..."
         sh '''
           aws cloudfront create-invalidation \
             --distribution-id E21O8U7YKLATRS \
             --paths "/*"
-        '''
+          '''
       }
     }
   }
@@ -70,4 +78,3 @@ pipeline {
     }
   }
 }
-
