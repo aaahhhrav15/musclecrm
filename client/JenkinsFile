@@ -50,7 +50,7 @@ pipeline {
           dir('client') {
             echo "🚀 Deploying to S3 and invalidating CloudFront cache..."
             sh '''
-              /opt/homebrew/bin/aws s3 sync build/ s3://musclecrm-frontend --delete
+              /opt/homebrew/bin/aws s3 sync dist/ s3://musclecrm-frontend --delete
               /opt/homebrew/bin/aws cloudfront create-invalidation --distribution-id E21O8U7YKLATRS --paths "/*"
             '''
           }
