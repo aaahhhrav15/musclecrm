@@ -229,7 +229,7 @@ export const CustomerService = {
   getCustomers: async (filters: CustomerFilterOptions = {}): Promise<{ customers: Customer[], total: number }> => {
     try {
       console.log('Making API request to /customers with filters:', filters);
-      console.log('API URL:', import.meta.env.VITE_API_URL || 'http://localhost:5001/api');
+      console.log('API URL:', import.meta.env.VITE_API_URL || 'https://api.musclecrm.com/api');
       
       const response = await ApiService.get<ApiCustomersResponse>('/customers', filters);
       console.log('Raw API response:', response);

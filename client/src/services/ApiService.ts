@@ -2,7 +2,7 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosR
 import { useToast } from '@/hooks/use-toast';
 
 // Configure base API settings
-const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api';
+const API_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.musclecrm.com/api';
 
 // Response interfaces
 export interface ApiResponse {
