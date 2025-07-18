@@ -1,0 +1,21 @@
+{
+  "name": "MuscleCRM - Best CRM for Gyms",
+  "short_name": "MuscleCRM",
+  "description": "All-in-one, modular SaaS CRM platform for gyms, fitness clubs, and trainers. Modern, multi-tenant, and scalable.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#18181b",
+  "theme_color": "#18181b",
+  "icons": [
+    {
+      "src": "/logo.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg"
+    },
+    {
+      "src": "/logo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    }
+  ]
+} 
