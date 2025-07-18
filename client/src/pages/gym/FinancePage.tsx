@@ -79,9 +79,9 @@ const FinancePage: React.FC = () => {
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const queryClient = useQueryClient();
+  const [filterMode, setFilterMode] = useState<'daily' | 'monthly' | 'all'>('all');
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<Date | null>(null);
-  const [filterMode, setFilterMode] = useState<'daily' | 'monthly'>('daily');
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [selectedDayYear, setSelectedDayYear] = useState<number>(new Date().getFullYear());
   const [selectedDayMonth, setSelectedDayMonth] = useState<number>(new Date().getMonth());
@@ -264,19 +264,28 @@ const FinancePage: React.FC = () => {
 
   // Filter invoices based on search query and selected date/month
   const filteredInvoices = invoices?.filter(invoice => {
-    const matchesSearch = 
-      invoice.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (typeof invoice.customerId === 'object' && invoice.customerId?.name.toLowerCase().includes(searchQuery.toLowerCase()));
-
+    const query = searchQuery.toLowerCase();
+    const customerName = typeof invoice.customerId === 'object' 
+      ? invoice.customerId?.name?.toLowerCase() || '' 
+      : '';
+    const invoiceNumber = invoice.invoiceNumber?.toLowerCase() || '';
+    const description = Array.isArray(invoice.items) && invoice.items.length > 0 
+      ? invoice.items.map(item => item.description).join(', ').toLowerCase()
+      : '';
     const invDate = new Date(invoice.createdAt);
+    
     let matchesDate = true;
     if (filterMode === 'daily' && selectedDate) {
       matchesDate = isSameDay(invDate, selectedDate);
     } else if (filterMode === 'monthly' && selectedMonth) {
       matchesDate = isSameMonth(invDate, selectedMonth);
     }
+    // If filterMode is 'all', show all invoices
+    const matchesSearch = customerName.includes(query) || 
+                         invoiceNumber.includes(query) || 
+                         description.includes(query);
     return matchesSearch && matchesDate;
-  });
+  }) || [];
 
   const createInvoiceMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -552,6 +561,14 @@ const FinancePage: React.FC = () => {
                 <div className="space-y-3">
                   <label className="text-sm font-medium text-muted-foreground">Filter Mode</label>
                   <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      size="sm"
+                      variant={filterMode === 'all' ? 'default' : 'outline'}
+                      onClick={() => setFilterMode('all')}
+                      className="w-full"
+                    >
+                      All Invoices
+                    </Button>
                     <Button
                       size="sm"
                       variant={filterMode === 'daily' ? 'default' : 'outline'}

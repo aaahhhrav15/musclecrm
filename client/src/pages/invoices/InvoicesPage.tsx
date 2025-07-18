@@ -76,7 +76,7 @@ const InvoicesPage: React.FC = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const queryClient = useQueryClient();
-  const [filterMode, setFilterMode] = useState<'daily' | 'monthly'>('daily');
+  const [filterMode, setFilterMode] = useState<'daily' | 'monthly' | 'all'>('all');
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<Date | null>(null);
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -166,11 +166,10 @@ const InvoicesPage: React.FC = () => {
     } else if (filterMode === 'monthly' && selectedMonth) {
       matchesDate = isSameMonth(invDate, selectedMonth);
     }
-    
+    // If filterMode is 'all', show all invoices
     const matchesSearch = customerName.includes(query) || 
                          invoiceNumber.includes(query) || 
                          description.includes(query);
-    
     return matchesSearch && matchesDate;
   }) || [];
 
@@ -575,6 +574,13 @@ const InvoicesPage: React.FC = () => {
                           onClick={() => setFilterMode('monthly')}
                         >
                           Monthly
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={filterMode === 'all' ? 'default' : 'outline'}
+                          onClick={() => setFilterMode('all')}
+                        >
+                          All
                         </Button>
                       </div>
                     </div>
