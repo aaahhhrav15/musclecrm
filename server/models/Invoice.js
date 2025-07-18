@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-const Gym = require('./Gym');
 
 const invoiceItemSchema = new mongoose.Schema({
   description: {
@@ -82,24 +81,21 @@ invoiceSchema.pre('save', function(next) {
   next();
 });
 
-// Generate sequential invoice number per gym
+// Generate sequential invoice number
 invoiceSchema.pre('save', async function(next) {
+  console.log('Pre-save hook running for invoice');
   if (!this.invoiceNumber) {
     try {
-      // Get gymCode for this gym
-      const gym = await Gym.findById(this.gymId).lean();
-      const gymCode = gym && gym.gymCode ? gym.gymCode : 'GYM';
-      // Find the last invoice for this gym
-      const lastInvoice = await this.constructor.findOne({ gymId: this.gymId }, {}, { sort: { createdAt: -1 } });
+      // Find the last invoice by creation date
+      const lastInvoice = await this.constructor.findOne({}, {}, { sort: { createdAt: -1 } });
       let nextNumber = 1;
       if (lastInvoice && lastInvoice.invoiceNumber) {
-        // Extract the numeric part after the gymCode
-        const match = lastInvoice.invoiceNumber.match(/^[a-zA-Z0-9]+(\d{6})$/);
+        const match = lastInvoice.invoiceNumber.match(/INV(\d+)/);
         if (match) {
           nextNumber = parseInt(match[1], 10) + 1;
         }
       }
-      this.invoiceNumber = `${gymCode}${String(nextNumber).padStart(6, '0')}`;
+      this.invoiceNumber = `INV${String(nextNumber).padStart(5, '0')}`;
     } catch (error) {
       return next(error);
     }
