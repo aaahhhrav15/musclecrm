@@ -614,6 +614,8 @@ const Dashboard: React.FC = () => {
   // Modal state for PT assignments
   const [ptModalOpen, setPTModalOpen] = useState(false);
   const [ptModalType, setPTModalType] = useState<'today' | '7days' | null>(null);
+  const [ptModalData, setPTModalData] = useState<PersonalTrainingAssignment[]>([]);
+  const [ptModalLoading, setPTModalLoading] = useState(false);
 
   // **OPTIMIZATION: Optimized modal handler with lazy loading**
   const handleOpenModal = React.useCallback(async (type: ModalType) => {
@@ -710,13 +712,50 @@ const Dashboard: React.FC = () => {
     setModalData([]);
   }, []);
 
-  const handleOpenPTModal = (type: 'today' | '7days') => {
+  const handleOpenPTModal = React.useCallback(async (type: 'today' | '7days') => {
     setPTModalType(type);
     setPTModalOpen(true);
-  };
+    setPTModalLoading(true);
+    
+    try {
+      const response = await axiosInstance.get(`/personal-training/expiring?gymId=${stableGymId}`);
+      const allExpiringAssignments = response.data;
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const sevenDaysFromNow = new Date(today);
+      sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+      sevenDaysFromNow.setHours(23, 59, 59, 999);
+      
+      let filteredAssignments: PersonalTrainingAssignment[] = [];
+      
+      if (type === 'today') {
+        filteredAssignments = allExpiringAssignments.filter((assignment: PersonalTrainingAssignment) => {
+          const endDate = new Date(assignment.endDate);
+          return endDate >= today && endDate < tomorrow;
+        });
+      } else {
+        filteredAssignments = allExpiringAssignments.filter((assignment: PersonalTrainingAssignment) => {
+          const endDate = new Date(assignment.endDate);
+          return endDate >= today && endDate <= sevenDaysFromNow;
+        });
+      }
+      
+      setPTModalData(filteredAssignments);
+    } catch (error) {
+      console.error('Error fetching PT assignments:', error);
+      setPTModalData([]);
+    } finally {
+      setPTModalLoading(false);
+    }
+  }, [stableGymId]);
+  
   const handleClosePTModal = () => {
     setPTModalOpen(false);
     setPTModalType(null);
+    setPTModalData([]);
   };
 
   // Helper functions
@@ -1245,20 +1284,65 @@ const Dashboard: React.FC = () => {
 
       {/* Modal for PT expiring assignments */}
       <Dialog open={ptModalOpen} onOpenChange={handleClosePTModal}>
-        <DialogContent>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>
               {ptModalType === 'today' ? 'Personal Training Expiring Today' : 'Personal Training Expiring in Next 7 Days'}
             </DialogTitle>
           </DialogHeader>
-          <div className="text-center py-8 text-muted-foreground">
-            {ptModalType === 'today' 
-              ? `There are ${ptExpiringToday} personal training assignments expiring today.`
-              : `There are ${ptExpiringIn7Days} personal training assignments expiring in the next 7 days.`
-            }
-            <br />
-            <span className="text-sm">Detailed list will be available in a future update.</span>
-          </div>
+          
+          {ptModalLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          ) : ptModalData.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>No personal training assignments found.</p>
+            </div>
+          ) : (
+            <div className="flex-1 overflow-auto">
+              <div className="border rounded-lg">
+                <table className="w-full">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      <th className="p-3 text-left font-medium">Customer</th>
+                      <th className="p-3 text-left font-medium">Trainer</th>
+                      <th className="p-3 text-left font-medium">Start Date</th>
+                      <th className="p-3 text-left font-medium">End Date</th>
+                      <th className="p-3 text-left font-medium">Duration</th>
+                      <th className="p-3 text-left font-medium">Fees</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ptModalData.map((assignment) => (
+                      <tr key={assignment._id} className="border-b hover:bg-muted/30">
+                        <td className="p-3">
+                          <div className="flex flex-col">
+                            <span className="font-medium">{assignment.customerId.name}</span>
+                            {assignment.customerId.email && (
+                              <span className="text-sm text-muted-foreground">{assignment.customerId.email}</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          <div className="flex flex-col">
+                            <span className="font-medium">{assignment.trainerId.name}</span>
+                            {assignment.trainerId.email && (
+                              <span className="text-sm text-muted-foreground">{assignment.trainerId.email}</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-3">{new Date(assignment.startDate).toLocaleDateString()}</td>
+                        <td className="p-3">{new Date(assignment.endDate).toLocaleDateString()}</td>
+                        <td className="p-3">{assignment.duration} months</td>
+                        <td className="p-3 font-medium">₹{assignment.fees.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </DashboardLayout>
