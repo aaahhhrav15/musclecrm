@@ -44,6 +44,7 @@ exports.generateNutritionPlan = async (req, res) => {
       targetWeight,
       objective,
       dietType,
+      medicalConditions,
       additionalDetails
     } = req.body;
 
@@ -61,6 +62,7 @@ exports.generateNutritionPlan = async (req, res) => {
     - Target weight: ${targetWeight}kg
     - Objective: ${objective}
     - Diet type: ${dietType}
+    ${medicalConditions ? `- Medical conditions: ${medicalConditions}` : ''}
     - Requirements: ${additionalDetails || 'None'}
 
 
@@ -107,7 +109,7 @@ exports.generateNutritionPlan = async (req, res) => {
       ]
     }
 
-    Ensure all nutritional values are realistic and appropriate for the user's goals. If specific calorie or protein targets or number of meals are mentioned in the requirements, prioritize those in the plan.`;
+    Ensure all nutritional values are realistic and appropriate for the user's goals. If specific calorie or protein targets or number of meals are mentioned in the requirements, prioritize those in the plan. If medical conditions are mentioned, ensure the plan is safe and suitable for those conditions.`;
 
     // Generate response from Gemini
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });

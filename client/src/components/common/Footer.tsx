@@ -13,7 +13,7 @@ const Footer: React.FC = () => {
               <span className="text-xl font-bold text-primary">MuscleCRM</span>
             </Link>
             <p className="mt-2 text-sm text-gray-600">
-              All-in-one CRM solution for your business, tailored to your industry needs.
+              All-in-one CRM solution for your Gym.
             </p>
             <div className="flex mt-6 space-x-4">
               <a href="#" className="text-gray-400 hover:text-primary">

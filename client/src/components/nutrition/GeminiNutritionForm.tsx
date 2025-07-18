@@ -45,6 +45,7 @@ const GeminiNutritionForm: React.FC<GeminiNutritionFormProps> = ({ onPlanGenerat
     targetWeight: '',
     objective: '',
     dietType: '',
+    medicalConditions: '', // <-- add this
     additionalDetails: ''
   });
   const [customerDropdownOpen, setCustomerDropdownOpen] = useState(false);
@@ -290,6 +291,16 @@ const GeminiNutritionForm: React.FC<GeminiNutritionFormProps> = ({ onPlanGenerat
               <SelectItem value="vegan">Vegan</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+
+        <div className="grid gap-2">
+          <label className="text-sm font-medium">Medical Conditions (if any)</label>
+          <Textarea
+            value={formData.medicalConditions}
+            onChange={(e) => setFormData(prev => ({ ...prev, medicalConditions: e.target.value }))}
+            placeholder="E.g. diabetes, hypertension, thyroid, etc."
+            className="h-16"
+          />
         </div>
 
         <div className="grid gap-2">
