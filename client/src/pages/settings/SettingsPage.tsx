@@ -81,6 +81,9 @@ interface GymInfo {
   };
   createdAt: string;
   updatedAt: string;
+  subscriptionStartDate?: string;
+  subscriptionEndDate?: string;
+  subscriptionDuration?: string;
 }
 
 interface GymFormData {
@@ -601,6 +604,42 @@ const SettingsPage: React.FC = () => {
                             >
                               Auto-generated
                             </Badge>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Membership & Subscription Section */}
+                    <div className="space-y-4 mt-8">
+                      <div className="flex items-center gap-2 mb-4">
+                        <CreditCard className="h-4 w-4" />
+                        <h3 className="text-lg font-semibold">Membership & Subscription</h3>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <span className="text-sm text-muted-foreground">Subscription Start Date</span>
+                          <div className="font-medium">
+                            {gymInfo.subscriptionStartDate ? new Date(gymInfo.subscriptionStartDate).toLocaleDateString() : 'N/A'}
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <span className="text-sm text-muted-foreground">Subscription End Date</span>
+                          <div className="font-medium">
+                            {gymInfo.subscriptionEndDate ? new Date(gymInfo.subscriptionEndDate).toLocaleDateString() : 'N/A'}
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <span className="text-sm text-muted-foreground">Subscription Duration</span>
+                          <div className="font-medium">
+                            {gymInfo.subscriptionDuration || 'N/A'}
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <span className="text-sm text-muted-foreground">Status</span>
+                          <div className="font-medium">
+                            {gymInfo.subscriptionEndDate && new Date(gymInfo.subscriptionEndDate) >= new Date()
+                              ? <span className="text-green-600">Active</span>
+                              : <span className="text-red-600">Expired</span>}
                           </div>
                         </div>
                       </div>

@@ -18,6 +18,7 @@ import { useGym } from '@/context/GymContext';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
 import DashboardSidebar from './DashboardSidebar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -116,6 +117,15 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                       </AvatarFallback>
                     </Avatar>
                     <span className="hidden md:inline-flex">{gym ? gym.name : user?.name}</span>
+                    {gym && (
+                      <span className="ml-2">
+                        <Badge variant="secondary" className="text-xs px-2 py-1">
+                          {gym.subscriptionEndDate
+                            ? `Ends: ${new Date(gym.subscriptionEndDate).toLocaleDateString('en-GB')}`
+                            : 'No Subscription'}
+                        </Badge>
+                      </span>
+                    )}
                     <ChevronDown className="w-4 h-4" />
                   </div>
                 </Button>

@@ -12,6 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Badge } from '@/components/ui/badge';
 
 interface HeaderProps {
   transparent?: boolean;
@@ -99,6 +100,15 @@ const Header: React.FC<HeaderProps> = ({ transparent = false }) => {
                     <User className="w-8 h-8 p-2 bg-muted rounded-full" />
                   )}
                   <span>{gym ? gym.name : user?.name}</span>
+                  {gym && (
+                    <span className="ml-2">
+                      <Badge variant="secondary" className="text-xs px-2 py-1">
+                        {gym.subscriptionEndDate
+                          ? `Ends: ${new Date(gym.subscriptionEndDate).toLocaleDateString('en-GB')}`
+                          : 'No Subscription'}
+                      </Badge>
+                    </span>
+                  )}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
