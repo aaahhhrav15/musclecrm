@@ -324,8 +324,19 @@ router.post('/', async (req, res) => {
         }
         
         const invoiceNumber = `INV${String(nextNumber).padStart(5, '0')}`;
+        const startDate = customer.membershipStartDate ? new Date(customer.membershipStartDate) : null;
+        const endDate = customer.membershipEndDate ? new Date(customer.membershipEndDate) : null;
+        const formatDate = (date) => {
+          if (!date) return '';
+          const d = new Date(date);
+          const day = String(d.getDate()).padStart(2, '0');
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const year = d.getFullYear();
+          return `${day}/${month}/${year}`;
+        };
+        const dateRange = startDate && endDate ? ` (${formatDate(startDate)} to ${formatDate(endDate)})` : '';
         const membershipItem = {
-          description: `${customer.membershipType.toUpperCase()} Membership - ${customer.membershipDuration} months`,
+          description: `${customer.membershipType.toUpperCase()} Membership - ${customer.membershipDuration} months${dateRange}`,
           quantity: 1,
           unitPrice: customer.membershipFees,
           amount: customer.membershipFees
@@ -344,7 +355,7 @@ router.post('/', async (req, res) => {
           status: 'pending',
           dueDate,
           items: [membershipItem],
-          notes: `Membership joining fees for ${customer.name} - ${customer.membershipType.toUpperCase()} plan for ${customer.membershipDuration} months`
+          notes: `Membership joining fees for ${customer.name} - ${customer.membershipType.toUpperCase()} plan for ${customer.membershipDuration} months${dateRange}`
         });
 
         await invoice.save();
@@ -507,8 +518,35 @@ router.put('/:id', async (req, res) => {
         const membershipTypeToUse = membershipType || updatedCustomer.membershipType;
         const membershipDurationToUse = membershipDuration || updatedCustomer.membershipDuration;
         
+        // Calculate renewal period correctly based on current end date and today
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        let renewalStartDate = null;
+        let renewalEndDate = null;
+        if (membershipStartDate) {
+          renewalStartDate = new Date(membershipStartDate);
+        } else if (updatedCustomer.membershipEndDate) {
+          const currentEndDate = new Date(updatedCustomer.membershipEndDate);
+          currentEndDate.setHours(0, 0, 0, 0);
+          renewalStartDate = new Date(currentEndDate);
+          renewalStartDate.setDate(renewalStartDate.getDate() + 1);
+        } else {
+          renewalStartDate = today;
+        }
+        renewalEndDate = new Date(renewalStartDate);
+        renewalEndDate.setMonth(renewalEndDate.getMonth() + membershipDurationToUse);
+        renewalEndDate.setDate(renewalEndDate.getDate() - 1);
+        const formatDate = (date) => {
+          if (!date) return '';
+          const d = new Date(date);
+          const day = String(d.getDate()).padStart(2, '0');
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const year = d.getFullYear();
+          return `${day}/${month}/${year}`;
+        };
+        const dateRange = renewalStartDate && renewalEndDate ? ` (${formatDate(renewalStartDate)} to ${formatDate(renewalEndDate)})` : '';
         const membershipItem = {
-          description: `${membershipTypeToUse.toUpperCase()} Membership Renewal - ${membershipDurationToUse} months`,
+          description: `${membershipTypeToUse.toUpperCase()} Membership Renewal - ${membershipDurationToUse} months${dateRange}`,
           quantity: 1,
           unitPrice: feesToUse,
           amount: feesToUse
@@ -527,7 +565,7 @@ router.put('/:id', async (req, res) => {
           status: 'pending',
           dueDate,
           items: [membershipItem],
-          notes: `Membership renewal fees for ${updatedCustomer.name} - ${membershipTypeToUse.toUpperCase()} plan for ${membershipDurationToUse} months`
+          notes: `Membership renewal fees for ${updatedCustomer.name} - ${membershipTypeToUse.toUpperCase()} plan for ${membershipDurationToUse} months${dateRange}`
         });
 
         await invoice.save();
