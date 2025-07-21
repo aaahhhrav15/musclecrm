@@ -67,6 +67,9 @@ import * as Papa from 'papaparse';
 import { addMonths, startOfMonth, endOfMonth, isSameDay, isSameMonth, isWithinInterval } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { PDFDownloadLink, PDFViewer, pdf } from '@react-pdf/renderer';
+import InvoicePDF from '@/components/invoices/InvoicePDF';
+import { useGym } from '@/context/GymContext';
 
 const InvoicesPage: React.FC = () => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -86,6 +89,9 @@ const InvoicesPage: React.FC = () => {
   const [selectedDayYear, setSelectedDayYear] = useState<number>(new Date().getFullYear());
   const [selectedDayMonth, setSelectedDayMonth] = useState<number>(new Date().getMonth());
   const [selectedDay, setSelectedDay] = useState<number>(new Date().getDate());
+  const [isPDFModalOpen, setIsPDFModalOpen] = useState(false);
+  const [pdfInvoice, setPdfInvoice] = useState<Invoice | null>(null);
+  const { gym } = useGym();
 
   // Fetch invoices
   const { data: invoices, isLoading, error, refetch } = useQuery({
@@ -233,24 +239,6 @@ const InvoicesPage: React.FC = () => {
     }
   };
 
-  const handleDownloadInvoice = async (invoice: Invoice) => {
-    try {
-      const blob = await InvoiceService.downloadInvoice(invoice._id);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `invoice-${invoice.invoiceNumber}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      toast.success('Invoice downloaded successfully');
-    } catch (error) {
-      console.error('Error downloading invoice:', error);
-      toast.error('Failed to download invoice');
-    }
-  };
-
   const handleDeleteInvoice = async (invoice: Invoice) => {
     setInvoiceToDelete(invoice);
     setShowDeleteDialog(true);
@@ -275,21 +263,27 @@ const InvoicesPage: React.FC = () => {
     }
   };
 
-  const handleViewInvoice = async (invoice: Invoice) => {
-    try {
-      const blob = await InvoiceService.downloadInvoice(invoice._id);
-      const url = window.URL.createObjectURL(blob);
-      window.open(url, '_blank');
-      toast.success('Invoice opened in new tab');
-    } catch (error) {
-      console.error('Error viewing invoice:', error);
-      toast.error('Failed to view invoice');
-    }
-  };
-
   const handleEditInvoice = async (invoice: Invoice) => {
     setSelectedInvoice(invoice);
     setIsEditModalOpen(true);
+  };
+
+  const handleViewInvoice = (invoice: Invoice) => {
+    setPdfInvoice({ ...invoice, gym });
+    setIsPDFModalOpen(true);
+  };
+
+  const handleDownloadInvoice = async (invoice: Invoice) => {
+    const invoiceWithGym = { ...invoice, gym };
+    const blob = await pdf(<InvoicePDF invoice={invoiceWithGym} />).toBlob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `invoice-${invoice.invoiceNumber}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
   };
 
   const handleExport = () => {
@@ -785,13 +779,13 @@ const InvoicesPage: React.FC = () => {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48">
-                              <DropdownMenuItem onClick={() => handleViewInvoice(invoice)}>
-                                <Eye className="h-4 w-4 mr-2" />
-                                View
-                              </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleEditInvoice(invoice)}>
                                 <Pencil className="h-4 w-4 mr-2" />
                                 Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleViewInvoice(invoice)}>
+                                <Eye className="h-4 w-4 mr-2" />
+                                View
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleDownloadInvoice(invoice)}>
                                 <Download className="h-4 w-4 mr-2" />
@@ -866,6 +860,22 @@ const InvoicesPage: React.FC = () => {
           queryClient.invalidateQueries({ queryKey: ['invoices'] });
         }}
       />
+
+      {isPDFModalOpen && pdfInvoice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-lg w-11/12 h-5/6 flex flex-col">
+            <div className="flex justify-between items-center p-4 border-b">
+              <h2 className="text-lg font-bold">Invoice Preview</h2>
+              <button onClick={() => setIsPDFModalOpen(false)} className="text-gray-500 hover:text-gray-800">✕</button>
+            </div>
+            <div className="flex-1 overflow-auto">
+              <PDFViewer width="100%" height="100%">
+                <InvoicePDF invoice={pdfInvoice} />
+              </PDFViewer>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 };
