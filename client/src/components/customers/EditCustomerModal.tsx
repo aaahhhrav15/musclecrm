@@ -36,7 +36,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { CustomerService, Customer, CustomerFormData } from '@/services/CustomerService';
+import { CustomerService, Customer, CustomerFormData, CustomerApiUpdateData } from '@/services/CustomerService';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -170,7 +170,7 @@ const EnhancedDatePicker = ({
 
 const formSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
-  email: z.string().email('Invalid email address'),
+  email: z.string().email('Invalid email address').optional().or(z.literal('')),
   phone: z.string().optional(),
   address: z.string().optional(),
   source: z.enum(['website', 'referral', 'walk-in', 'social_media', 'other']),
@@ -227,13 +227,13 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
       membershipType: (customer.membershipType as 'none' | 'basic' | 'premium' | 'vip') || 'none',
       membershipFees: customer.membershipFees ? customer.membershipFees.toString() : '',
       membershipDuration: customer.membershipDuration ? customer.membershipDuration.toString() : '',
-      joinDate: customer.joinDate ? new Date(customer.joinDate) : new Date(),
-      membershipStartDate: customer.membershipStartDate ? new Date(customer.membershipStartDate) : new Date(),
-      membershipEndDate: customer.membershipEndDate ? new Date(customer.membershipEndDate) : undefined,
-      transactionDate: customer.transactionDate ? new Date(customer.transactionDate) : new Date(),
+      joinDate: customer.joinDate ? (typeof customer.joinDate === 'string' ? new Date(customer.joinDate) : customer.joinDate) : new Date(),
+      membershipStartDate: customer.membershipStartDate ? (typeof customer.membershipStartDate === 'string' ? new Date(customer.membershipStartDate) : customer.membershipStartDate) : new Date(),
+      membershipEndDate: customer.membershipEndDate ? (typeof customer.membershipEndDate === 'string' ? new Date(customer.membershipEndDate) : customer.membershipEndDate) : undefined,
+      transactionDate: customer.transactionDate ? (typeof customer.transactionDate === 'string' ? new Date(customer.transactionDate) : customer.transactionDate) : new Date(),
       paymentMode: (customer.paymentMode as 'cash' | 'card' | 'upi' | 'bank_transfer' | 'other') || 'cash',
       notes: customer.notes || '',
-      birthday: customer.birthday ? new Date(customer.birthday) : undefined,
+      birthday: customer.birthday ? (typeof customer.birthday === 'string' ? new Date(customer.birthday) : customer.birthday) : undefined,
     }
   });
 
@@ -277,7 +277,7 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
       }
       
       // Create data in the format expected by CustomerService
-      const formattedData: Partial<CustomerFormData> = {
+      const formattedData: Partial<CustomerApiUpdateData> = {
         name: values.name,
         email: values.email,
         phone: values.phone || '',
@@ -286,13 +286,13 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
         membershipType: values.membershipType,
         membershipFees: membershipFees,
         membershipDuration: membershipDuration,
-        joinDate: values.joinDate,
-        membershipStartDate: values.membershipStartDate,
-        membershipEndDate: calculatedEndDate,
-        transactionDate: values.transactionDate,
+        joinDate: values.joinDate ? values.joinDate.toISOString() : undefined,
+        membershipStartDate: values.membershipStartDate ? values.membershipStartDate.toISOString() : undefined,
+        membershipEndDate: calculatedEndDate ? calculatedEndDate.toISOString() : undefined,
+        transactionDate: values.transactionDate ? values.transactionDate.toISOString() : undefined,
         paymentMode: values.paymentMode,
         notes: values.notes || '',
-        birthday: values.birthday,
+        birthday: values.birthday ? values.birthday.toISOString() : undefined,
         totalSpent: membershipFees // Ensure totalSpent is included
       };
 

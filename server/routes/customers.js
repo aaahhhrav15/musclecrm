@@ -406,8 +406,8 @@ router.put('/:id', async (req, res) => {
       Customer.findById(id)
     ];
 
-    // Only check email uniqueness if email is being changed
-    if (email) {
+    // Only check email uniqueness if email is being changed and not empty
+    if (email && email.trim() !== '') {
       operations.push(
         Customer.findOne({ 
           email, 
@@ -418,7 +418,7 @@ router.put('/:id', async (req, res) => {
 
     const results = await Promise.all(operations);
     const customer = results[0];
-    const existingCustomer = email ? results[1] : null;
+    const existingCustomer = (email && email.trim() !== '') ? results[1] : null;
 
     if (!customer) {
       return res.status(404).json({
@@ -437,7 +437,7 @@ router.put('/:id', async (req, res) => {
     // Update customer fields efficiently
     const updates = {
       ...(name && { name }),
-      ...(email && { email }),
+      ...(email !== undefined && { email }),
       ...(phone !== undefined && { phone }),
       ...(address !== undefined && { address }),
       ...(source && { source }),
