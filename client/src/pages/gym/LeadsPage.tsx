@@ -103,6 +103,7 @@ const LeadsPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [phoneError, setPhoneError] = useState('');
 
   const fetchLeads = async () => {
     setLoading(true);
@@ -277,11 +278,42 @@ const LeadsPage: React.FC = () => {
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    if (name === 'phone') {
+      // Validate phone number: exactly 10 digits, cannot start with 0
+      if (!/^[1-9][0-9]{0,9}$/.test(value)) {
+        if (value.length > 0 && value[0] === '0') {
+          setPhoneError('Phone number cannot start with 0');
+        } else if (value.length > 10) {
+          setPhoneError('Phone number cannot be more than 10 digits');
+        } else if (value.length < 10 && value.length > 0) {
+          setPhoneError('Phone number must be exactly 10 digits');
+        } else {
+          setPhoneError('Invalid phone number');
+        }
+      } else {
+        setPhoneError('');
+      }
+    }
+    setForm({ ...form, [name]: value });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Final phone validation before submit
+    if (!/^[1-9][0-9]{9}$/.test(form.phone)) {
+      if (form.phone.length > 0 && form.phone[0] === '0') {
+        setPhoneError('Phone number cannot start with 0');
+      } else if (form.phone.length > 10) {
+        setPhoneError('Phone number cannot be more than 10 digits');
+      } else if (form.phone.length < 10) {
+        setPhoneError('Phone number must be exactly 10 digits');
+      } else {
+        setPhoneError('Invalid phone number');
+      }
+      return;
+    }
+    setPhoneError('');
     try {
       if (editingLead) {
         await axios.put(`${API_URL}/leads/${editingLead._id}`, form, { withCredentials: true });
@@ -765,7 +797,13 @@ const LeadsPage: React.FC = () => {
                 onChange={handleChange}
                 placeholder="Enter phone number"
                 required
+                maxLength={10}
+                inputMode="numeric"
+                pattern="[0-9]*"
               />
+              {phoneError && (
+                <p className="text-sm text-red-500 mt-1">{phoneError}</p>
+              )}
             </div>
             
             <div className="space-y-2">
