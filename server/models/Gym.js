@@ -95,6 +95,11 @@ const gymSchema = new mongoose.Schema({
   updatedAt: {
     type: Date,
     default: Date.now
+  },
+  // Add invoiceCounter for per-gym invoice numbering
+  invoiceCounter: {
+    type: Number,
+    default: 1
   }
 });
 

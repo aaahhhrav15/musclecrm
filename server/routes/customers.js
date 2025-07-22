@@ -315,15 +315,13 @@ router.post('/', async (req, res) => {
     let invoice = null;
     if (customer.membershipFees > 0) {
       try {
-        let nextNumber = 1;
-        if (lastInvoice && lastInvoice.invoiceNumber) {
-          const lastNumber = parseInt(lastInvoice.invoiceNumber.replace('INV', ''));
-          if (!isNaN(lastNumber)) {
-            nextNumber = lastNumber + 1;
-          }
-        }
+        // Fetch gym to get gymCode and invoiceCounter
+        const gym = await Gym.findById(req.gymId);
+        if (!gym) throw new Error('Gym not found');
+        const gymCode = gym.gymCode;
+        const invoiceCounter = gym.invoiceCounter || 1;
+        const invoiceNumber = `${gymCode}${String(invoiceCounter).padStart(6, '0')}`;
         
-        const invoiceNumber = `INV${String(nextNumber).padStart(5, '0')}`;
         const startDate = customer.membershipStartDate ? new Date(customer.membershipStartDate) : null;
         const endDate = customer.membershipEndDate ? new Date(customer.membershipEndDate) : null;
         const formatDate = (date) => {
@@ -359,6 +357,9 @@ router.post('/', async (req, res) => {
         });
 
         await invoice.save();
+        // Increment the gym's invoiceCounter
+        gym.invoiceCounter = invoiceCounter + 1;
+        await gym.save();
       } catch (invoiceError) {
         console.error('Failed to create invoice:', invoiceError);
       }
@@ -501,23 +502,17 @@ router.put('/:id', async (req, res) => {
     // Create invoice for membership renewal if membership fees > 0
     let invoice = null;
     const feesToUse = membershipFees !== undefined ? membershipFees : updatedCustomer.membershipFees;
+    // Always use correct type/duration for invoice
+    const membershipTypeToUse = membershipType !== undefined ? membershipType : updatedCustomer.membershipType;
+    const membershipDurationToUse = membershipDuration !== undefined ? membershipDuration : updatedCustomer.membershipDuration;
     if (feesToUse > 0) {
       try {
-        // Get the last invoice number to generate the next one
-        const lastInvoice = await Invoice.findOne({}, {}, { sort: { 'invoiceNumber': -1 } }).lean();
-        
-        let nextNumber = 1;
-        if (lastInvoice && lastInvoice.invoiceNumber) {
-          const lastNumber = parseInt(lastInvoice.invoiceNumber.replace('INV', ''));
-          if (!isNaN(lastNumber)) {
-            nextNumber = lastNumber + 1;
-          }
-        }
-        
-        const invoiceNumber = `INV${String(nextNumber).padStart(5, '0')}`;
-        const membershipTypeToUse = membershipType || updatedCustomer.membershipType;
-        const membershipDurationToUse = membershipDuration || updatedCustomer.membershipDuration;
-        
+        // Fetch gym to get gymCode and invoiceCounter
+        const gym = await Gym.findById(req.gymId);
+        if (!gym) throw new Error('Gym not found');
+        const gymCode = gym.gymCode;
+        const invoiceCounter = gym.invoiceCounter || 1;
+        const invoiceNumber = `${gymCode}${String(invoiceCounter).padStart(6, '0')}`;
         // Calculate renewal period correctly based on current end date and today
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -546,15 +541,13 @@ router.put('/:id', async (req, res) => {
         };
         const dateRange = renewalStartDate && renewalEndDate ? ` (${formatDate(renewalStartDate)} to ${formatDate(renewalEndDate)})` : '';
         const membershipItem = {
-          description: `${membershipTypeToUse.toUpperCase()} Membership Renewal - ${membershipDurationToUse} months${dateRange}`,
+          description: `${membershipTypeToUse?.toUpperCase() || 'MEMBERSHIP'} Membership Renewal - ${membershipDurationToUse} months${dateRange}`,
           quantity: 1,
           unitPrice: feesToUse,
           amount: feesToUse
         };
-
         const dueDate = new Date();
         dueDate.setDate(dueDate.getDate() + 7);
-
         invoice = new Invoice({
           userId: req.user._id,
           gymId: req.gymId,
@@ -565,10 +558,12 @@ router.put('/:id', async (req, res) => {
           status: 'pending',
           dueDate,
           items: [membershipItem],
-          notes: `Membership renewal fees for ${updatedCustomer.name} - ${membershipTypeToUse.toUpperCase()} plan for ${membershipDurationToUse} months${dateRange}`
+          notes: `Membership renewal fees for ${updatedCustomer.name} - ${membershipTypeToUse?.toUpperCase() || 'MEMBERSHIP'} plan for ${membershipDurationToUse} months${dateRange}`
         });
-
         await invoice.save();
+        // Increment the gym's invoiceCounter
+        gym.invoiceCounter = invoiceCounter + 1;
+        await gym.save();
       } catch (invoiceError) {
         console.error('Failed to create renewal invoice:', invoiceError);
       }

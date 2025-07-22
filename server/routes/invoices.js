@@ -56,16 +56,14 @@ router.post('/', auth, async (req, res) => {
     const userId = req.user._id;
     const gymId = req.user.gymId;
 
-    // Get the last invoice number
-    const lastInvoice = await Invoice.findOne({}, {}, { sort: { 'invoiceNumber': -1 } });
-    let nextNumber = 1;
-    
-    if (lastInvoice && lastInvoice.invoiceNumber) {
-      const lastNumber = parseInt(lastInvoice.invoiceNumber.replace('INV', ''));
-      nextNumber = lastNumber + 1;
+    // Fetch gym to get gymCode and invoiceCounter
+    const gym = await Gym.findById(gymId);
+    if (!gym) {
+      return res.status(400).json({ success: false, message: 'Gym not found' });
     }
-    
-    const invoiceNumber = `INV${String(nextNumber).padStart(5, '0')}`;
+    const gymCode = gym.gymCode;
+    const invoiceCounter = gym.invoiceCounter || 1;
+    const invoiceNumber = `${gymCode}${String(invoiceCounter).padStart(6, '0')}`;
 
     const invoice = new Invoice({
       userId,
@@ -81,6 +79,10 @@ router.post('/', auth, async (req, res) => {
     });
 
     await invoice.save();
+
+    // Increment the gym's invoiceCounter
+    gym.invoiceCounter = invoiceCounter + 1;
+    await gym.save();
 
     // Automatically create transaction record for the invoice
     let transaction = null;

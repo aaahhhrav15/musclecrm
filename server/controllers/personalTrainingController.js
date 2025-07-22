@@ -3,6 +3,7 @@ const Customer = require('../models/Customer');
 const Trainer = require('../models/Trainer');
 const Invoice = require('../models/Invoice');
 const Transaction = require('../models/Transaction');
+const Gym = require('../models/Gym'); // Add at top if not present
 
 function formatDate(date) {
   if (!date) return '';
@@ -71,11 +72,17 @@ exports.createAssignment = async (req, res) => {
     });
 
     // Generate invoice for personal training
+    const gym = await Gym.findById(gymId);
+    if (!gym) return res.status(400).json({ error: 'Gym not found' });
+    const gymCode = gym.gymCode;
+    const invoiceCounter = gym.invoiceCounter || 1;
+    const invoiceNumber = `${gymCode}${String(invoiceCounter).padStart(6, '0')}`;
     const dateRange = start && end ? ` (${formatDate(start)} to ${formatDate(end)})` : '';
     const invoice = new Invoice({
       userId: req.user._id, // User ID from auth middleware
       gymId,
       customerId,
+      invoiceNumber,
       amount: fees,
       currency: 'INR',
       dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
@@ -88,6 +95,9 @@ exports.createAssignment = async (req, res) => {
       notes: `Personal training assignment for period${dateRange}`
     });
     await invoice.save();
+    // Increment the gym's invoiceCounter
+    gym.invoiceCounter = invoiceCounter + 1;
+    await gym.save();
 
     // Create transaction record
     const transaction = new Transaction({
@@ -264,18 +274,36 @@ exports.renewAssignment = async (req, res) => {
     now.setHours(0, 0, 0, 0);
     const currentEnd = new Date(assignment.endDate);
     currentEnd.setHours(0, 0, 0, 0);
+    let invoicePeriodStart, invoicePeriodEnd;
     if (currentEnd >= now) {
-      // PT is active, start from day after current end date
-      renewalStart = new Date(currentEnd);
-      renewalStart.setDate(renewalStart.getDate() + 1);
+      // PT is active, keep original start date for assignment, but invoice should only cover the new period
+      renewalStart = new Date(assignment.startDate);
+      renewalEnd = new Date(currentEnd);
+      renewalEnd.setMonth(renewalEnd.getMonth() + Number(duration));
+      renewalEnd.setDate(renewalEnd.getDate()); // keep same day of month
+      // Invoice period: day after current end to new end
+      invoicePeriodStart = new Date(currentEnd);
+      invoicePeriodStart.setDate(invoicePeriodStart.getDate() + 1);
+      invoicePeriodEnd = new Date(renewalEnd);
     } else {
       // PT is not active, use provided startDate
       renewalStart = new Date(startDate);
+      renewalEnd = new Date(renewalStart);
+      renewalEnd.setMonth(renewalEnd.getMonth() + Number(duration));
+      renewalEnd.setDate(renewalEnd.getDate() - 1);
+      // Invoice period: full new assignment
+      invoicePeriodStart = new Date(renewalStart);
+      invoicePeriodEnd = new Date(renewalEnd);
     }
-    renewalEnd = new Date(renewalStart);
-    renewalEnd.setMonth(renewalEnd.getMonth() + Number(duration));
-    renewalEnd.setDate(renewalEnd.getDate() - 1);
-    const renewalDateRange = renewalStart && renewalEnd ? ` (${formatDate(renewalStart)} to ${formatDate(renewalEnd)})` : '';
+    const formatDate = (date) => {
+      if (!date) return '';
+      const d = new Date(date);
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${day}/${month}/${year}`;
+    };
+    const invoiceDateRange = invoicePeriodStart && invoicePeriodEnd ? ` (${formatDate(invoicePeriodStart)} to ${formatDate(invoicePeriodEnd)})` : '';
 
     // Update the assignment
     const updatedAssignment = await PersonalTrainingAssignment.findByIdAndUpdate(
@@ -300,22 +328,31 @@ exports.renewAssignment = async (req, res) => {
     });
 
     // Generate invoice for renewal
+    const gym = await Gym.findById(gymId);
+    if (!gym) return res.status(400).json({ error: 'Gym not found' });
+    const gymCode = gym.gymCode;
+    const invoiceCounter = gym.invoiceCounter || 1;
+    const invoiceNumber = `${gymCode}${String(invoiceCounter).padStart(6, '0')}`;
     const invoice = new Invoice({
       userId: req.user._id,
       gymId,
       customerId: assignment.customerId._id || assignment.customerId,
+      invoiceNumber,
       amount: fees,
       currency: 'INR',
       dueDate: renewalEnd,
       items: [{
-        description: `Personal Training Renewal (${duration} month(s))${renewalDateRange}`,
+        description: `Personal Training Renewal (${duration} month(s))${invoiceDateRange}`,
         quantity: duration,
         unitPrice: fees / duration,
         amount: fees
       }],
-      notes: `Personal training renewal for period${renewalDateRange}`
+      notes: `Personal training renewal for period${invoiceDateRange}`
     });
     await invoice.save();
+    // Increment the gym's invoiceCounter
+    gym.invoiceCounter = invoiceCounter + 1;
+    await gym.save();
 
     // Create transaction record
     const txn = new Transaction({
@@ -327,7 +364,7 @@ exports.renewAssignment = async (req, res) => {
       amount: fees,
       paymentMode: paymentMode || 'cash',
       membershipType: 'none',
-      description: `Personal training renewal for ${duration} month(s)${renewalDateRange}` ,
+      description: `Personal training renewal for ${duration} month(s)${invoiceDateRange}` ,
       status: 'SUCCESS'
     });
     await txn.save();
@@ -337,8 +374,13 @@ exports.renewAssignment = async (req, res) => {
       $inc: { totalSpent: fees }
     });
 
+    // Fetch the latest updated assignment to ensure frontend gets the correct endDate
+    const latestAssignment = await PersonalTrainingAssignment.findById(id)
+      .populate('customerId', 'name email phone')
+      .populate('trainerId', 'name email');
+
     res.status(200).json({
-      assignment: updatedAssignment,
+      assignment: latestAssignment,
       invoice,
       transaction: txn
     });

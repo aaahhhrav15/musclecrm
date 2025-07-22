@@ -49,7 +49,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
-import InvoiceService, { Invoice } from '@/services/InvoiceService';
+import InvoiceService, { Invoice, CreateInvoiceData } from '@/services/InvoiceService';
 import { formatCurrency } from '@/lib/utils';
 import {
   AlertDialog,
@@ -65,11 +65,30 @@ import InvoiceForm from '@/components/invoices/InvoiceForm';
 import axios from 'axios';
 import { API_URL } from '@/lib/constants';
 import { EditInvoiceModal } from '@/components/invoices/EditInvoiceModal';
-import CustomerService from '@/services/CustomerService';
+import CustomerService, { Customer } from '@/services/CustomerService';
 import { Calendar } from '@/components/ui/calendar';
 import { addMonths, startOfMonth, endOfMonth, isSameDay, isSameMonth, isWithinInterval } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import * as Papa from 'papaparse';
+import { PDFViewer, pdf } from '@react-pdf/renderer';
+import InvoicePDF from '@/components/invoices/InvoicePDF';
+import { useGym } from '@/context/GymContext';
+
+type InvoiceItem = {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  amount: number;
+};
+type InvoiceSubmitData = {
+  customerId: string;
+  items: InvoiceItem[];
+  amount: number;
+  dueDate: Date;
+  notes?: string;
+  currency: string;
+  paymentMode: string;
+};
 
 const FinancePage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -88,9 +107,12 @@ const FinancePage: React.FC = () => {
   const [selectedDay, setSelectedDay] = useState<number>(new Date().getDate());
   const [selectedMonthNumber, setSelectedMonthNumber] = useState<number>(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [isPDFModalOpen, setIsPDFModalOpen] = useState(false);
+  const [pdfInvoice, setPdfInvoice] = useState<unknown>(null);
+  const { gym } = useGym();
 
   // Fetch customers
-  const { data: customersData } = useQuery({
+  const { data: customersData } = useQuery<{ customers: Customer[]; total: number }>({
     queryKey: ['customers'],
     queryFn: async () => {
       try {
@@ -104,7 +126,7 @@ const FinancePage: React.FC = () => {
     }
   });
 
-  const customers = customersData?.customers || [];
+  const customers: Customer[] = customersData?.customers || [];
 
   // Fetch invoices
   const { data: invoices, isLoading, error } = useQuery({
@@ -173,13 +195,28 @@ const FinancePage: React.FC = () => {
     setSelectedMonth(new Date(selectedYear, selectedMonthNumber, 1));
   }, [selectedMonthNumber, selectedYear]);
 
+  const handleViewInvoice = (invoiceId: string) => {
+    const invoice = invoices?.find((inv) => inv._id === invoiceId);
+    if (invoice) {
+      setPdfInvoice({ ...invoice, gym });
+      setIsPDFModalOpen(true);
+    } else {
+      toast.error('Invoice not found');
+    }
+  };
+
   const handleDownloadInvoice = async (invoiceId: string) => {
+    const invoice = invoices?.find((inv) => inv._id === invoiceId);
+    if (!invoice) {
+      toast.error('Invoice not found');
+      return;
+    }
     try {
-      const blob = await InvoiceService.downloadInvoice(invoiceId);
+      const blob = await pdf(<InvoicePDF invoice={{ ...invoice, gym }} />).toBlob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `invoice-${invoiceId}.pdf`;
+      a.download = `invoice-${invoice.invoiceNumber || invoiceId}.pdf`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -205,18 +242,6 @@ const FinancePage: React.FC = () => {
     } catch (error) {
       console.error('Error printing invoice:', error);
       toast.error('Failed to print invoice');
-    }
-  };
-
-  const handleViewInvoice = async (invoiceId: string) => {
-    try {
-      const blob = await InvoiceService.downloadInvoice(invoiceId);
-      const url = window.URL.createObjectURL(blob);
-      window.open(url, '_blank');
-      toast.success('Invoice opened in new tab');
-    } catch (error) {
-      console.error('Error viewing invoice:', error);
-      toast.error('Failed to view invoice');
     }
   };
 
@@ -288,7 +313,7 @@ const FinancePage: React.FC = () => {
   }) || [];
 
   const createInvoiceMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: CreateInvoiceData) => {
       console.log('Creating invoice with data:', data);
       try {
         const response = await axios.post(`${API_URL}/invoices`, {
@@ -311,9 +336,12 @@ const FinancePage: React.FC = () => {
           throw new Error(response.data.message || 'Failed to create invoice');
         }
         return response.data;
-      } catch (error: any) {
-        console.error('Error in mutation function:', error);
-        throw new Error(error.response?.data?.message || 'Failed to create invoice');
+      } catch (error: unknown) {
+        if (typeof error === 'object' && error !== null && 'response' in error) {
+          // @ts-ignore
+          throw new Error(error.response?.data?.message || 'Failed to create invoice');
+        }
+        throw new Error('Failed to create invoice');
       }
     },
     onSuccess: (data) => {
@@ -328,10 +356,19 @@ const FinancePage: React.FC = () => {
     },
   });
 
-  const handleCreateInvoice = async (data: any) => {
-    console.log('handleCreateInvoice called with data:', data);
+  const handleCreateInvoice = async (data: InvoiceSubmitData) => {
+    // Convert dueDate to string if it's a Date
+    const dueDateString = data.dueDate instanceof Date ? data.dueDate.toISOString() : data.dueDate;
+    const createData: CreateInvoiceData = {
+      customerId: data.customerId,
+      amount: data.amount,
+      currency: data.currency,
+      dueDate: dueDateString,
+      items: data.items,
+      notes: data.notes,
+    };
     try {
-      await createInvoiceMutation.mutateAsync(data);
+      await createInvoiceMutation.mutateAsync(createData);
     } catch (error) {
       console.error('Error in handleCreateInvoice:', error);
       toast.error('Failed to create invoice. Please try again.');
@@ -347,13 +384,12 @@ const FinancePage: React.FC = () => {
     const dataToExport = filteredInvoices.map(invoice => {
       const customer = typeof invoice.customerId === 'object' 
         ? invoice.customerId 
-        : customers.find(c => c._id === invoice.customerId);
+        : customers.find(c => c.id === invoice.customerId);
 
       return {
         "Invoice Number": invoice.invoiceNumber,
         "Customer Name": customer?.name || 'N/A',
         "Customer Email": customer?.email || 'N/A',
-        "Phone Number": customer?.phone || 'N/A',
         "Date": format(new Date(invoice.createdAt), 'yyyy-MM-dd'),
         "Cost": invoice.amount,
         "Description": invoice.items.map(item => item.description).join(', '),
@@ -754,8 +790,8 @@ const FinancePage: React.FC = () => {
                           {invoice.invoiceNumber}
                         </TableCell>
                         <TableCell className="font-medium">
-                          {typeof invoice.customerId === 'string' 
-                            ? <span className="text-muted-foreground">Loading...</span>
+                          {typeof invoice.customerId === 'string'
+                            ? (customers.find((c) => c.id === invoice.customerId)?.name || 'N/A')
                             : invoice.customerId?.name || 'N/A'}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
@@ -826,7 +862,6 @@ const FinancePage: React.FC = () => {
         open={isCreateInvoiceOpen}
         onClose={() => setIsCreateInvoiceOpen(false)}
         onSubmit={handleCreateInvoice}
-        customers={customers}
       />
 
       <EditInvoiceModal
@@ -840,6 +875,22 @@ const FinancePage: React.FC = () => {
           queryClient.invalidateQueries({ queryKey: ['invoices'] });
         }}
       />
+
+      {isPDFModalOpen && pdfInvoice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-lg w-11/12 h-5/6 flex flex-col">
+            <div className="flex justify-between items-center p-4 border-b">
+              <h2 className="text-lg font-bold">Invoice Preview</h2>
+              <button onClick={() => setIsPDFModalOpen(false)} className="text-gray-500 hover:text-gray-800">✕</button>
+            </div>
+            <div className="flex-1 overflow-auto">
+              <PDFViewer width="100%" height="100%">
+                <InvoicePDF invoice={pdfInvoice as Invoice} />
+              </PDFViewer>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 };

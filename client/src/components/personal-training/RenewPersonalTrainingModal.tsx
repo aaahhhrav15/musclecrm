@@ -398,7 +398,7 @@ export const RenewPersonalTrainingModal: React.FC<RenewPersonalTrainingModalProp
                     <span className="font-medium">Current End Date:</span> {safeFormatDate(renewalPreview.currentEndDate, "PPP")}
                   </p>
                   <p className="text-blue-800">
-                    <span className="font-medium">New Start Date:</span> {safeFormatDate(renewalPreview.newStartDate, "PPP")}
+                    <span className="font-medium">Start Date:</span> {safeFormatDate(renewalPreview.newStartDate, "PPP")}
                   </p>
                   <p className="text-blue-800">
                     <span className="font-medium">New End Date:</span> {safeFormatDate(renewalPreview.newEndDate, "PPP")}

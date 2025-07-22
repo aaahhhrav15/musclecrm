@@ -90,7 +90,7 @@ const InvoicesPage: React.FC = () => {
   const [selectedDayMonth, setSelectedDayMonth] = useState<number>(new Date().getMonth());
   const [selectedDay, setSelectedDay] = useState<number>(new Date().getDate());
   const [isPDFModalOpen, setIsPDFModalOpen] = useState(false);
-  const [pdfInvoice, setPdfInvoice] = useState<Invoice | null>(null);
+  const [pdfInvoice, setPdfInvoice] = useState<unknown>(null);
   const { gym } = useGym();
 
   // Fetch invoices
@@ -100,7 +100,7 @@ const InvoicesPage: React.FC = () => {
       try {
         const response = await InvoiceService.getInvoices();
         return response;
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error fetching invoices:', error);
         toast.error('Failed to fetch invoices');
         throw error;
@@ -204,9 +204,15 @@ const InvoicesPage: React.FC = () => {
           throw new Error(response.data.message || 'Failed to create invoice');
         }
         return response.data;
-      } catch (error: any) {
+      } catch (error: unknown) {
+        let errorMessage = 'Failed to create invoice';
+        if (typeof error === 'object' && error !== null && 'response' in error) {
+          const err = error as { response?: { data?: { message?: string } } };
+          errorMessage = err.response?.data?.message || errorMessage;
+        } else if (error instanceof Error) {
+          errorMessage = error.message || errorMessage;
+        }
         console.error('Error in mutation function:', error);
-        const errorMessage = error.response?.data?.message || error.message || 'Failed to create invoice';
         throw new Error(errorMessage);
       }
     },
@@ -223,19 +229,21 @@ const InvoicesPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       setIsCreateInvoiceOpen(false);
     },
-    onError: (error: Error) => {
-      console.error('Invoice creation failed:', error);
-      toast.error(error.message || 'Failed to create invoice');
+    onError: (error: unknown) => {
+      const err = error as Error;
+      console.error('Invoice creation failed:', err);
+      toast.error(err.message || 'Failed to create invoice');
     },
   });
 
-  const handleCreateInvoice = async (data: any) => {
+  const handleCreateInvoice = async (data: unknown) => {
     console.log('handleCreateInvoice called with data:', data);
     try {
       await createInvoiceMutation.mutateAsync(data);
-    } catch (error: any) {
-      console.error('Error in handleCreateInvoice:', error);
-      toast.error(error.message || 'Failed to create invoice. Please try again.');
+    } catch (error: unknown) {
+      const err = error as Error;
+      console.error('Error in handleCreateInvoice:', err);
+      toast.error(err.message || 'Failed to create invoice. Please try again.');
     }
   };
 
@@ -254,8 +262,9 @@ const InvoicesPage: React.FC = () => {
       await InvoiceService.deleteInvoice(invoiceToDelete._id);
       toast.success('Invoice deleted successfully');
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
-    } catch (error) {
-      console.error('Error deleting invoice:', error);
+    } catch (error: unknown) {
+      const err = error as Error;
+      console.error('Error deleting invoice:', err);
       toast.error('Failed to delete invoice');
     } finally {
       setShowDeleteDialog(false);
@@ -274,8 +283,7 @@ const InvoicesPage: React.FC = () => {
   };
 
   const handleDownloadInvoice = async (invoice: Invoice) => {
-    const invoiceWithGym = { ...invoice, gym };
-    const blob = await pdf(<InvoicePDF invoice={invoiceWithGym} />).toBlob();
+    const blob = await pdf(<InvoicePDF invoice={{ ...invoice, gym }} />).toBlob();
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -296,7 +304,6 @@ const InvoicesPage: React.FC = () => {
       const customer = typeof invoice.customerId === 'object' 
         ? invoice.customerId 
         : null;
-
       return {
         "Invoice Number": invoice.invoiceNumber,
         "Customer Name": customer?.name || 'N/A',
@@ -306,9 +313,9 @@ const InvoicesPage: React.FC = () => {
           : 'N/A',
         "Amount": invoice.amount || 0,
         "Currency": invoice.currency || 'INR',
-        "Due Date": format(new Date(invoice.dueDate), 'yyyy-MM-dd'),
-        "Created Date": format(new Date(invoice.createdAt), 'yyyy-MM-dd'),
-        "Status": invoice.status || 'N/A',
+        "Issue Date": format(new Date(invoice.createdAt), 'yyyy-MM-dd'),
+        // Remove status if not present on Invoice type
+        // "Status": invoice.status || 'N/A',
         "Notes": invoice.notes || ''
       };
     });
@@ -746,7 +753,8 @@ const InvoicesPage: React.FC = () => {
                       <TableHead>Customer</TableHead>
                       <TableHead>Invoice #</TableHead>
                       <TableHead className="hidden md:table-cell">Description</TableHead>
-                      <TableHead className="hidden sm:table-cell">Due Date</TableHead>
+                      {/* <TableHead className="hidden sm:table-cell">Due Date</TableHead> */}
+                      <TableHead className="hidden sm:table-cell">Issue Date</TableHead>
                       <TableHead>Amount</TableHead>
                       <TableHead className="w-[100px]">Actions</TableHead>
                     </TableRow>
@@ -765,8 +773,11 @@ const InvoicesPage: React.FC = () => {
                             ? invoice.items.map(item => item.description).join(', ') 
                             : '-'}
                         </TableCell>
-                        <TableCell className="hidden sm:table-cell text-muted-foreground">
+                        {/* <TableCell className="hidden sm:table-cell text-muted-foreground">
                           {format(new Date(invoice.dueDate), 'MMM d, yyyy')}
+                        </TableCell> */}
+                        <TableCell className="hidden sm:table-cell text-muted-foreground">
+                          {format(new Date(invoice.createdAt), 'MMM d, yyyy')}
                         </TableCell>
                         <TableCell className="font-semibold">
                           {formatCurrency(invoice.amount)}
@@ -870,7 +881,7 @@ const InvoicesPage: React.FC = () => {
             </div>
             <div className="flex-1 overflow-auto">
               <PDFViewer width="100%" height="100%">
-                <InvoicePDF invoice={pdfInvoice} />
+                <InvoicePDF invoice={pdfInvoice as any} />
               </PDFViewer>
             </div>
           </div>
