@@ -19,7 +19,7 @@ exports.getAssignments = async (req, res) => {
   try {
     const { gymId } = req.query;
     const assignments = await PersonalTrainingAssignment.find(gymId ? { gymId } : {})
-      .populate('customerId', 'name email')
+      .populate('customerId', 'name email phone') // <-- add phone here
       .populate('trainerId', 'name email');
     res.json(assignments);
   } catch (err) {
