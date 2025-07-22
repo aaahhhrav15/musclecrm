@@ -372,6 +372,7 @@ export const RenewPersonalTrainingModal: React.FC<RenewPersonalTrainingModalProp
                           mode="single"
                           selected={field.value}
                           onSelect={field.onChange}
+                          // Allow all dates, including past
                           initialFocus
                         />
                       </PopoverContent>

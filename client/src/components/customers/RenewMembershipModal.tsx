@@ -470,9 +470,7 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
                           mode="single"
                           selected={field.value}
                           onSelect={field.onChange}
-                          disabled={(date) =>
-                            date < new Date()
-                          }
+                          // Allow all dates, including past
                           initialFocus
                         />
                       </PopoverContent>
