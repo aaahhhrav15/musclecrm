@@ -267,11 +267,11 @@ export function CustomersPage() {
         
         switch (filters.statusFilter) {
           case 'active':
-            return !isExpired && !isExpiring;
+            return !isExpired; // include both active and expiring soon
           case 'expired':
             return isExpired;
           case 'expiringSoon':
-            return isExpiring && !isExpired;
+            return isExpiring;
           default:
             return true;
         }
