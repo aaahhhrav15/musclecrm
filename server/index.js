@@ -34,6 +34,7 @@ const leadsRouter = require('./routes/leads');
 const personalTrainingRoutes = require('./routes/personalTraining');
 const paymentRoutes = require('./routes/payment');
 const subscriptionPlansRoutes = require('./routes/subscriptionPlans');
+const contactRoutes = require('./routes/contact');
 
 const auth = require('./middleware/auth');
 const checkSubscription = require('./middleware/checkSubscription');
@@ -137,12 +138,16 @@ app.get('/uploads/logos/:filename', (req, res) => {
   stream.pipe(res);
 });
 
+// Register contact route BEFORE global auth/subscription middleware
+app.use('/api/contact', contactRoutes);
+
 // Global authentication middleware for all /api routes except auth and subscription
 app.use((req, res, next) => {
   const excluded = [
     '/api/auth',
     '/api/subscription-plans',
-    '/api/subscriptions'
+    '/api/subscriptions',
+    '/api/contact'
   ];
   if (excluded.some(path => req.path.startsWith(path))) {
     return next();
@@ -161,7 +166,8 @@ app.use((req, res, next) => {
     '/api/gym/',               // Allow gym info/settings (trailing slash)
     '/api/gym/settings',       // If you have a settings endpoint
     '/api/gym/info',           // If you have a gym info endpoint
-    '/api/dashboard/settings'  // If you have a dashboard settings endpoint
+    '/api/dashboard/settings', // If you have a dashboard settings endpoint
+    '/api/contact'             // Allow contact endpoint
   ];
   if (excluded.some(path => req.path.startsWith(path))) {
     return next();

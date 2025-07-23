@@ -1,67 +1,15 @@
 import * as React from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { toast } from '@/hooks/use-toast';
 import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
 import { Mail, Phone, MapPin, MessageSquare, Clock, ArrowRight } from 'lucide-react';
-
-// Form validation schema
-const contactFormSchema = z.object({
-  name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
-  email: z.string().email({ message: 'Please enter a valid email address.' }),
-  subject: z.string().min(5, { message: 'Subject must be at least 5 characters.' }),
-  message: z.string().min(10, { message: 'Message must be at least 10 characters.' }),
-});
-
-type ContactFormValues = z.infer<typeof contactFormSchema>;
+import { useState } from 'react';
 
 const ContactPage: React.FC = () => {
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
   
-  const form = useForm<ContactFormValues>({
-    resolver: zodResolver(contactFormSchema),
-    defaultValues: {
-      name: '',
-      email: '',
-      subject: '',
-      message: '',
-    },
-  });
-
-  const onSubmit = async (data: ContactFormValues) => {
-    setIsSubmitting(true);
-    
-    try {
-      // Simulated form submission - would connect to API in production
-      console.log('Form data submitted:', data);
-      
-      // Show success message
-      toast({
-        title: "Message sent successfully!",
-        description: "We've received your message and will respond within 24 hours.",
-      });
-      
-      // Reset form
-      form.reset();
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Submission failed",
-        description: "There was a problem sending your message. Please try again.",
-      });
-      console.error('Contact form submission error:', error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
@@ -153,87 +101,7 @@ const ContactPage: React.FC = () => {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="p-5">
-                    <Form {...form}>
-                      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                        <FormField
-                          control={form.control}
-                          name="name"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-base font-semibold">Full Name *</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Enter your full name" className="h-10 rounded-lg border-2 border-blue-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white/90 dark:bg-slate-900/80 text-base" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        <FormField
-                          control={form.control}
-                          name="email"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-base font-semibold">Email Address *</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Enter your email address" className="h-10 rounded-lg border-2 border-blue-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white/90 dark:bg-slate-900/80 text-base" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        <FormField
-                          control={form.control}
-                          name="subject"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-base font-semibold">Subject *</FormLabel>
-                              <FormControl>
-                                <Input placeholder="What is this regarding?" className="h-10 rounded-lg border-2 border-blue-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white/90 dark:bg-slate-900/80 text-base" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        <FormField
-                          control={form.control}
-                          name="message"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-base font-semibold">Message *</FormLabel>
-                              <FormControl>
-                                <Textarea 
-                                  placeholder="Tell us how we can help you..." 
-                                  className="min-h-[100px] resize-none rounded-lg border-2 border-blue-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white/90 dark:bg-slate-900/80 text-base" 
-                                  {...field} 
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        <Button 
-                          type="submit" 
-                          className="w-full h-10 text-base rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-200"
-                          disabled={isSubmitting}
-                        >
-                          {isSubmitting ? (
-                            <>
-                              <MessageSquare className="mr-2 h-4 w-4 animate-spin" />
-                              Sending Message...
-                            </>
-                          ) : (
-                            <>
-                              <MessageSquare className="mr-2 h-4 w-4" />
-                              Send Message
-                            </>
-                          )}
-                        </Button>
-                      </form>
-                    </Form>
+                    <ContactFormWithNodemailer />
                   </CardContent>
                 </Card>
               </div>
@@ -322,5 +190,136 @@ const ContactPage: React.FC = () => {
     </div>
   );
 };
+
+// Contact form component with Nodemailer POST
+function ContactFormWithNodemailer() {
+  const [form, setForm] = useState({ name: '', email: '', phone: '', subject: '', message: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [errorMsg, setErrorMsg] = useState('');
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setStatus('idle');
+    setErrorMsg('');
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/contact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      if (response.ok) {
+        setStatus('success');
+        setForm({ name: '', email: '', phone: '', subject: '', message: '' });
+      } else {
+        const data = await response.json();
+        setStatus('error');
+        setErrorMsg(data.error || 'There was a problem sending your message. Please try again.');
+      }
+    } catch (err: unknown) {
+      setStatus('error');
+      setErrorMsg('There was a problem sending your message. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="text-base font-semibold block mb-1" htmlFor="name">Full Name *</label>
+        <input
+          id="name"
+          name="name"
+          type="text"
+          required
+          placeholder="Enter your full name"
+          className="h-10 w-full rounded-lg border-2 border-blue-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white/90 dark:bg-slate-900/80 text-base px-3"
+          value={form.name}
+          onChange={handleChange}
+        />
+      </div>
+      <div>
+        <label className="text-base font-semibold block mb-1" htmlFor="email">Email Address *</label>
+        <input
+          id="email"
+          name="email"
+          type="email"
+          required
+          placeholder="Enter your email address"
+          className="h-10 w-full rounded-lg border-2 border-blue-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white/90 dark:bg-slate-900/80 text-base px-3"
+          value={form.email}
+          onChange={handleChange}
+        />
+      </div>
+      <div>
+        <label className="text-base font-semibold block mb-1" htmlFor="phone">Phone Number *</label>
+        <input
+          id="phone"
+          name="phone"
+          type="tel"
+          required
+          placeholder="Enter your phone number (with country code if needed)"
+          className="h-10 w-full rounded-lg border-2 border-blue-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white/90 dark:bg-slate-900/80 text-base px-3"
+          value={form.phone}
+          onChange={handleChange}
+        />
+      </div>
+      <div>
+        <label className="text-base font-semibold block mb-1" htmlFor="subject">Subject *</label>
+        <input
+          id="subject"
+          name="subject"
+          type="text"
+          required
+          placeholder="What is this regarding?"
+          className="h-10 w-full rounded-lg border-2 border-blue-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white/90 dark:bg-slate-900/80 text-base px-3"
+          value={form.subject}
+          onChange={handleChange}
+        />
+      </div>
+      <div>
+        <label className="text-base font-semibold block mb-1" htmlFor="message">Message *</label>
+        <textarea
+          id="message"
+          name="message"
+          required
+          placeholder="Tell us how we can help you..."
+          className="min-h-[100px] w-full resize-none rounded-lg border-2 border-blue-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white/90 dark:bg-slate-900/80 text-base px-3 py-2"
+          value={form.message}
+          onChange={handleChange}
+        />
+      </div>
+      <button
+        type="submit"
+        className="w-full h-10 text-base rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center"
+        disabled={isSubmitting}
+      >
+        {isSubmitting ? (
+          <>
+            <MessageSquare className="mr-2 h-4 w-4 animate-spin" />
+            Sending Message...
+          </>
+        ) : (
+          <>
+            <MessageSquare className="mr-2 h-4 w-4" />
+            Send Message
+          </>
+        )}
+      </button>
+      {status === 'success' && (
+        <div className="text-green-600 font-medium text-center">Message sent successfully! We'll respond within 24 hours.</div>
+      )}
+      {status === 'error' && (
+        <div className="text-red-600 font-medium text-center">{errorMsg}</div>
+      )}
+    </form>
+  );
+}
 
 export default ContactPage;
