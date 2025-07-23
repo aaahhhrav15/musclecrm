@@ -7,6 +7,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const bcrypt = require('bcryptjs');
+const nodemailer = require('nodemailer');
 
 const router = express.Router();
 
@@ -387,6 +388,60 @@ router.delete('/profile-image', auth, async (req, res) => {
     console.error('Profile image deletion error:', error);
     res.status(500).json({ success: false, message: 'Server error removing profile image' });
   }
+});
+
+// --- Password Reset: Request Reset Code ---
+router.post('/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
+  const user = await User.findOne({ email });
+  if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+  // Generate 6-digit code
+  const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+  const expiry = Date.now() + 1000 * 60 * 10; // 10 minutes
+  user.resetPasswordCode = resetCode;
+  user.resetPasswordExpires = expiry;
+  await user.save();
+
+  // Send email
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: user.email,
+    subject: 'Your Password Reset Code',
+    text: `Your password reset code is: ${resetCode}. It expires in 10 minutes.`
+  };
+  try {
+    await transporter.sendMail(mailOptions);
+    res.json({ success: true, message: 'Reset code sent to your email.' });
+  } catch (err) {
+    console.error('Nodemailer error:', err); // Log the full error for debugging
+    res.status(500).json({ success: false, message: 'Failed to send email.' });
+  }
+});
+
+// --- Password Reset: Confirm Code & Set New Password ---
+router.post('/reset-password', async (req, res) => {
+  const { email, code, newPassword } = req.body;
+  if (!email || !code || !newPassword) return res.status(400).json({ success: false, message: 'All fields are required' });
+  const user = await User.findOne({ email });
+  if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+  if (!user.resetPasswordCode || !user.resetPasswordExpires) return res.status(400).json({ success: false, message: 'No reset code found. Please request again.' });
+  if (user.resetPasswordCode !== code) return res.status(400).json({ success: false, message: 'Invalid reset code.' });
+  if (Date.now() > user.resetPasswordExpires) return res.status(400).json({ success: false, message: 'Reset code expired.' });
+
+  user.password = newPassword;
+  user.resetPasswordCode = undefined;
+  user.resetPasswordExpires = undefined;
+  await user.save();
+  res.json({ success: true, message: 'Password has been reset successfully.' });
 });
 
 module.exports = router;
