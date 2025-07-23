@@ -31,6 +31,10 @@ const personalTrainingAssignmentSchema = new mongoose.Schema({
   fees: {
     type: Number,
     required: true
+  },
+  notes: {
+    type: String,
+    default: ''
   }
 }, {
   timestamps: true

@@ -94,6 +94,7 @@ interface Assignment {
   duration: number;
   endDate: string;
   fees: number;
+  notes?: string; // Added notes field
 }
 
 interface Customer {
@@ -116,6 +117,7 @@ interface FormState {
   startDate: string;
   duration: number;
   fees: string;
+  notes?: string; // Added notes field
 }
 
 interface FilterState {
@@ -148,14 +150,16 @@ const PersonalTrainingPage: React.FC = () => {
     trainerId: '',
     startDate: '',
     duration: 1,
-    fees: ''
+    fees: '',
+    notes: '' // Added notes field
   });
   const [editForm, setEditForm] = useState<FormState>({
     customerId: '',
     trainerId: '',
     startDate: '',
     duration: 1,
-    fees: ''
+    fees: '',
+    notes: '' // Added notes field
   });
   const { user } = useAuth();
   const { toast } = useToast();
@@ -199,7 +203,8 @@ const PersonalTrainingPage: React.FC = () => {
         trainerId: editAssignment.trainerId._id,
         startDate: editAssignment.startDate.slice(0, 10),
         duration: editAssignment.duration,
-        fees: editAssignment.fees.toString()
+        fees: editAssignment.fees.toString(),
+        notes: editAssignment.notes || '' // Populate notes
       });
     }
   }, [editAssignment]);
@@ -419,7 +424,8 @@ const PersonalTrainingPage: React.FC = () => {
       gymId,
       endDate,
       fees: Number(form.fees),
-      duration: Number(form.duration)
+      duration: Number(form.duration),
+      notes: form.notes || undefined // Include notes if provided
     };
     try {
       const response = await axios.post('/personal-training', requestData);
@@ -427,7 +433,7 @@ const PersonalTrainingPage: React.FC = () => {
         title: "Success",
         description: "Trainer assigned successfully!",
       });
-      setForm({ customerId: '', trainerId: '', startDate: '', duration: 1, fees: '' });
+      setForm({ customerId: '', trainerId: '', startDate: '', duration: 1, fees: '', notes: '' });
       // Refresh assignments
       const res = await axios.get(`/personal-training?gymId=${gymId}`);
       setAssignments(Array.isArray(res.data) ? res.data : res.data.assignments || []);
@@ -463,6 +469,7 @@ const PersonalTrainingPage: React.FC = () => {
         "Fees": assignment.fees,
         "Status": getAssignmentStatus(assignment),
         "Days Until Expiry": daysUntilExpiry + 1, // +1 for user-facing display
+        "Notes": assignment.notes || '', // Include notes in export
       };
     });
 
@@ -636,6 +643,10 @@ const PersonalTrainingPage: React.FC = () => {
                   <div>
                     <label className="block mb-1 font-medium">Fees</label>
                     <Input type="number" name="fees" value={form.fees} min={0} onChange={handleChange} required />
+                  </div>
+                  <div>
+                    <label className="block mb-1 font-medium">Notes</label>
+                    <Input type="text" name="notes" value={form.notes || ''} onChange={handleChange} placeholder="Add any notes (optional)" />
                   </div>
                   <div>
                     <Button type="submit" className="w-full" disabled={isAssigning}>
@@ -1192,6 +1203,10 @@ const PersonalTrainingPage: React.FC = () => {
                 </div>
               </div>
               <div>
+                <label className="font-medium text-sm text-muted-foreground">Notes</label>
+                <p className="mt-1 text-sm text-muted-foreground">{viewAssignment.notes || 'No notes added.'}</p>
+              </div>
+              <div>
                 <label className="font-medium text-sm text-muted-foreground">Status</label>
                 <div className="mt-1">
                   {getStatusBadge(viewAssignment)}
@@ -1217,7 +1232,8 @@ const PersonalTrainingPage: React.FC = () => {
                 gymId,
                 endDate,
                 fees: Number(editForm.fees),
-                duration: Number(editForm.duration)
+                duration: Number(editForm.duration),
+                notes: editForm.notes || undefined // Include notes if provided
               };
               try {
                 await axios.put(`/personal-training/${editAssignment._id}`, requestData);
@@ -1279,6 +1295,10 @@ const PersonalTrainingPage: React.FC = () => {
               <div>
                 <label className="block mb-1 font-medium">Fees</label>
                 <Input type="number" name="fees" value={editForm.fees} min={0} onChange={handleEditChange} required />
+              </div>
+              <div>
+                <label className="block mb-1 font-medium">Notes</label>
+                <Input type="text" name="notes" value={editForm.notes || ''} onChange={handleEditChange} placeholder="Add any notes (optional)" />
               </div>
               <div>
                 <Button type="submit" className="w-full">Update Assignment</Button>

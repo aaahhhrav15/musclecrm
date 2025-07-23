@@ -48,6 +48,7 @@ const formSchema = z.object({
   startDate: z.date(),
   transactionDate: z.date(),
   paymentMode: z.enum(['cash', 'card', 'upi', 'bank_transfer', 'other']),
+  notes: z.string().optional(),
 });
 
 interface Assignment {
@@ -114,6 +115,7 @@ export const RenewPersonalTrainingModal: React.FC<RenewPersonalTrainingModalProp
       startDate: new Date(),
       transactionDate: new Date(),
       paymentMode: 'cash' as const,
+      notes: assignment.notes || '',
     }
   });
 
@@ -197,6 +199,7 @@ export const RenewPersonalTrainingModal: React.FC<RenewPersonalTrainingModalProp
           gymId: assignment.gymId,
           paymentMode: values.paymentMode,
           transactionDate: values.transactionDate,
+          notes: values.notes,
         })
       });
       toast({
@@ -387,6 +390,22 @@ export const RenewPersonalTrainingModal: React.FC<RenewPersonalTrainingModalProp
                       )}
                     </div>
                   )}
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Notes</FormLabel>
+                  <FormControl>
+                    <Input 
+                      placeholder="Add any notes for the renewal (e.g., reason for extension)" 
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
                 </FormItem>
               )}
             />

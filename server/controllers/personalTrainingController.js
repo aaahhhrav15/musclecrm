@@ -58,7 +58,8 @@ exports.createAssignment = async (req, res) => {
       startDate: start,
       duration,
       endDate: end,
-      fees
+      fees,
+      notes: req.body.notes || ''
     });
     await assignment.save();
 
@@ -153,7 +154,8 @@ exports.updateAssignment = async (req, res) => {
         startDate: start,
         duration,
         endDate: end,
-        fees
+        fees,
+        notes: req.body.notes || ''
       },
       { new: true }
     ).populate('customerId', 'name email phone')
@@ -312,7 +314,8 @@ exports.renewAssignment = async (req, res) => {
         startDate: renewalStart,
         duration,
         endDate: renewalEnd,
-        fees
+        fees,
+        notes: req.body.notes || ''
       },
       { new: true }
     ).populate('customerId', 'name email phone')
