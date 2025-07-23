@@ -9,6 +9,7 @@ const fs = require('fs');
 const PDFDocument = require('pdfkit');
 const QRCode = require('qrcode');
 const sharp = require('sharp');
+const User = require('../models/User');
 
 // **OPTIMIZATION: In-memory cache for gym data**
 const gymCache = new Map();
@@ -277,6 +278,30 @@ router.put('/info', upload.single('logo'), handleMulterError, async (req, res) =
         success: false, 
         message: 'Gym not found' 
       });
+    }
+
+    // Update all users with this gymId to reflect new gym details
+    const userUpdate = {};
+    if (name) userUpdate.gymName = name.trim();
+    if (parsedContactInfo) userUpdate.gymContactInfo = parsedContactInfo;
+    if (parsedAddress) userUpdate.gymAddress = parsedAddress;
+    if (updateData.logo !== undefined) userUpdate.gymLogo = updateData.logo;
+
+    // If gym email is changed, update user email as well
+    if (parsedContactInfo && parsedContactInfo.email) {
+      // Only update users whose email is different from the new gym email
+      await User.updateMany(
+        { gymId: gymId, email: { $ne: parsedContactInfo.email } },
+        { $set: { email: parsedContactInfo.email } }
+      );
+    }
+
+    // Only update if there are fields to update (other than email)
+    if (Object.keys(userUpdate).length > 0) {
+      await User.updateMany(
+        { gymId: gymId },
+        { $set: userUpdate }
+      );
     }
 
     // **OPTIMIZATION: Clear cache and update**
