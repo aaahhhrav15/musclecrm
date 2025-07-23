@@ -578,27 +578,6 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
               )}
             />
             
-            <FormField
-              control={form.control}
-              name="membershipEndDate"
-              render={({ field }) => (
-                <FormItem className="flex flex-col">
-                  <FormLabel>Membership End Date (Auto-calculated)</FormLabel>
-                  <FormControl>
-                    <EnhancedDatePicker
-                      value={field.value}
-                      onChange={field.onChange}
-                      placeholder="Pick end date"
-                      fromYear={new Date().getFullYear()}
-                      toYear={new Date().getFullYear() + 5}
-                      className=""
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
