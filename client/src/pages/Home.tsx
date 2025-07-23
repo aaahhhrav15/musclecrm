@@ -308,6 +308,7 @@ const Home = () => {
                   Start Free Trial
                   <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
+                {/* Free Trial Dialog (shared) */}
                 <AlertDialog open={showFreeTrialDialog} onOpenChange={setShowFreeTrialDialog}>
                   <AlertDialogContent>
                     <AlertDialogHeader>
@@ -971,12 +972,16 @@ const Home = () => {
                 <Button 
                   size="lg" 
                   className="bg-white text-blue-600 hover:bg-white/90 px-8 py-4 text-lg font-semibold shadow-xl hover:shadow-2xl transition-all duration-200 group"
-                  asChild
+                  onClick={() => {
+                    if (!isAuthenticated) {
+                      window.location.href = '/login';
+                      return;
+                    }
+                    setShowFreeTrialDialog(true);
+                  }}
                 >
-                  <Link to="/signup">
-                    Start Free Trial
-                    <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
-                  </Link>
+                  Start Free Trial
+                  <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
                 
                 <Button 
