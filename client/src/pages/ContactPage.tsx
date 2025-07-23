@@ -287,9 +287,9 @@ const ContactPage: React.FC = () => {
                   <div className="absolute -top-5 -left-5 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full w-10 h-10 flex items-center justify-center shadow-md">
                     <span className="text-white text-xl font-bold">4</span>
                   </div>
-                  <h3 className="text-lg md:text-xl font-bold mb-2 mt-2 text-blue-700 dark:text-blue-300">Do you offer customization for specific gym needs?</h3>
+                  <h3 className="text-lg md:text-xl font-bold mb-2 mt-2 text-blue-700 dark:text-blue-300">Do you offer customizationg?</h3>
                   <p className="text-base text-slate-600 dark:text-slate-300">
-                    Yes, we offer customization options for gyms with specific requirements. Contact our sales team to discuss your unique needs and how we can tailor MuscleCRM for your fitness business.
+                    No, MuscleCRM does not offer customizations. We provide a robust set of features designed to meet the needs of most fitness businesses out of the box.
                   </p>
                 </div>
                 {/* FAQ 5 */}
@@ -309,7 +309,7 @@ const ContactPage: React.FC = () => {
                   </div>
                   <h3 className="text-lg md:text-xl font-bold mb-2 mt-2 text-blue-700 dark:text-blue-300">Do you provide training for my staff?</h3>
                   <p className="text-base text-slate-600 dark:text-slate-300">
-                    Yes, we provide comprehensive training sessions for your team to ensure they can use MuscleCRM effectively. We offer both online and on-site training options.
+                    Yes, we provide comprehensive training sessions for your team to ensure they can use MuscleCRM effectively.
                   </p>
                 </div>
               </div>
