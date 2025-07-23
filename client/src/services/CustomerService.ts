@@ -164,6 +164,7 @@ export interface CustomerApiUpdateData {
   birthday?: string;
   totalSpent?: number;
   notes?: string;
+  isRenewal?: boolean; // Add this property for renewal flag
 }
 
 export interface CustomerFilterOptions {

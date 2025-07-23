@@ -499,73 +499,70 @@ router.put('/:id', async (req, res) => {
       console.log(`Updated totalSpent for customer ${updatedCustomer.name}: ${totalSpent}`);
     }
 
-    // Create invoice for membership renewal if membership fees > 0
     let invoice = null;
-    const feesToUse = membershipFees !== undefined ? membershipFees : updatedCustomer.membershipFees;
-    // Always use correct type/duration for invoice
-    const membershipTypeToUse = membershipType !== undefined ? membershipType : updatedCustomer.membershipType;
-    const membershipDurationToUse = membershipDuration !== undefined ? membershipDuration : updatedCustomer.membershipDuration;
-    if (feesToUse > 0) {
-      try {
-        // Fetch gym to get gymCode and invoiceCounter
-        const gym = await Gym.findById(req.gymId);
-        if (!gym) throw new Error('Gym not found');
-        const gymCode = gym.gymCode;
-        const invoiceCounter = gym.invoiceCounter || 1;
-        const invoiceNumber = `${gymCode}${String(invoiceCounter).padStart(6, '0')}`;
-        // Calculate renewal period correctly based on current end date and today
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        let renewalStartDate = null;
-        let renewalEndDate = null;
-        if (membershipStartDate) {
-          renewalStartDate = new Date(membershipStartDate);
-        } else if (updatedCustomer.membershipEndDate) {
-          const currentEndDate = new Date(updatedCustomer.membershipEndDate);
-          currentEndDate.setHours(0, 0, 0, 0);
-          renewalStartDate = new Date(currentEndDate);
-          renewalStartDate.setDate(renewalStartDate.getDate() + 1);
-        } else {
-          renewalStartDate = today;
+    if (req.body.isRenewal) {
+      const feesToUse = membershipFees !== undefined ? membershipFees : updatedCustomer.membershipFees;
+      const membershipTypeToUse = membershipType !== undefined ? membershipType : updatedCustomer.membershipType;
+      const membershipDurationToUse = membershipDuration !== undefined ? membershipDuration : updatedCustomer.membershipDuration;
+      if (feesToUse > 0) {
+        try {
+          const gym = await Gym.findById(req.gymId);
+          if (!gym) throw new Error('Gym not found');
+          const gymCode = gym.gymCode;
+          const invoiceCounter = gym.invoiceCounter || 1;
+          const invoiceNumber = `${gymCode}${String(invoiceCounter).padStart(6, '0')}`;
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          let renewalStartDate = null;
+          let renewalEndDate = null;
+          if (membershipStartDate) {
+            renewalStartDate = new Date(membershipStartDate);
+          } else if (updatedCustomer.membershipEndDate) {
+            const currentEndDate = new Date(updatedCustomer.membershipEndDate);
+            currentEndDate.setHours(0, 0, 0, 0);
+            renewalStartDate = new Date(currentEndDate);
+            renewalStartDate.setDate(renewalStartDate.getDate() + 1);
+          } else {
+            renewalStartDate = today;
+          }
+          renewalEndDate = new Date(renewalStartDate);
+          renewalEndDate.setMonth(renewalEndDate.getMonth() + membershipDurationToUse);
+          renewalEndDate.setDate(renewalEndDate.getDate() - 1);
+          const formatDate = (date) => {
+            if (!date) return '';
+            const d = new Date(date);
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const year = d.getFullYear();
+            return `${day}/${month}/${year}`;
+          };
+          const dateRange = renewalStartDate && renewalEndDate ? ` (${formatDate(renewalStartDate)} to ${formatDate(renewalEndDate)})` : '';
+          const membershipItem = {
+            description: `${membershipTypeToUse?.toUpperCase() || 'MEMBERSHIP'} Membership Renewal - ${membershipDurationToUse} months${dateRange}`,
+            quantity: 1,
+            unitPrice: feesToUse,
+            amount: feesToUse
+          };
+          const dueDate = new Date();
+          dueDate.setDate(dueDate.getDate() + 7);
+          invoice = new Invoice({
+            userId: req.user._id,
+            gymId: req.gymId,
+            customerId: updatedCustomer._id,
+            invoiceNumber,
+            amount: feesToUse,
+            currency: 'INR',
+            status: 'pending',
+            dueDate,
+            items: [membershipItem],
+            notes: `Membership renewal fees for ${updatedCustomer.name} - ${membershipTypeToUse?.toUpperCase() || 'MEMBERSHIP'} plan for ${membershipDurationToUse} months${dateRange}`
+          });
+          await invoice.save();
+          gym.invoiceCounter = invoiceCounter + 1;
+          await gym.save();
+        } catch (invoiceError) {
+          console.error('Failed to create renewal invoice:', invoiceError);
         }
-        renewalEndDate = new Date(renewalStartDate);
-        renewalEndDate.setMonth(renewalEndDate.getMonth() + membershipDurationToUse);
-        renewalEndDate.setDate(renewalEndDate.getDate() - 1);
-        const formatDate = (date) => {
-          if (!date) return '';
-          const d = new Date(date);
-          const day = String(d.getDate()).padStart(2, '0');
-          const month = String(d.getMonth() + 1).padStart(2, '0');
-          const year = d.getFullYear();
-          return `${day}/${month}/${year}`;
-        };
-        const dateRange = renewalStartDate && renewalEndDate ? ` (${formatDate(renewalStartDate)} to ${formatDate(renewalEndDate)})` : '';
-        const membershipItem = {
-          description: `${membershipTypeToUse?.toUpperCase() || 'MEMBERSHIP'} Membership Renewal - ${membershipDurationToUse} months${dateRange}`,
-          quantity: 1,
-          unitPrice: feesToUse,
-          amount: feesToUse
-        };
-        const dueDate = new Date();
-        dueDate.setDate(dueDate.getDate() + 7);
-        invoice = new Invoice({
-          userId: req.user._id,
-          gymId: req.gymId,
-          customerId: updatedCustomer._id,
-          invoiceNumber,
-          amount: feesToUse,
-          currency: 'INR',
-          status: 'pending',
-          dueDate,
-          items: [membershipItem],
-          notes: `Membership renewal fees for ${updatedCustomer.name} - ${membershipTypeToUse?.toUpperCase() || 'MEMBERSHIP'} plan for ${membershipDurationToUse} months${dateRange}`
-        });
-        await invoice.save();
-        // Increment the gym's invoiceCounter
-        gym.invoiceCounter = invoiceCounter + 1;
-        await gym.save();
-      } catch (invoiceError) {
-        console.error('Failed to create renewal invoice:', invoiceError);
       }
     }
 

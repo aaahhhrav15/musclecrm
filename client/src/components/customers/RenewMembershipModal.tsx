@@ -75,6 +75,7 @@ function convertDatesToISO(data: {
   transactionDate: Date;
   paymentMode: 'cash' | 'card' | 'upi' | 'bank_transfer' | 'other';
   notes: string;
+  isRenewal?: boolean; // Add isRenewal to the type definition
 }): CustomerApiUpdateData {
   return {
     membershipType: data.membershipType,
@@ -85,6 +86,7 @@ function convertDatesToISO(data: {
     transactionDate: data.transactionDate.toISOString(),
     paymentMode: data.paymentMode,
     notes: data.notes,
+    isRenewal: data.isRenewal || false, // Ensure isRenewal is included in the returned object
   };
 }
 
@@ -224,10 +226,12 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
         transactionDate: values.transactionDate,
         paymentMode: values.paymentMode,
         notes: values.notes || '',
+        isRenewal: true // Add this flag for backend
       };
 
       // Convert dates to ISO strings for API call
       const apiData = convertDatesToISO(updateData);
+      apiData.isRenewal = true; // Ensure flag is present after conversion
       console.log('Renewal data being sent:', apiData);
       console.log('Current customer data:', {
         membershipType: customer.membershipType,
