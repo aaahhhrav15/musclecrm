@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import * as React from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Save, 
@@ -84,6 +85,7 @@ interface GymInfo {
   subscriptionStartDate?: string;
   subscriptionEndDate?: string;
   subscriptionDuration?: string;
+  freeTrialCounter?: number; // Added for free trial status
 }
 
 interface GymFormData {
@@ -114,6 +116,7 @@ const SettingsPage: React.FC = () => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [logoRemoved, setLogoRemoved] = useState(false);
+  const [showFreeTrialDialog, setShowFreeTrialDialog] = useState(false); // Added for free trial dialog
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const personalForm = useForm<GymFormData>({
@@ -643,6 +646,66 @@ const SettingsPage: React.FC = () => {
                           </div>
                         </div>
                       </div>
+                      {/* Free Trial Button */}
+                      {typeof gymInfo.freeTrialCounter === 'undefined' || gymInfo.freeTrialCounter === 0 ? (
+                        <div className="mt-4">
+                          <Button
+                            variant="outline"
+                            color="primary"
+                            onClick={() => setShowFreeTrialDialog(true)}
+                          >
+                            Start Free Trial
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="mt-4">
+                          <Badge variant="secondary" className="bg-gray-200 text-gray-700">Free trial already used</Badge>
+                        </div>
+                      )}
+                      {/* Free Trial Confirmation Dialog */}
+                      <AlertDialog open={showFreeTrialDialog} onOpenChange={setShowFreeTrialDialog}>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Start Free Trial?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to start your 7-day free trial? This can only be used once per gym.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={async () => {
+                                setShowFreeTrialDialog(false);
+                                try {
+                                  const response = await axiosInstance.post('/gym/start-free-trial');
+                                  if (response.data.success) {
+                                    toast({
+                                      title: 'Free Trial Started',
+                                      description: 'Your free trial is now active!',
+                                    });
+                                    fetchGymInfo();
+                                  } else {
+                                    toast({
+                                      title: 'Error',
+                                      description: response.data.message || 'Could not start free trial',
+                                      variant: 'destructive',
+                                    });
+                                  }
+                                } catch (error: unknown) {
+                                  const err = error as { response?: { data?: { message?: string } } };
+                                  toast({
+                                    title: 'Error',
+                                    description: err?.response?.data?.message || 'Could not start free trial',
+                                    variant: 'destructive',
+                                  });
+                                }
+                              }}
+                            >
+                              Start Free Trial
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
 
                     <Separator />

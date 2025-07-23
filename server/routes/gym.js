@@ -152,6 +152,44 @@ function isSubscriptionActive(gym) {
   return start <= now && now <= end;
 }
 
+// Start free trial for gym
+router.post('/start-free-trial', async (req, res) => {
+  try {
+    const gymId = req.gymId;
+    const gym = await Gym.findById(gymId);
+    if (!gym) {
+      return res.status(404).json({ success: false, message: 'Gym not found' });
+    }
+    // Check for active subscription
+    const now = new Date();
+    if (
+      gym.subscriptionStartDate &&
+      gym.subscriptionEndDate &&
+      new Date(gym.subscriptionStartDate) <= now &&
+      now <= new Date(gym.subscriptionEndDate)
+    ) {
+      return res.status(400).json({ success: false, message: 'You already have an active subscription. Free trial is only for new gyms.' });
+    }
+    if (gym.freeTrialCounter && gym.freeTrialCounter > 0) {
+      return res.status(400).json({ success: false, message: 'Free trial already used.' });
+    }
+    const end = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
+    gym.subscriptionStartDate = now;
+    gym.subscriptionEndDate = end;
+    gym.freeTrialCounter = 1;
+    await gym.save();
+    clearGymCache(gymId);
+    gymCache.set(getGymCacheKey(gymId), {
+      data: gym,
+      timestamp: Date.now()
+    });
+    res.json({ success: true, message: 'Free trial started.', subscriptionStartDate: now, subscriptionEndDate: end });
+  } catch (error) {
+    console.error('Error starting free trial:', error);
+    res.status(500).json({ success: false, message: 'Error starting free trial', ...(process.env.NODE_ENV === 'development' && { error: error.message }) });
+  }
+});
+
 // **OPTIMIZED: Get gym information with caching**
 // Get gym information without caching
 router.get('/info', async (req, res) => {

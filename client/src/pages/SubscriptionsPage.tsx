@@ -450,7 +450,7 @@ const SubscriptionsPage = () => {
               <div className="w-14 h-14 mb-4 rounded-2xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
                 <Check className="w-7 h-7 text-green-600 dark:text-green-400" />
               </div>
-              <span className="font-semibold text-slate-900 dark:text-white mb-1">14-day free trial</span>
+              <span className="font-semibold text-slate-900 dark:text-white mb-1">7-day free trial</span>
               <span className="text-sm text-slate-600 dark:text-slate-400 text-center">No commitment required</span>
             </div>
             

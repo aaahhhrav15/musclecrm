@@ -40,10 +40,27 @@ import { cn } from '@/lib/utils';
 import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
 import axios from 'axios';
+import axiosInstance from '@/lib/axios';
+import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
 
 const Home = () => {
   const [isYearly, setIsYearly] = useState(false);
   const [subscriptionActive, setSubscriptionActive] = useState(false);
+  const { isAuthenticated } = useAuth();
+  const { toast } = useToast();
+  const [showFreeTrialDialog, setShowFreeTrialDialog] = useState(false);
+  const [isLoadingTrial, setIsLoadingTrial] = useState(false);
 
   useEffect(() => {
     axios.get('/api/gym/info')
@@ -280,13 +297,64 @@ const Home = () => {
                 <Button 
                   size="lg" 
                   className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200 group"
-                  asChild
+                  onClick={() => {
+                    if (!isAuthenticated) {
+                      window.location.href = '/login';
+                      return;
+                    }
+                    setShowFreeTrialDialog(true);
+                  }}
                 >
-                  <Link to="/signup">
-                    Start Free Trial
-                    <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
-                  </Link>
+                  Start Free Trial
+                  <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
+                <AlertDialog open={showFreeTrialDialog} onOpenChange={setShowFreeTrialDialog}>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Start Free Trial?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to start your 7-day free trial? This can only be used once per gym.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel disabled={isLoadingTrial}>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        disabled={isLoadingTrial}
+                        onClick={async () => {
+                          setIsLoadingTrial(true);
+                          try {
+                            const response = await axiosInstance.post('/gym/start-free-trial');
+                            if (response.data.success) {
+                              toast({
+                                title: 'Free Trial Started',
+                                description: 'Your free trial is now active!',
+                              });
+                              setShowFreeTrialDialog(false);
+                              window.location.reload();
+                            } else {
+                              toast({
+                                title: 'Error',
+                                description: response.data.message || 'Could not start free trial',
+                                variant: 'destructive',
+                              });
+                            }
+                          } catch (error: unknown) {
+                            const err = error as { response?: { data?: { message?: string } } };
+                            toast({
+                              title: 'Error',
+                              description: err?.response?.data?.message || 'Could not start free trial',
+                              variant: 'destructive',
+                            });
+                          } finally {
+                            setIsLoadingTrial(false);
+                          }
+                        }}
+                      >
+                        {isLoadingTrial ? 'Starting...' : 'Start Free Trial'}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
                 <Button 
                   size="lg" 
                   variant="outline"
@@ -309,7 +377,7 @@ const Home = () => {
               >
                 <div className="flex items-center gap-2">
                   <Check className="w-4 h-4 text-green-500" />
-                  <span>14-day free trial</span>
+                  <span>7-day free trial</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Check className="w-4 h-4 text-green-500" />
@@ -317,7 +385,7 @@ const Home = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   <Check className="w-4 h-4 text-green-500" />
-                  <span>Setup in 5 minutes</span>
+                  <span>Setup in 2 minutes</span>
                 </div>
               </motion.div>
             </div>
@@ -752,7 +820,7 @@ const Home = () => {
                     <div className="w-12 h-12 mb-3 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
                       <Check className="w-6 h-6 text-green-600 dark:text-green-400" />
                     </div>
-                    <span className="font-medium text-slate-900 dark:text-white">14-day free trial</span>
+                    <span className="font-medium text-slate-900 dark:text-white">7-day free trial</span>
                     <span className="text-sm text-slate-600 dark:text-slate-400">No commitment required</span>
                   </div>
                   
@@ -929,7 +997,7 @@ const Home = () => {
                   <div className="w-12 h-12 mb-3 rounded-full bg-white/20 flex items-center justify-center">
                     <Check className="w-6 h-6" />
                   </div>
-                  <span className="font-medium">14-day free trial</span>
+                  <span className="font-medium">7-day free trial</span>
                   <span className="text-sm">No commitment required</span>
                 </div>
                 

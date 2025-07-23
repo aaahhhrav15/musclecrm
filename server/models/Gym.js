@@ -36,45 +36,7 @@ const gymSchema = new mongoose.Schema({
     saturday: { open: String, close: String },
     sunday: { open: String, close: String }
   },
-  facilities: [{
-    type: String
-  }],
-  membershipTypes: [{
-    name: String,
-    price: Number,
-    duration: Number, // in months
-    features: [String]
-  }],
-  settings: {
-    maxMembers: Number,
-    maxStaff: Number,
-    currency: {
-      type: String,
-      default: 'USD'
-    },
-    timezone: {
-      type: String,
-      default: 'UTC'
-    }
-  },
-  metrics: {
-    totalMembers: {
-      type: Number,
-      default: 0
-    },
-    activeMembers: {
-      type: Number,
-      default: 0
-    },
-    monthlyRevenue: {
-      type: Number,
-      default: 0
-    },
-    averageAttendance: {
-      type: Number,
-      default: 0
-    }
-  },
+  
   // Subscription fields
   subscriptionStartDate: {
     type: Date,
@@ -87,6 +49,10 @@ const gymSchema = new mongoose.Schema({
   subscriptionDuration: {
     type: String, // e.g., '1 month', '1 year'
     default: null
+  },
+  freeTrialCounter: {
+    type: Number,
+    default: 0
   },
   createdAt: {
     type: Date,
