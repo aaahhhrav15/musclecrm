@@ -331,6 +331,8 @@ type ModalType =
   | "employeeBirthdays"
   | "expiring"
   | "inactive"
+  | "active"
+  | "total"
   | "todayEnrolled"
   | "todayEnquiry"
   | "todayFollowUps";
@@ -637,6 +639,17 @@ const Dashboard: React.FC = () => {
           today.setHours(0,0,0,0);
           return endDate < today;
         }) || [];
+      } else if (type === "active") {
+        data = customerQuery.data?.filter(c => {
+          if (!c.membershipEndDate) return false;
+          const endDate = new Date(c.membershipEndDate);
+          const today = new Date();
+          endDate.setHours(0,0,0,0);
+          today.setHours(0,0,0,0);
+          return endDate >= today;
+        }) || [];
+      } else if (type === "total") {
+        data = customerQuery.data || [];
       } else if (type === "memberBirthdays") {
         const today = new Date();
         data = customerQuery.data?.filter((c) => {
@@ -889,6 +902,8 @@ const Dashboard: React.FC = () => {
               icon={<Users />}
               isLoading={dashboardQuery.isLoading}
               delay={0.1}
+              onClick={() => handleOpenModal("total")}
+              className="cursor-pointer hover:shadow-lg transition"
             />
             <MetricCard
               title="Active Members"
@@ -896,6 +911,8 @@ const Dashboard: React.FC = () => {
               icon={<UserPlus />}
               isLoading={dashboardQuery.isLoading}
               delay={0.15}
+              onClick={() => handleOpenModal("active")}
+              className="cursor-pointer hover:shadow-lg transition"
             />
             <MetricCard
               title="Inactive Members"
@@ -1182,6 +1199,10 @@ const Dashboard: React.FC = () => {
                 ? "Memberships Expiring in 7 Days"
                 : modalType === "inactive"
                 ? "Inactive Members"
+                : modalType === "active"
+                ? "Active Members"
+                : modalType === "total"
+                ? "Total Members"
                 : modalType === "todayEnrolled"
                 ? "Today Enrolled Members"
                 : modalType === "todayEnquiry"
@@ -1201,7 +1222,7 @@ const Dashboard: React.FC = () => {
             <div className="max-h-[70vh] overflow-y-auto">
               <table className="min-w-full text-sm">
                 <thead>
-                  {(modalType === "expiring" || modalType === "inactive") ? (
+                  {(modalType === "expiring" || modalType === "inactive" || modalType === "active" || modalType === "total") ? (
                     <tr>
                       <th className="text-left p-2">Name</th>
                       <th className="text-left p-2">Email</th>
@@ -1230,7 +1251,7 @@ const Dashboard: React.FC = () => {
                 </thead>
                 <tbody>
                   {(modalData as (Customer | Staff | Lead)[]).map((item) => {
-                    if ((modalType === "expiring" || modalType === "inactive") && isCustomer(item)) {
+                    if ((modalType === "expiring" || modalType === "inactive" || modalType === "active" || modalType === "total") && isCustomer(item)) {
                       return (
                         <tr key={getModalRowKey(item)} className="border-b">
                           <td className="p-2">{item.name}</td>
