@@ -164,11 +164,12 @@ interface SidebarItemProps {
   label: string;
   href: string;
   active?: boolean;
+  onClick?: () => void;
 }
 
-const SidebarItem: React.FC<SidebarItemProps> = ({ icon, label, href, active }) => {
+const SidebarItem: React.FC<SidebarItemProps> = ({ icon, label, href, active, onClick }) => {
   return (
-    <Link to={href}>
+    <Link to={href} onClick={onClick}>
       <motion.div
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
@@ -234,6 +235,39 @@ interface DashboardSidebarProps {
 const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen, setIsOpen }) => {
   const location = useLocation();
   const { selectedIndustry } = useIndustry();
+
+  // --- Sidebar scroll position preservation ---
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const SCROLL_KEY = 'dashboardSidebarScroll';
+
+  // Restore scroll position on mount and when location changes
+  React.useEffect(() => {
+    const saved = sessionStorage.getItem(SCROLL_KEY);
+    if (scrollRef.current && saved) {
+      scrollRef.current.scrollTop = parseInt(saved, 10);
+    }
+  }, [location.pathname]);
+
+  // Save scroll position on unmount
+  React.useEffect(() => {
+    const handleSave = () => {
+      if (scrollRef.current) {
+        sessionStorage.setItem(SCROLL_KEY, String(scrollRef.current.scrollTop));
+      }
+    };
+    window.addEventListener('beforeunload', handleSave);
+    return () => {
+      handleSave();
+      window.removeEventListener('beforeunload', handleSave);
+    };
+  }, []);
+
+  // Save scroll position on sidebar link click
+  const handleSidebarLinkClick = () => {
+    if (scrollRef.current) {
+      sessionStorage.setItem(SCROLL_KEY, String(scrollRef.current.scrollTop));
+    }
+  };
 
   const sidebarVariants = {
     open: { 
@@ -344,6 +378,7 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen, setIsOpen }
         </div>
         
         <motion.div
+          ref={scrollRef}
           className="flex flex-col h-full p-4 overflow-y-auto custom-scrollbar"
           variants={contentVariants}
           initial={false}
@@ -355,7 +390,7 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen, setIsOpen }
         >
           {/* Logo section with enhanced styling */}
           <motion.div variants={itemVariants} className="mb-8">
-            <Link to="/" className="flex items-center group">
+            <Link to="/" className="flex items-center group" onClick={handleSidebarLinkClick}>
               <motion.div
                 whileHover={{ scale: 1.05 }}
                 className="flex items-center"
@@ -391,6 +426,7 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen, setIsOpen }
                     label="Dashboard"
                     href="/dashboard"
                     active={location.pathname === '/dashboard'}
+                    onClick={handleSidebarLinkClick}
                   />
                 </motion.div>
                 <motion.div variants={itemVariants}>
@@ -399,6 +435,7 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen, setIsOpen }
                     label="Customers"
                     href="/dashboard/customers"
                     active={location.pathname === '/dashboard/customers'}
+                    onClick={handleSidebarLinkClick}
                   />
                 </motion.div>
                 <motion.div variants={itemVariants}>
@@ -407,6 +444,7 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen, setIsOpen }
                     label="Bookings"
                     href="/dashboard/bookings"
                     active={location.pathname === '/dashboard/bookings'}
+                    onClick={handleSidebarLinkClick}
                   />
                 </motion.div>
                 <motion.div variants={itemVariants}>
@@ -415,6 +453,7 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen, setIsOpen }
                     label="Invoices"
                     href="/dashboard/invoices"
                     active={location.pathname === '/dashboard/invoices'}
+                    onClick={handleSidebarLinkClick}
                   />
                 </motion.div>
                 <motion.div variants={itemVariants}>
@@ -423,6 +462,7 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen, setIsOpen }
                     label="Notifications"
                     href="/dashboard/notifications"
                     active={location.pathname === '/dashboard/notifications'}
+                    onClick={handleSidebarLinkClick}
                   />
                 </motion.div>
               </div>
@@ -450,6 +490,7 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen, setIsOpen }
                         label={module.label}
                         href={module.href}
                         active={location.pathname === module.href}
+                        onClick={handleSidebarLinkClick}
                       />
                     </motion.div>
                   ))}
@@ -476,6 +517,7 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen, setIsOpen }
                   label="Settings"
                   href="/dashboard/settings"
                   active={location.pathname === '/dashboard/settings'}
+                  onClick={handleSidebarLinkClick}
                 />
               </motion.div>
             </div>
