@@ -42,6 +42,7 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { DialogFooter } from '@/components/ui/dialog';
+import { addMonths, addDays } from 'date-fns';
 
 // Enhanced Date Picker Component (inline)
 const EnhancedDatePicker = ({ 
@@ -196,6 +197,11 @@ const formSchema = z.object({
     const num = parseInt(val);
     return !isNaN(num) && num >= 0;
   }, 'Membership duration must be a positive number'),
+  membershipDays: z.string().refine((val) => {
+    if (val === '') return true;
+    const num = parseInt(val);
+    return !isNaN(num) && num >= 0;
+  }, 'Membership days must be a positive number'),
   joinDate: z.date(),
   membershipStartDate: z.date(),
   membershipEndDate: z.date().optional(),
@@ -230,6 +236,7 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
       membershipType: 'none',
       membershipFees: '',
       membershipDuration: '',
+      membershipDays: '',
       joinDate: new Date(),
       membershipStartDate: new Date(),
       transactionDate: new Date(),
@@ -242,13 +249,14 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
   // Add effect to calculate end date when start date or duration changes
   React.useEffect(() => {
     const subscription = form.watch((value, { name }) => {
-      if (name === 'membershipStartDate' || name === 'membershipDuration') {
+      if (['membershipStartDate', 'membershipDuration', 'membershipDays'].includes(name)) {
         const startDate = form.getValues('membershipStartDate');
-        const duration = form.getValues('membershipDuration');
-        
-        if (startDate && duration && duration !== '' && parseInt(duration) > 0) {
-          const endDate = new Date(startDate);
-          endDate.setMonth(endDate.getMonth() + parseInt(duration));
+        const months = parseInt(form.getValues('membershipDuration')) || 0;
+        const days = parseInt(form.getValues('membershipDays')) || 0;
+        if (startDate && (months > 0 || days > 0)) {
+          let endDate = addMonths(new Date(startDate), months);
+          endDate = addDays(endDate, days);
+          endDate.setDate(endDate.getDate() - 1);
           form.setValue('membershipEndDate', endDate);
         }
       }
@@ -263,9 +271,11 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
       // Convert string values to numbers, defaulting to 0 if empty
       const membershipFees = values.membershipFees ? parseFloat(values.membershipFees) : 0;
       const membershipDuration = values.membershipDuration ? parseInt(values.membershipDuration) : 0;
+      const membershipDays = values.membershipDays ? parseInt(values.membershipDays) : 0;
       
-      const endDate = new Date(values.membershipStartDate);
-      endDate.setMonth(endDate.getMonth() + membershipDuration);
+      let endDate = addMonths(new Date(values.membershipStartDate), membershipDuration);
+      endDate = addDays(endDate, membershipDays);
+      endDate.setDate(endDate.getDate() - 1);
 
       const response = await CustomerService.createCustomer({
         name: values.name,
@@ -276,6 +286,7 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
         membershipType: values.membershipType,
         membershipFees: membershipFees,
         membershipDuration: membershipDuration,
+        membershipDays: membershipDays,
         joinDate: values.joinDate,
         membershipStartDate: values.membershipStartDate,
         membershipEndDate: endDate,
@@ -486,6 +497,40 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                       />
                     </FormControl>
                     <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="membershipDays"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Duration (days)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        min="0" 
+                        step="1"
+                        {...field}
+                        value={field.value}
+                        onChange={(e) => {
+                          field.onChange(e.target.value);
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="membershipEndDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Membership End Date</FormLabel>
+                    <FormControl>
+                      <Input value={field.value ? format(field.value, 'PPP') : ''} readOnly disabled />
+                    </FormControl>
                   </FormItem>
                 )}
               />

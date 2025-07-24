@@ -37,8 +37,8 @@ const clearCustomerCache = (gymId) => {
 };
 
 // **OPTIMIZATION: Calculate membership end date helper function**
-const calculateMembershipEndDate = (startDate, durationInMonths) => {
-  if (!startDate || !durationInMonths || durationInMonths <= 0) {
+const calculateMembershipEndDate = (startDate, durationInMonths = 0, durationInDays = 0) => {
+  if (!startDate || (durationInMonths <= 0 && durationInDays <= 0)) {
     return null;
   }
   
@@ -47,10 +47,14 @@ const calculateMembershipEndDate = (startDate, durationInMonths) => {
     return null;
   }
   
-  // Add months to start date and subtract 1 day
-  const endDate = new Date(start);
-  endDate.setMonth(endDate.getMonth() + durationInMonths);
-  endDate.setDate(endDate.getDate() - 1);
+  let endDate = new Date(start);
+  if (durationInMonths > 0) {
+    endDate.setMonth(endDate.getMonth() + durationInMonths);
+  }
+  if (durationInDays > 0) {
+    endDate.setDate(endDate.getDate() + durationInDays);
+  }
+  endDate.setDate(endDate.getDate() - 1); // End date is inclusive
   
   return endDate;
 };
@@ -273,15 +277,20 @@ router.post('/', async (req, res) => {
     
     // **OPTIMIZATION: Calculate membership end date automatically**
     let membershipEndDate = null;
-    if (req.body.membershipStartDate && req.body.membershipDuration) {
+    const months = parseInt(req.body.membershipDuration) || 0;
+    const days = parseInt(req.body.membershipDays) || 0;
+    if (req.body.membershipStartDate && (months > 0 || days > 0)) {
       membershipEndDate = calculateMembershipEndDate(
-        req.body.membershipStartDate, 
-        parseInt(req.body.membershipDuration)
+        req.body.membershipStartDate,
+        months,
+        days
       );
     }
     
     const customer = new Customer({
       ...req.body,
+      membershipDuration: months,
+      membershipDays: days,
       gymId: req.gymId,
       gymCode,
       membershipEndDate, // Store calculated end date in database
@@ -452,24 +461,25 @@ router.put('/:id', async (req, res) => {
     };
 
     // **OPTIMIZATION: Auto-calculate membership end date when start date or duration changes**
-    if (membershipStartDate || membershipDuration !== undefined) {
-      // If membershipEndDate is also provided, this is likely a renewal - use the provided end date
+    let monthsU, daysU;
+    if (membershipStartDate || membershipDuration !== undefined || req.body.membershipDays !== undefined) {
       if (membershipEndDate !== undefined) {
         updates.membershipEndDate = membershipEndDate;
       } else {
-        // This is a new membership setup - calculate end date
         const startDate = membershipStartDate || customer.membershipStartDate;
-        const duration = membershipDuration !== undefined ? membershipDuration : customer.membershipDuration;
+        monthsU = membershipDuration !== undefined ? parseInt(membershipDuration) : (customer.membershipDuration || 0);
+        daysU = req.body.membershipDays !== undefined ? parseInt(req.body.membershipDays) : (customer.membershipDays || 0);
         
-        if (startDate && duration && duration > 0) {
-          const calculatedEndDate = calculateMembershipEndDate(startDate, duration);
+        if (startDate && (monthsU > 0 || daysU > 0)) {
+          const calculatedEndDate = calculateMembershipEndDate(startDate, monthsU, daysU);
           updates.membershipEndDate = calculatedEndDate;
         } else {
           updates.membershipEndDate = null;
         }
       }
+      updates.membershipDuration = monthsU !== undefined ? monthsU : (membershipDuration !== undefined ? parseInt(membershipDuration) : (customer.membershipDuration || 0));
+      updates.membershipDays = daysU !== undefined ? daysU : (req.body.membershipDays !== undefined ? parseInt(req.body.membershipDays) : (customer.membershipDays || 0));
     } else if (membershipEndDate !== undefined) {
-      // Only use provided end date if start date and duration are not being updated
       updates.membershipEndDate = membershipEndDate;
     }
 
@@ -504,6 +514,7 @@ router.put('/:id', async (req, res) => {
       const feesToUse = membershipFees !== undefined ? membershipFees : updatedCustomer.membershipFees;
       const membershipTypeToUse = membershipType !== undefined ? membershipType : updatedCustomer.membershipType;
       const membershipDurationToUse = membershipDuration !== undefined ? membershipDuration : updatedCustomer.membershipDuration;
+      const membershipDaysToUse = req.body.membershipDays !== undefined ? req.body.membershipDays : updatedCustomer.membershipDays;
       if (feesToUse > 0) {
         try {
           const gym = await Gym.findById(req.gymId);
@@ -511,23 +522,38 @@ router.put('/:id', async (req, res) => {
           const gymCode = gym.gymCode;
           const invoiceCounter = gym.invoiceCounter || 1;
           const invoiceNumber = `${gymCode}${String(invoiceCounter).padStart(6, '0')}`;
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
+
+          // --- Renewal Date Logic ---
           let renewalStartDate = null;
           let renewalEndDate = null;
-          if (membershipStartDate) {
-            renewalStartDate = new Date(membershipStartDate);
-          } else if (updatedCustomer.membershipEndDate) {
-            const currentEndDate = new Date(updatedCustomer.membershipEndDate);
-            currentEndDate.setHours(0, 0, 0, 0);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const currentEndDate = updatedCustomer.membershipEndDate ? new Date(updatedCustomer.membershipEndDate) : null;
+          if (currentEndDate && currentEndDate >= today) {
+            // Membership is active, renewal starts after current end date
             renewalStartDate = new Date(currentEndDate);
             renewalStartDate.setDate(renewalStartDate.getDate() + 1);
           } else {
-            renewalStartDate = today;
+            // Membership expired, renewal starts today
+            renewalStartDate = new Date(today);
           }
+          // Calculate renewal end date
           renewalEndDate = new Date(renewalStartDate);
-          renewalEndDate.setMonth(renewalEndDate.getMonth() + membershipDurationToUse);
-          renewalEndDate.setDate(renewalEndDate.getDate() - 1);
+          if (membershipDurationToUse > 0) {
+            renewalEndDate.setMonth(renewalEndDate.getMonth() + membershipDurationToUse);
+          }
+          if (membershipDaysToUse > 0) {
+            renewalEndDate.setDate(renewalEndDate.getDate() + membershipDaysToUse);
+          }
+          renewalEndDate.setDate(renewalEndDate.getDate() - 1); // Inclusive
+
+          // Update customer membershipStartDate and membershipEndDate
+          updatedCustomer.membershipStartDate = renewalStartDate;
+          updatedCustomer.membershipEndDate = renewalEndDate;
+          updatedCustomer.membershipDuration = membershipDurationToUse;
+          updatedCustomer.membershipDays = membershipDaysToUse;
+          await updatedCustomer.save();
+
           const formatDate = (date) => {
             if (!date) return '';
             const d = new Date(date);

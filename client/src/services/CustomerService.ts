@@ -11,6 +11,7 @@ export interface Customer {
   membershipType?: string;
   membershipFees: number;
   membershipDuration: number;
+  membershipDays?: number;
   joinDate: string;
   membershipStartDate: string;
   membershipEndDate?: string;
@@ -69,6 +70,7 @@ interface ApiCustomersResponse extends ApiResponse {
     membershipType?: string;
     membershipFees: number;
     membershipDuration: number;
+    membershipDays?: number;
     joinDate: string;
     membershipStartDate: string;
     membershipEndDate?: string;
@@ -95,6 +97,7 @@ interface ApiCustomerResponse extends ApiResponse {
     membershipType?: string;
     membershipFees: number;
     membershipDuration: number;
+    membershipDays?: number;
     joinDate: string;
     membershipStartDate: string;
     membershipEndDate?: string;
@@ -137,6 +140,7 @@ export interface CustomerFormData {
   membershipType: 'none' | 'basic' | 'premium' | 'vip';
   membershipFees: number;
   membershipDuration: number;
+  membershipDays?: number;
   joinDate: Date;
   membershipStartDate: Date;
   membershipEndDate?: Date;
@@ -156,6 +160,7 @@ export interface CustomerApiUpdateData {
   membershipType?: 'none' | 'basic' | 'premium' | 'vip';
   membershipFees?: number;
   membershipDuration?: number;
+  membershipDays?: number;
   joinDate?: string;
   membershipStartDate?: string;
   membershipEndDate?: string;
@@ -188,6 +193,7 @@ interface ApiCustomerData {
   membershipType?: string;
   membershipFees: number;
   membershipDuration: number;
+  membershipDays?: number;
   joinDate: string;
   membershipStartDate: string;
   membershipEndDate?: string;
@@ -211,6 +217,7 @@ const mapCustomerFromApi = (apiCustomer: ApiCustomerData): Customer => ({
   membershipType: apiCustomer.membershipType,
   membershipFees: apiCustomer.membershipFees || 0,
   membershipDuration: apiCustomer.membershipDuration || 0,
+  membershipDays: apiCustomer.membershipDays,
   joinDate: apiCustomer.joinDate,
   membershipStartDate: apiCustomer.membershipStartDate,
   membershipEndDate: apiCustomer.membershipEndDate,

@@ -112,6 +112,13 @@ const formatPaymentMode = (mode: string | undefined) => {
   return mode.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
 };
 
+const formatDuration = (months: number, days: number) => {
+  let result = '';
+  if (months > 0) result += `${months} month${months > 1 ? 's' : ''}`;
+  if (days > 0) result += (result ? ' ' : '') + `${days} day${days > 1 ? 's' : ''}`;
+  return result || '0 days';
+};
+
 function isPersonalTrainingAssignmentLike(obj: unknown): obj is Partial<PersonalTrainingAssignment> {
   return !!obj && typeof obj === 'object' && 'trainerId' in (obj as Partial<PersonalTrainingAssignment>) && 'endDate' in (obj as Partial<PersonalTrainingAssignment>);
 }
@@ -314,7 +321,7 @@ export const ViewCustomerModal: React.FC<ViewCustomerModalProps> = ({
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Duration</p>
-                      <p className="font-medium">{(fetchedCustomer ?? customer).membershipDuration} months</p>
+                      <p className="font-medium">{formatDuration((fetchedCustomer ?? customer).membershipDuration || 0, (fetchedCustomer ?? customer).membershipDays || 0)}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Fees</p>

@@ -2,7 +2,7 @@ import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { format, addMonths, isValid } from 'date-fns';
+import { format, addMonths, addDays, isValid } from 'date-fns';
 import { CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -45,7 +45,8 @@ import { useAuth } from '@/context/AuthContext';
 const formSchema = z.object({
   membershipType: z.enum(['none', 'basic', 'premium', 'vip']),
   membershipFees: z.number().min(0, 'Membership fees must be a positive number'),
-  membershipDuration: z.number().min(1, 'Membership duration must be at least 1 month'),
+  membershipDuration: z.number().min(0, 'Membership duration must be at least 0 months'),
+  membershipDays: z.number().min(0, 'Membership days must be at least 0').default(0),
   membershipStartDate: z.date(),
   transactionDate: z.date(),
   paymentMode: z.enum(['cash', 'card', 'upi', 'bank_transfer', 'other']),
@@ -70,6 +71,7 @@ function convertDatesToISO(data: {
   membershipType: 'none' | 'basic' | 'premium' | 'vip';
   membershipFees: number;
   membershipDuration: number;
+  membershipDays: number;
   membershipStartDate: Date;
   membershipEndDate: Date;
   transactionDate: Date;
@@ -81,6 +83,7 @@ function convertDatesToISO(data: {
     membershipType: data.membershipType,
     membershipFees: data.membershipFees,
     membershipDuration: data.membershipDuration,
+    membershipDays: data.membershipDays,
     membershipStartDate: data.membershipStartDate.toISOString(),
     membershipEndDate: data.membershipEndDate.toISOString(),
     transactionDate: data.transactionDate.toISOString(),
@@ -124,6 +127,7 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
       membershipType: (customer.membershipType as 'none' | 'basic' | 'premium' | 'vip') || 'none',
       membershipFees: customer.membershipFees || 0,
       membershipDuration: customer.membershipDuration || 1,
+      membershipDays: customer.membershipDays || 0,
       membershipStartDate: new Date(),
       transactionDate: new Date(),
       paymentMode: 'cash' as const,
@@ -134,12 +138,18 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
   // Add effect to calculate end date when start date or duration changes
   React.useEffect(() => {
     const subscription = form.watch((value, { name }) => {
-      if (name === 'membershipStartDate' || name === 'membershipDuration') {
+      if ([
+        'membershipStartDate',
+        'membershipDuration',
+        'membershipDays'
+      ].includes(name)) {
         const startDate = form.getValues('membershipStartDate');
-        const duration = form.getValues('membershipDuration');
-        
-        if (startDate && duration > 0) {
-          const endDate = addMonths(startDate, duration);
+        const months = form.getValues('membershipDuration') || 0;
+        const days = form.getValues('membershipDays') || 0;
+        if (startDate && (months > 0 || days > 0)) {
+          let endDate = addMonths(new Date(startDate), months);
+          endDate = addDays(endDate, days);
+          endDate.setDate(endDate.getDate() - 1);
           setMembershipEndDate(endDate);
         }
       }
@@ -152,30 +162,31 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
     const currentEndDate = customer.membershipEndDate 
       ? new Date(customer.membershipEndDate)
       : addMonths(new Date(customer.membershipStartDate), customer.membershipDuration);
-    
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
     const startDate = form.getValues('membershipStartDate');
-    const duration = form.getValues('membershipDuration');
-    
-    if (startDate && duration > 0) {
+    const months = form.getValues('membershipDuration') || 0;
+    const days = form.getValues('membershipDays') || 0;
+    if (startDate && (months > 0 || days > 0)) {
       let newStartDate: Date;
       let newEndDate: Date;
       let willExtend: boolean;
-      
-      if (currentEndDate > today) {
-        // Current membership is still active, extend from current end date
-        newStartDate = new Date(customer.membershipStartDate); // Show original start date
-        newEndDate = addMonths(currentEndDate, duration);
+      // If current membership is active, always use the original start date
+      if (currentEndDate >= today && startDate <= currentEndDate) {
+        newStartDate = new Date(customer.membershipStartDate);
+        const renewalFrom = new Date(currentEndDate);
+        renewalFrom.setDate(renewalFrom.getDate() + 1);
+        newEndDate = addMonths(renewalFrom, months);
+        newEndDate = addDays(newEndDate, days);
+        newEndDate.setDate(newEndDate.getDate() - 1);
         willExtend = true;
       } else {
-        // Current membership has expired, use the selected start date
         newStartDate = startDate;
-        newEndDate = addMonths(startDate, duration);
+        newEndDate = addMonths(startDate, months);
+        newEndDate = addDays(newEndDate, days);
+        newEndDate.setDate(newEndDate.getDate() - 1);
         willExtend = false;
       }
-      
       setRenewalPreview({
         willExtend,
         newStartDate,
@@ -183,7 +194,7 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
         currentEndDate
       });
     }
-  }, [customer, form.watch('membershipStartDate'), form.watch('membershipDuration')]);
+  }, [customer, form.watch('membershipStartDate'), form.watch('membershipDuration'), form.watch('membershipDays')]);
 
   const handleClose = () => {
     setIsDialogOpen(false);
@@ -207,20 +218,29 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
       let newStartDate: Date;
       let newEndDate: Date;
       
-      if (currentEndDate > today) {
-        // Current membership is still active, extend from current end date
-        newStartDate = new Date(customer.membershipStartDate); // Keep original start date
-        newEndDate = addMonths(currentEndDate, values.membershipDuration);
+      const membershipDuration = values.membershipDuration || 0;
+      const membershipDays = values.membershipDays || 0;
+      
+      // If current membership is active, always use the original start date
+      if (currentEndDate >= today && values.membershipStartDate <= currentEndDate) {
+        newStartDate = new Date(customer.membershipStartDate);
+        const renewalFrom = new Date(currentEndDate);
+        renewalFrom.setDate(renewalFrom.getDate() + 1);
+        newEndDate = addMonths(renewalFrom, membershipDuration);
+        newEndDate = addDays(newEndDate, membershipDays);
+        newEndDate.setDate(newEndDate.getDate() - 1);
       } else {
-        // Current membership has expired, use the selected start date
         newStartDate = values.membershipStartDate;
-        newEndDate = addMonths(values.membershipStartDate, values.membershipDuration);
+        newEndDate = addMonths(values.membershipStartDate, membershipDuration);
+        newEndDate = addDays(newEndDate, membershipDays);
+        newEndDate.setDate(newEndDate.getDate() - 1);
       }
       
       const updateData = {
         membershipType: values.membershipType,
         membershipFees: values.membershipFees,
-        membershipDuration: values.membershipDuration,
+        membershipDuration: membershipDuration,
+        membershipDays: membershipDays,
         membershipStartDate: newStartDate,
         membershipEndDate: newEndDate,
         transactionDate: values.transactionDate,
@@ -333,7 +353,7 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
 
   return (
     <Dialog open={isDialogOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto flex flex-col top-[5vh] translate-y-0">
         <DialogHeader>
           <DialogTitle>Renew Membership</DialogTitle>
         </DialogHeader>
@@ -401,14 +421,38 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
                     <FormControl>
                       <Input 
                         type="number" 
-                        min="1" 
+                        min="0" 
                         step="1" 
                         placeholder="Enter duration in months" 
                         {...field}
-                        value={field.value || 1}
+                        value={field.value || 0}
                         onChange={(e) => {
-                          const value = e.target.value === '' ? 1 : parseInt(e.target.value);
-                          field.onChange(isNaN(value) ? 1 : value);
+                          const value = e.target.value === '' ? 0 : parseInt(e.target.value);
+                          field.onChange(isNaN(value) ? 0 : value);
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="membershipDays"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Duration (days)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        min="0" 
+                        step="1" 
+                        placeholder="Enter duration in days" 
+                        {...field}
+                        value={field.value || 0}
+                        onChange={(e) => {
+                          const value = e.target.value === '' ? 0 : parseInt(e.target.value);
+                          field.onChange(isNaN(value) ? 0 : value);
                         }}
                       />
                     </FormControl>
@@ -483,12 +527,6 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
                   </FormItem>
                 )}
               />
-              {membershipEndDate && (
-                <div className="col-span-2">
-                  <p className="text-sm text-muted-foreground">Membership End Date</p>
-                  <p className="font-medium">{safeFormatDate(membershipEndDate, "PPP")}</p>
-                </div>
-              )}
               
               {/* Renewal Preview */}
               {renewalPreview.newStartDate && renewalPreview.newEndDate && (
