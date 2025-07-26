@@ -238,7 +238,7 @@ const Home = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
-      <Header transparent />
+      <Header />
       
       {/* Enhanced Hero Section */}
       <section className="relative overflow-hidden pt-24">

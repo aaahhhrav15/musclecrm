@@ -22,6 +22,7 @@ import axios from 'axios';
 import { ApiService } from '@/services/ApiService';
 import { useGym } from '@/context/GymContext';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
 
 const pricing = [
   {
@@ -112,10 +113,11 @@ const handlePay = async (_amount: number, planType: string) => {
       currency: 'INR',
       notes: { plan: planType }
     });
-    if (typeof data !== 'object' || !data || typeof (data as any).success !== 'boolean' || !(data as any).order) {
+    const dataObj = data as { success?: boolean; order?: unknown };
+    if (typeof data !== 'object' || !data || typeof dataObj.success !== 'boolean' || !dataObj.order) {
       throw new Error('Order creation failed');
     }
-    const { success, order } = data as { success: boolean; order: any };
+    const { success, order } = data as { success: boolean; order: Record<string, unknown> };
     console.log('create-order API response:', data);
     if (!success) throw new Error('Order creation failed');
     const options = {
@@ -134,7 +136,7 @@ const handlePay = async (_amount: number, planType: string) => {
           razorpay_signature: response.razorpay_signature,
           planType
         });
-        if (typeof verifyRes === 'object' && verifyRes && (verifyRes as any).success) {
+        if (typeof verifyRes === 'object' && verifyRes && (verifyRes as { success?: boolean }).success) {
           alert('Payment successful! Subscription activated.');
           window.location.reload();
         } else {
@@ -148,9 +150,28 @@ const handlePay = async (_amount: number, planType: string) => {
     rzp.open();
   } catch (err: unknown) {
     console.error('Payment error:', err);
+    
+    // Check if it's a 401 error (authentication error)
+    if (
+      err &&
+      typeof err === 'object' &&
+      'response' in err &&
+      (err as { response?: { status?: number } }).response?.status === 401
+    ) {
+      // Redirect to login page for authentication errors
+      window.location.href = '/login';
+      return;
+    }
+    
+    // For other errors, show the error message
     let message = 'Payment failed.';
-    if (err && typeof err === 'object' && 'response' in err && (err as any).response?.data?.message) {
-      message = (err as any).response.data.message;
+    if (
+      err &&
+      typeof err === 'object' &&
+      'response' in err &&
+      typeof (err as { response?: { data?: { message?: string } } }).response?.data?.message === 'string'
+    ) {
+      message = (err as { response?: { data?: { message?: string } } }).response!.data!.message!;
     } else if (err instanceof Error) {
       message = err.message;
     }
@@ -174,9 +195,19 @@ const PricingCard = ({
 }) => {
   const { toast } = useToast();
   const { gym } = useGym();
+  const { isAuthenticated } = useAuth();
   const isSubscriptionActive = gym?.subscriptionEndDate && new Date(gym.subscriptionEndDate) >= new Date();
 
   const handlePayWithCheck = async (_amount: number, planType: string) => {
+    if (!isAuthenticated) {
+      toast({
+        title: 'Login Required',
+        description: 'Please login to buy a subscription.',
+        variant: 'destructive',
+      });
+      window.location.href = '/login';
+      return;
+    }
     if (isSubscriptionActive) {
       toast({
         title: 'Subscription Active',
