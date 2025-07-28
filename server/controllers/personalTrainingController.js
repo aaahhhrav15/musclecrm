@@ -30,8 +30,8 @@ exports.getAssignments = async (req, res) => {
 // Create a new assignment
 exports.createAssignment = async (req, res) => {
   try {
-    const { customerId, trainerId, gymId, startDate, duration, fees } = req.body;
-    if (!customerId || !trainerId || !gymId || !startDate || !duration || !fees) {
+    const { customerId, trainerId, gymId, startDate, duration, durationMonths, durationDays, fees } = req.body;
+    if (!customerId || !trainerId || !gymId || !startDate || !fees) {
       return res.status(400).json({ error: 'All fields are required.' });
     }
 
@@ -44,11 +44,35 @@ exports.createAssignment = async (req, res) => {
       return res.status(400).json({ error: 'Cannot assign personal training. Customer does not have an active membership.' });
     }
 
+    // Handle duration - support both old format (duration) and new format (durationMonths + durationDays)
+    let months = 0;
+    let days = 0;
+    
+    if (durationMonths !== undefined && durationDays !== undefined) {
+      // New format
+      months = Number(durationMonths) || 0;
+      days = Number(durationDays) || 0;
+    } else if (duration !== undefined) {
+      // Old format - convert to new format
+      months = Number(duration) || 0;
+      days = 0;
+    } else {
+      return res.status(400).json({ error: 'Duration information is required (either duration or durationMonths + durationDays).' });
+    }
+
     // Calculate end date
     const start = new Date(startDate);
     const end = new Date(start);
-    end.setMonth(end.getMonth() + Number(duration));
-    end.setDate(end.getDate() - 1); // End date is the day before the same date next period
+    
+    if (months > 0) {
+      end.setMonth(end.getMonth() + months);
+    }
+    if (days > 0) {
+      end.setDate(end.getDate() + days);
+    }
+    
+    // Subtract 1 day to make end date inclusive
+    end.setDate(end.getDate() - 1);
 
     // Create the assignment
     const assignment = new PersonalTrainingAssignment({
@@ -56,7 +80,9 @@ exports.createAssignment = async (req, res) => {
       trainerId,
       gymId,
       startDate: start,
-      duration,
+      duration: months, // Keep for backward compatibility
+      durationMonths: months,
+      durationDays: days,
       endDate: end,
       fees,
       notes: req.body.notes || ''
@@ -79,6 +105,19 @@ exports.createAssignment = async (req, res) => {
     const invoiceCounter = gym.invoiceCounter || 1;
     const invoiceNumber = `${gymCode}${String(invoiceCounter).padStart(6, '0')}`;
     const dateRange = start && end ? ` (${formatDate(start)} to ${formatDate(end)})` : '';
+    
+    // Create duration description
+    let durationDescription = '';
+    if (months > 0 && days > 0) {
+      durationDescription = `${months} month(s) and ${days} day(s)`;
+    } else if (months > 0) {
+      durationDescription = `${months} month(s)`;
+    } else if (days > 0) {
+      durationDescription = `${days} day(s)`;
+    } else {
+      durationDescription = '1 day';
+    }
+    
     const invoice = new Invoice({
       userId: req.user._id, // User ID from auth middleware
       gymId,
@@ -88,7 +127,7 @@ exports.createAssignment = async (req, res) => {
       currency: 'INR',
       dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
       items: [{
-        description: `Personal Training with ${duration} month(s) duration${dateRange}`,
+        description: `Personal Training with ${durationDescription} duration${dateRange}`,
         quantity: 1,
         unitPrice: fees,
         amount: fees
@@ -109,7 +148,7 @@ exports.createAssignment = async (req, res) => {
       transactionDate: new Date(),
       amount: fees,
       paymentMode: 'cash', // Default payment mode
-      description: `Personal training fees for ${duration} month(s)${dateRange}`,
+      description: `Personal training fees for ${durationDescription}${dateRange}`,
       status: 'SUCCESS'
     });
     await transaction.save();
@@ -134,16 +173,40 @@ exports.createAssignment = async (req, res) => {
 exports.updateAssignment = async (req, res) => {
   try {
     const { id } = req.params;
-    const { customerId, trainerId, gymId, startDate, duration, fees } = req.body;
+    const { customerId, trainerId, gymId, startDate, duration, durationMonths, durationDays, fees } = req.body;
     
-    if (!customerId || !trainerId || !gymId || !startDate || !duration || !fees) {
+    if (!customerId || !trainerId || !gymId || !startDate || !fees) {
       return res.status(400).json({ error: 'All fields are required.' });
+    }
+
+    // Handle duration - support both old format (duration) and new format (durationMonths + durationDays)
+    let months = 0;
+    let days = 0;
+    
+    if (durationMonths !== undefined && durationDays !== undefined) {
+      // New format
+      months = Number(durationMonths) || 0;
+      days = Number(durationDays) || 0;
+    } else if (duration !== undefined) {
+      // Old format - convert to new format
+      months = Number(duration) || 0;
+      days = 0;
+    } else {
+      return res.status(400).json({ error: 'Duration information is required (either duration or durationMonths + durationDays).' });
     }
 
     const start = new Date(startDate);
     const end = new Date(start);
-    end.setMonth(end.getMonth() + Number(duration));
-    end.setDate(end.getDate() - 1); // End date is the day before the same date next period
+    
+    if (months > 0) {
+      end.setMonth(end.getMonth() + months);
+    }
+    if (days > 0) {
+      end.setDate(end.getDate() + days);
+    }
+    
+    // Subtract 1 day to make end date inclusive
+    end.setDate(end.getDate() - 1);
 
     const assignment = await PersonalTrainingAssignment.findByIdAndUpdate(
       id,
@@ -152,7 +215,9 @@ exports.updateAssignment = async (req, res) => {
         trainerId,
         gymId,
         startDate: start,
-        duration,
+        duration: months, // Keep for backward compatibility
+        durationMonths: months,
+        durationDays: days,
         endDate: end,
         fees,
         notes: req.body.notes || ''
@@ -178,10 +243,23 @@ exports.updateAssignment = async (req, res) => {
     }).sort({ createdAt: -1 });
     if (invoice) {
       const dateRange = start && end ? ` (${formatDate(start)} to ${formatDate(end)})` : '';
+      
+      // Create duration description
+      let durationDescription = '';
+      if (months > 0 && days > 0) {
+        durationDescription = `${months} month(s) and ${days} day(s)`;
+      } else if (months > 0) {
+        durationDescription = `${months} month(s)`;
+      } else if (days > 0) {
+        durationDescription = `${days} day(s)`;
+      } else {
+        durationDescription = '1 day';
+      }
+      
       invoice.amount = fees;
       invoice.dueDate = end;
       invoice.items = [{
-        description: `Personal Training with ${duration} month(s) duration${dateRange}`,
+        description: `Personal Training with ${durationDescription} duration${dateRange}`,
         quantity: 1,
         unitPrice: fees,
         amount: fees
@@ -197,8 +275,20 @@ exports.updateAssignment = async (req, res) => {
       transactionType: 'PERSONAL_TRAINING'
     }).sort({ createdAt: -1 });
     if (transaction) {
+      // Create duration description
+      let durationDescription = '';
+      if (months > 0 && days > 0) {
+        durationDescription = `${months} month(s) and ${days} day(s)`;
+      } else if (months > 0) {
+        durationDescription = `${months} month(s)`;
+      } else if (days > 0) {
+        durationDescription = `${days} day(s)`;
+      } else {
+        durationDescription = '1 day';
+      }
+      
       transaction.amount = fees;
-      transaction.description = `Personal training fees for ${duration} month(s)`;
+      transaction.description = `Personal training fees for ${durationDescription}`;
       transaction.transactionDate = new Date();
       await transaction.save();
     }
@@ -251,8 +341,8 @@ exports.deleteAssignment = async (req, res) => {
 exports.renewAssignment = async (req, res) => {
   try {
     const { id } = req.params;
-    const { startDate, duration, endDate, fees, gymId, paymentMode, transactionDate } = req.body;
-    if (!startDate || !duration || !endDate || !fees || !gymId) {
+    const { startDate, duration, durationMonths, durationDays, endDate, fees, gymId, paymentMode, transactionDate } = req.body;
+    if (!startDate || !fees || !gymId) {
       return res.status(400).json({ error: 'All fields are required.' });
     }
 
@@ -270,6 +360,22 @@ exports.renewAssignment = async (req, res) => {
       return res.status(400).json({ error: 'Cannot renew personal training. Customer does not have an active membership.' });
     }
 
+    // Handle duration - support both old format (duration) and new format (durationMonths + durationDays)
+    let months = 0;
+    let days = 0;
+    
+    if (durationMonths !== undefined && durationDays !== undefined) {
+      // New format
+      months = Number(durationMonths) || 0;
+      days = Number(durationDays) || 0;
+    } else if (duration !== undefined) {
+      // Old format - convert to new format
+      months = Number(duration) || 0;
+      days = 0;
+    } else {
+      return res.status(400).json({ error: 'Duration information is required (either duration or durationMonths + durationDays).' });
+    }
+
     // Determine renewal period
     let renewalStart, renewalEnd;
     const now = new Date();
@@ -281,8 +387,14 @@ exports.renewAssignment = async (req, res) => {
       // PT is active, keep original start date for assignment, but invoice should only cover the new period
       renewalStart = new Date(assignment.startDate);
       renewalEnd = new Date(currentEnd);
-      renewalEnd.setMonth(renewalEnd.getMonth() + Number(duration));
-      renewalEnd.setDate(renewalEnd.getDate()); // keep same day of month
+      
+      if (months > 0) {
+        renewalEnd.setMonth(renewalEnd.getMonth() + months);
+      }
+      if (days > 0) {
+        renewalEnd.setDate(renewalEnd.getDate() + days);
+      }
+      
       // Invoice period: day after current end to new end
       invoicePeriodStart = new Date(currentEnd);
       invoicePeriodStart.setDate(invoicePeriodStart.getDate() + 1);
@@ -291,8 +403,17 @@ exports.renewAssignment = async (req, res) => {
       // PT is not active, use provided startDate
       renewalStart = new Date(startDate);
       renewalEnd = new Date(renewalStart);
-      renewalEnd.setMonth(renewalEnd.getMonth() + Number(duration));
+      
+      if (months > 0) {
+        renewalEnd.setMonth(renewalEnd.getMonth() + months);
+      }
+      if (days > 0) {
+        renewalEnd.setDate(renewalEnd.getDate() + days);
+      }
+      
+      // Subtract 1 day to make end date inclusive
       renewalEnd.setDate(renewalEnd.getDate() - 1);
+      
       // Invoice period: full new assignment
       invoicePeriodStart = new Date(renewalStart);
       invoicePeriodEnd = new Date(renewalEnd);
@@ -307,12 +428,26 @@ exports.renewAssignment = async (req, res) => {
     };
     const invoiceDateRange = invoicePeriodStart && invoicePeriodEnd ? ` (${formatDate(invoicePeriodStart)} to ${formatDate(invoicePeriodEnd)})` : '';
 
+    // Create duration description
+    let durationDescription = '';
+    if (months > 0 && days > 0) {
+      durationDescription = `${months} month(s) and ${days} day(s)`;
+    } else if (months > 0) {
+      durationDescription = `${months} month(s)`;
+    } else if (days > 0) {
+      durationDescription = `${days} day(s)`;
+    } else {
+      durationDescription = '1 day';
+    }
+
     // Update the assignment
     const updatedAssignment = await PersonalTrainingAssignment.findByIdAndUpdate(
       id,
       {
         startDate: renewalStart,
-        duration,
+        duration: months, // Keep for backward compatibility
+        durationMonths: months,
+        durationDays: days,
         endDate: renewalEnd,
         fees,
         notes: req.body.notes || ''
@@ -345,9 +480,9 @@ exports.renewAssignment = async (req, res) => {
       currency: 'INR',
       dueDate: renewalEnd,
       items: [{
-        description: `Personal Training Renewal (${duration} month(s))${invoiceDateRange}`,
-        quantity: duration,
-        unitPrice: fees / duration,
+        description: `Personal Training Renewal (${durationDescription})${invoiceDateRange}`,
+        quantity: months > 0 ? months : 1,
+        unitPrice: fees / (months > 0 ? months : 1),
         amount: fees
       }],
       notes: `Personal training renewal for period${invoiceDateRange}`
@@ -367,7 +502,7 @@ exports.renewAssignment = async (req, res) => {
       amount: fees,
       paymentMode: paymentMode || 'cash',
       membershipType: 'none',
-      description: `Personal training renewal for ${duration} month(s)${invoiceDateRange}` ,
+      description: `Personal training renewal for ${durationDescription}${invoiceDateRange}`,
       status: 'SUCCESS'
     });
     await txn.save();

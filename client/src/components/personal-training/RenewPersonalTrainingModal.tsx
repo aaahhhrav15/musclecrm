@@ -43,12 +43,17 @@ import { useAuth } from '@/context/AuthContext';
 import { API_URL } from '@/lib/constants';
 
 const formSchema = z.object({
-  duration: z.number().min(1, 'Duration must be at least 1 month'),
+  duration: z.number().min(0, 'Duration must be at least 0'),
+  durationMonths: z.number().min(0, 'Months must be at least 0'),
+  durationDays: z.number().min(0, 'Days must be at least 0'),
   fees: z.number().min(0, 'Fees must be a positive number'),
   startDate: z.date(),
   transactionDate: z.date(),
   paymentMode: z.enum(['cash', 'card', 'upi', 'bank_transfer', 'other']),
   notes: z.string().optional(),
+}).refine((data) => data.durationMonths > 0 || data.durationDays > 0, {
+  message: "Please enter at least one duration value (months or days)",
+  path: ["durationMonths"],
 });
 
 interface Assignment {
@@ -66,9 +71,12 @@ interface Assignment {
   };
   gymId: string;
   startDate: string;
-  duration: number;
+  duration: number; // Keep for backward compatibility
+  durationMonths?: number;
+  durationDays?: number;
   endDate: string;
   fees: number;
+  notes?: string;
 }
 
 interface RenewPersonalTrainingModalProps {
@@ -110,7 +118,9 @@ export const RenewPersonalTrainingModal: React.FC<RenewPersonalTrainingModalProp
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      duration: assignment.duration || 1,
+      duration: assignment.duration || 1, // Keep for backward compatibility
+      durationMonths: assignment.durationMonths || assignment.duration || 1,
+      durationDays: assignment.durationDays || 0,
       fees: assignment.fees || 0,
       startDate: new Date(),
       transactionDate: new Date(),
@@ -127,20 +137,36 @@ export const RenewPersonalTrainingModal: React.FC<RenewPersonalTrainingModalProp
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const startDate = form.getValues('startDate');
-    const duration = form.getValues('duration');
-    if (startDate && duration > 0) {
+    const durationMonths = form.getValues('durationMonths');
+    const durationDays = form.getValues('durationDays');
+    
+    if (startDate && (durationMonths > 0 || durationDays > 0)) {
       let newStartDate: Date;
       let newEndDate: Date;
       let willExtend: boolean;
+      
+      // Calculate total duration in months for end date calculation
+      const totalMonths = durationMonths + (durationDays / 30);
+      
       if (currentEndDate > today) {
         // Current assignment is still active, extend from current end date
         newStartDate = new Date(assignment.startDate); // Show original start date
-        newEndDate = addMonths(currentEndDate, duration);
+        newEndDate = addMonths(currentEndDate, Math.floor(totalMonths));
+        // Add remaining days
+        const remainingDays = Math.round((totalMonths - Math.floor(totalMonths)) * 30);
+        if (remainingDays > 0) {
+          newEndDate.setDate(newEndDate.getDate() + remainingDays);
+        }
         willExtend = true;
       } else {
         // Assignment has expired, use the selected start date
         newStartDate = startDate;
-        newEndDate = addMonths(startDate, duration);
+        newEndDate = addMonths(startDate, Math.floor(totalMonths));
+        // Add remaining days
+        const remainingDays = Math.round((totalMonths - Math.floor(totalMonths)) * 30);
+        if (remainingDays > 0) {
+          newEndDate.setDate(newEndDate.getDate() + remainingDays);
+        }
         willExtend = false;
       }
       setRenewalPreview({
@@ -150,7 +176,7 @@ export const RenewPersonalTrainingModal: React.FC<RenewPersonalTrainingModalProp
         currentEndDate
       });
     }
-  }, [assignment, form.watch('startDate'), form.watch('duration')]);
+  }, [assignment, form.watch('startDate'), form.watch('durationMonths'), form.watch('durationDays')]);
 
   const handleClose = () => {
     setIsDialogOpen(false);
@@ -177,15 +203,30 @@ export const RenewPersonalTrainingModal: React.FC<RenewPersonalTrainingModalProp
       today.setHours(0, 0, 0, 0);
       let newStartDate: Date;
       let newEndDate: Date;
+      
+      // Calculate total duration in months for end date calculation
+      const totalMonths = values.durationMonths + (values.durationDays / 30);
+      
       if (currentEndDate > today) {
         // Current assignment is still active, extend from current end date
         newStartDate = new Date(assignment.startDate); // Keep original start date
-        newEndDate = addMonths(currentEndDate, values.duration);
+        newEndDate = addMonths(currentEndDate, Math.floor(totalMonths));
+        // Add remaining days
+        const remainingDays = Math.round((totalMonths - Math.floor(totalMonths)) * 30);
+        if (remainingDays > 0) {
+          newEndDate.setDate(newEndDate.getDate() + remainingDays);
+        }
       } else {
         // Assignment has expired, use the selected start date
         newStartDate = values.startDate;
-        newEndDate = addMonths(values.startDate, values.duration);
+        newEndDate = addMonths(values.startDate, Math.floor(totalMonths));
+        // Add remaining days
+        const remainingDays = Math.round((totalMonths - Math.floor(totalMonths)) * 30);
+        if (remainingDays > 0) {
+          newEndDate.setDate(newEndDate.getDate() + remainingDays);
+        }
       }
+      
       // Update assignment (API call)
       await fetch(`${API_URL}/personal-training/${assignment._id}/renew`, {
         method: 'POST',
@@ -193,7 +234,9 @@ export const RenewPersonalTrainingModal: React.FC<RenewPersonalTrainingModalProp
         credentials: 'include',
         body: JSON.stringify({
           startDate: newStartDate,
-          duration: values.duration,
+          duration: values.duration, // Keep for backward compatibility
+          durationMonths: values.durationMonths,
+          durationDays: values.durationDays,
           endDate: newEndDate,
           fees: values.fees,
           gymId: assignment.gymId,
@@ -229,24 +272,48 @@ export const RenewPersonalTrainingModal: React.FC<RenewPersonalTrainingModalProp
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <FormField
                 control={form.control}
-                name="duration"
+                name="durationMonths"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Duration (months)</FormLabel>
                     <FormControl>
                       <Input 
                         type="number" 
-                        min="1" 
+                        min="0" 
                         step="1" 
-                        placeholder="Enter duration in months" 
+                        placeholder="Enter months" 
                         {...field}
-                        value={field.value || 1}
+                        value={field.value || 0}
                         onChange={(e) => {
-                          const value = e.target.value === '' ? 1 : parseInt(e.target.value);
-                          field.onChange(isNaN(value) ? 1 : value);
+                          const value = e.target.value === '' ? 0 : parseInt(e.target.value);
+                          field.onChange(isNaN(value) ? 0 : value);
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="durationDays"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Duration (days)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        min="0" 
+                        step="1" 
+                        placeholder="Enter days" 
+                        {...field}
+                        value={field.value || 0}
+                        onChange={(e) => {
+                          const value = e.target.value === '' ? 0 : parseInt(e.target.value);
+                          field.onChange(isNaN(value) ? 0 : value);
                         }}
                       />
                     </FormControl>
@@ -278,6 +345,9 @@ export const RenewPersonalTrainingModal: React.FC<RenewPersonalTrainingModalProp
                   </FormItem>
                 )}
               />
+            </div>
+            <div className="text-sm text-muted-foreground">
+              Enter at least one value (months or days). Both can be used together.
             </div>
             <div className="grid grid-cols-2 gap-4">
               <FormField

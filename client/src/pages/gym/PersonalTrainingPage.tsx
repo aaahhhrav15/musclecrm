@@ -91,7 +91,9 @@ interface Assignment {
   };
   gymId: string;
   startDate: string;
-  duration: number;
+  duration: number; // Keep for backward compatibility
+  durationMonths?: number;
+  durationDays?: number;
   endDate: string;
   fees: number;
   notes?: string; // Added notes field
@@ -115,7 +117,9 @@ interface FormState {
   customerId: string;
   trainerId: string;
   startDate: string;
-  duration: number;
+  duration: number; // Keep for backward compatibility
+  durationMonths: number;
+  durationDays: number;
   fees: string;
   notes?: string; // Added notes field
 }
@@ -149,7 +153,9 @@ const PersonalTrainingPage: React.FC = () => {
     customerId: '',
     trainerId: '',
     startDate: '',
-    duration: 1,
+    duration: 1, // Keep for backward compatibility
+    durationMonths: 1,
+    durationDays: 0,
     fees: '',
     notes: '' // Added notes field
   });
@@ -157,7 +163,9 @@ const PersonalTrainingPage: React.FC = () => {
     customerId: '',
     trainerId: '',
     startDate: '',
-    duration: 1,
+    duration: 1, // Keep for backward compatibility
+    durationMonths: 1,
+    durationDays: 0,
     fees: '',
     notes: '' // Added notes field
   });
@@ -195,6 +203,22 @@ const PersonalTrainingPage: React.FC = () => {
     return daysUntilExpiry >= 0 && daysUntilExpiry <= days;
   };
 
+  // Helper function to format duration display
+  const formatDuration = (assignment: Assignment) => {
+    const months = assignment.durationMonths || assignment.duration || 0;
+    const days = assignment.durationDays || 0;
+    
+    if (months > 0 && days > 0) {
+      return `${months} month(s) ${days} day(s)`;
+    } else if (months > 0) {
+      return `${months} month(s)`;
+    } else if (days > 0) {
+      return `${days} day(s)`;
+    } else {
+      return '1 day';
+    }
+  };
+
   // Populate edit form when editAssignment changes
   useEffect(() => {
     if (editAssignment) {
@@ -202,7 +226,9 @@ const PersonalTrainingPage: React.FC = () => {
         customerId: editAssignment.customerId._id,
         trainerId: editAssignment.trainerId._id,
         startDate: editAssignment.startDate.slice(0, 10),
-        duration: editAssignment.duration,
+        duration: editAssignment.duration, // Keep for backward compatibility
+        durationMonths: editAssignment.durationMonths || editAssignment.duration || 1,
+        durationDays: editAssignment.durationDays || 0,
         fees: editAssignment.fees.toString(),
         notes: editAssignment.notes || '' // Populate notes
       });
@@ -418,13 +444,24 @@ const PersonalTrainingPage: React.FC = () => {
     }
     setIsAssigning(true);
     setOpen(false); // Close modal immediately
-    const endDate = calculateEndDate(form.startDate, form.duration);
+    
+    // Validate that at least one duration field is provided
+    if (form.durationMonths === 0 && form.durationDays === 0) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter at least one duration value (months or days).",
+        variant: "destructive",
+      });
+      setIsAssigning(false);
+      return;
+    }
+    
     const requestData = {
       ...form,
       gymId,
-      endDate,
       fees: Number(form.fees),
-      duration: Number(form.duration),
+      durationMonths: Number(form.durationMonths),
+      durationDays: Number(form.durationDays),
       notes: form.notes || undefined // Include notes if provided
     };
     try {
@@ -433,7 +470,7 @@ const PersonalTrainingPage: React.FC = () => {
         title: "Success",
         description: "Trainer assigned successfully!",
       });
-      setForm({ customerId: '', trainerId: '', startDate: '', duration: 1, fees: '', notes: '' });
+      setForm({ customerId: '', trainerId: '', startDate: '', duration: 1, durationMonths: 1, durationDays: 0, fees: '', notes: '' });
       // Refresh assignments
       const res = await axios.get(`/personal-training?gymId=${gymId}`);
       setAssignments(Array.isArray(res.data) ? res.data : res.data.assignments || []);
@@ -465,7 +502,7 @@ const PersonalTrainingPage: React.FC = () => {
         "Trainer Email": assignment.trainerId?.email || '',
         "Start Date": format(new Date(assignment.startDate), 'yyyy-MM-dd'),
         "End Date": format(endDate, 'yyyy-MM-dd'),
-        "Duration (Months)": assignment.duration,
+        "Duration": formatDuration(assignment),
         "Fees": assignment.fees,
         "Status": getAssignmentStatus(assignment),
         "Days Until Expiry": daysUntilExpiry + 1, // +1 for user-facing display
@@ -636,9 +673,18 @@ const PersonalTrainingPage: React.FC = () => {
                     <label className="block mb-1 font-medium">Start Date</label>
                     <Input type="date" name="startDate" value={form.startDate} onChange={handleChange} required />
                   </div>
-                  <div>
-                    <label className="block mb-1 font-medium">Duration (months)</label>
-                    <Input type="number" name="duration" value={form.duration} min={1} onChange={handleChange} required />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block mb-1 font-medium">Duration (months)</label>
+                      <Input type="number" name="durationMonths" value={form.durationMonths} min={0} onChange={handleChange} />
+                    </div>
+                    <div>
+                      <label className="block mb-1 font-medium">Duration (days)</label>
+                      <Input type="number" name="durationDays" value={form.durationDays} min={0} onChange={handleChange} />
+                    </div>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Enter at least one value (months or days). Both can be used together.
                   </div>
                   <div>
                     <label className="block mb-1 font-medium">Fees</label>
@@ -914,7 +960,7 @@ const PersonalTrainingPage: React.FC = () => {
                           </div>
                         </TableCell>
                         <TableCell>{format(new Date(assignment.startDate), 'MMM d, yyyy')}</TableCell>
-                        <TableCell>{assignment.duration} months</TableCell>
+                        <TableCell>{formatDuration(assignment)}</TableCell>
                         <TableCell>{format(new Date(assignment.endDate), 'MMM d, yyyy')}</TableCell>
                         <TableCell>{getStatusBadge(assignment)}</TableCell>
                         <TableCell className="font-medium">₹{assignment.fees.toLocaleString()}</TableCell>
@@ -1195,7 +1241,7 @@ const PersonalTrainingPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="font-medium text-sm text-muted-foreground">Duration</label>
-                  <p>{viewAssignment.duration} months</p>
+                                      <p>{formatDuration(viewAssignment)}</p>
                 </div>
                 <div>
                   <label className="font-medium text-sm text-muted-foreground">Fees</label>
@@ -1226,13 +1272,23 @@ const PersonalTrainingPage: React.FC = () => {
           {editAssignment && (
             <form className="space-y-4" onSubmit={async (e) => {
               e.preventDefault();
-              const endDate = calculateEndDate(editForm.startDate, editForm.duration);
+              
+              // Validate that at least one duration field is provided
+              if (editForm.durationMonths === 0 && editForm.durationDays === 0) {
+                toast({
+                  title: "Validation Error",
+                  description: "Please enter at least one duration value (months or days).",
+                  variant: "destructive",
+                });
+                return;
+              }
+              
               const requestData = {
                 ...editForm,
                 gymId,
-                endDate,
                 fees: Number(editForm.fees),
-                duration: Number(editForm.duration),
+                durationMonths: Number(editForm.durationMonths),
+                durationDays: Number(editForm.durationDays),
                 notes: editForm.notes || undefined // Include notes if provided
               };
               try {
@@ -1288,9 +1344,18 @@ const PersonalTrainingPage: React.FC = () => {
                 <label className="block mb-1 font-medium">Start Date</label>
                 <Input type="date" name="startDate" value={editForm.startDate} onChange={handleEditChange} required />
               </div>
-              <div>
-                <label className="block mb-1 font-medium">Duration (months)</label>
-                <Input type="number" name="duration" value={editForm.duration} min={1} onChange={handleEditChange} required />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block mb-1 font-medium">Duration (months)</label>
+                  <Input type="number" name="durationMonths" value={editForm.durationMonths} min={0} onChange={handleEditChange} />
+                </div>
+                <div>
+                  <label className="block mb-1 font-medium">Duration (days)</label>
+                  <Input type="number" name="durationDays" value={editForm.durationDays} min={0} onChange={handleEditChange} />
+                </div>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                Enter at least one value (months or days). Both can be used together.
               </div>
               <div>
                 <label className="block mb-1 font-medium">Fees</label>

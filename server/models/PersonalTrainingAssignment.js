@@ -21,8 +21,16 @@ const personalTrainingAssignmentSchema = new mongoose.Schema({
     required: true
   },
   duration: {
-    type: Number, // in months
+    type: Number, // in months - kept for backward compatibility
     required: true
+  },
+  durationMonths: {
+    type: Number, // new field for months
+    default: 0
+  },
+  durationDays: {
+    type: Number, // new field for days
+    default: 0
   },
   endDate: {
     type: Date,
