@@ -54,32 +54,32 @@ const About: React.FC = () => {
 
   const stats = [
     { 
-      number: '10,000+', 
-      label: 'Active Users', 
+      number: '500+', 
+      label: 'Active Gyms', 
       icon: Users, 
-      color: 'from-blue-500 to-blue-600',
-      bgColor: 'bg-blue-50 dark:bg-blue-950'
+      color: 'from-blue-600 to-indigo-600',
+      bgColor: 'bg-blue-50 dark:bg-blue-950/20'
     },
     { 
-      number: '50+', 
-      label: 'Countries', 
+      number: '100,000+', 
+      label: 'Members Added', 
       icon: Globe, 
-      color: 'from-green-500 to-green-600',
-      bgColor: 'bg-green-50 dark:bg-green-950'
+      color: 'from-green-600 to-emerald-600',
+      bgColor: 'bg-green-50 dark:bg-green-950/20'
     },
     { 
-      number: '99.9%', 
-      label: 'Uptime', 
+      number: '95%', 
+      label: 'Member Retention', 
       icon: Shield, 
-      color: 'from-purple-500 to-purple-600',
-      bgColor: 'bg-purple-50 dark:bg-purple-950'
+      color: 'from-purple-600 to-pink-600',
+      bgColor: 'bg-purple-50 dark:bg-purple-950/20'
     },
     { 
-      number: '2019', 
-      label: 'Founded', 
+      number: '10,000+', 
+      label: 'Invoices Generated', 
       icon: Building, 
-      color: 'from-orange-500 to-orange-600',
-      bgColor: 'bg-orange-50 dark:bg-orange-950'
+      color: 'from-orange-600 to-red-600',
+      bgColor: 'bg-orange-50 dark:bg-orange-950/20'
     }
   ];
 
@@ -138,39 +138,6 @@ const About: React.FC = () => {
       bio: "Product leader specializing in SaaS solutions that address real challenges faced by fitness professionals.",
       avatar: "VS",
       color: "from-orange-500 to-red-500"
-    }
-  ];
-
-  const milestones = [
-    {
-      year: "2019",
-      title: "Company Founded",
-      description: "Started with a vision to revolutionize fitness business management",
-      icon: <Building className="w-5 h-5" />
-    },
-    {
-      year: "2020",
-      title: "First 1,000 Users",
-      description: "Reached our first major milestone with fitness centers across 10 countries",
-      icon: <Users className="w-5 h-5" />
-    },
-    {
-      year: "2022",
-      title: "Major Platform Upgrade",
-      description: "Launched advanced analytics and AI-powered insights features",
-      icon: <Zap className="w-5 h-5" />
-    },
-    {
-      year: "2024",
-      title: "Industry Recognition",
-      description: "Named 'Best Fitness CRM Platform' by Fitness Tech Awards",
-      icon: <Award className="w-5 h-5" />
-    },
-    {
-      year: "2025",
-      title: "Global Expansion",
-      description: "Serving 10,000+ fitness businesses worldwide with 99.9% uptime",
-      icon: <Globe className="w-5 h-5" />
     }
   ];
 
@@ -409,73 +376,6 @@ const About: React.FC = () => {
                 </Card>
               </motion.div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Timeline Section */}
-      <section className="py-24 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-        <div className="container px-4 mx-auto sm:px-6 lg:px-8">
-          <div className="max-w-4xl mx-auto text-center mb-16">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              viewport={{ once: true }}
-            >
-              <Badge className="mb-6 bg-gradient-to-r from-orange-100 to-red-100 dark:from-orange-900 dark:to-red-900 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-700">
-                <Clock className="w-4 h-4 mr-2" />
-                Our Journey
-              </Badge>
-              <h2 className="text-4xl font-bold mb-6 bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
-                Milestones & Achievements
-              </h2>
-              <p className="text-xl text-slate-600 dark:text-slate-300 leading-relaxed">
-                From startup to industry leader – here's how we've grown alongside our customers.
-              </p>
-            </motion.div>
-          </div>
-
-          <div className="max-w-4xl mx-auto">
-            <div className="relative">
-              {/* Timeline line */}
-              <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-gradient-to-b from-blue-500 to-purple-600"></div>
-              
-              <div className="space-y-12">
-                {milestones.map((milestone, index) => (
-                  <motion.div
-                    key={milestone.year}
-                    initial={{ opacity: 0, x: -20 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.6, delay: index * 0.1 }}
-                    viewport={{ once: true }}
-                    className="relative flex items-start gap-8"
-                  >
-                    {/* Timeline dot */}
-                    <div className="flex-shrink-0 w-16 h-16 rounded-2xl bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
-                      {React.cloneElement(milestone.icon, { className: "w-6 h-6 text-white" })}
-                    </div>
-                    
-                    {/* Content */}
-                    <Card className="flex-1 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-0 shadow-lg">
-                      <CardContent className="p-6">
-                        <div className="flex items-center gap-3 mb-2">
-                          <Badge className="bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900 dark:to-purple-900 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-700">
-                            {milestone.year}
-                          </Badge>
-                        </div>
-                        <h4 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
-                          {milestone.title}
-                        </h4>
-                        <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
-                          {milestone.description}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
           </div>
         </div>
       </section>
