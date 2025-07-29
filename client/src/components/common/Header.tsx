@@ -90,7 +90,7 @@ const Header: React.FC<HeaderProps> = ({ transparent = false }) => {
               { to: '/dashboard/customers', label: 'Customers' },
               { to: '/dashboard/bookings', label: 'Bookings' }
             ] : []),
-            { to: '/industries/gym', label: 'Gym' },
+            { to: '/industries/gym', label: 'Features' },
             { to: '/subscriptions', label: 'Pricing' },
             { to: '/contact', label: 'Contact' }
           ].map((link) => (

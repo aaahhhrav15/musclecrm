@@ -84,31 +84,31 @@ const About: React.FC = () => {
 
   const teamMembers = [
     {
-      name: "Alex Johnson",
+      name: "Ambar Singh",
       role: "CEO & Co-Founder",
-      bio: "Former fitness industry executive with 15+ years of experience building scalable tech solutions.",
-      avatar: "AJ",
+      bio: "Visionary leader who founded MuscleCRM with a mission to revolutionize fitness business management.",
+      avatar: "AS",
       color: "from-blue-500 to-indigo-500"
     },
     {
-      name: "Sarah Chen",
+      name: "Mohammad Kaif Ali",
       role: "CTO & Co-Founder", 
-      bio: "Engineering leader with expertise in enterprise software and passion for fitness technology innovation.",
-      avatar: "SC",
+      bio: "Co-founder leading our team in building robust and secure fitness management platforms.",
+      avatar: "MK",
       color: "from-purple-500 to-pink-500"
     },
     {
-      name: "Mike Rodriguez",
+      name: "Aarav Lodha",
       role: "Head of Product",
-      bio: "Product strategist focused on creating intuitive experiences that solve real business challenges.",
-      avatar: "MR",
+      bio: "Product strategist driving user experience and ensuring MuscleCRM delivers intuitive solutions for gym owners.",
+      avatar: "AL",
       color: "from-green-500 to-teal-500"
     },
     {
-      name: "Emma Davis",
-      role: "Head of Customer Success",
-      bio: "Customer advocate ensuring every MuscleCRM user maximizes their platform investment and success.",
-      avatar: "ED",
+      name: "Vinit Solanki",
+      role: "Head of Product",
+      bio: "Product leader specializing in SaaS solutions that address real challenges faced by fitness professionals.",
+      avatar: "VS",
       color: "from-orange-500 to-red-500"
     }
   ];
