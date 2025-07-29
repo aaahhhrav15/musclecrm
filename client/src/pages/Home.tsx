@@ -226,36 +226,11 @@ const Home = () => {
   // Comprehensive pricing plans with real features
   const pricing = [
     {
-      title: 'Starter Plan',
-      originalPrice: '₹800',
-      price: '₹800',
+      title: 'Monthly Plan',
+      originalPrice: '₹999',
+      price: '₹999',
       period: '/month',
-      description: 'Perfect for small gyms and fitness studios',
-      features: [
-        { text: 'Up to 500 member profiles', included: true },
-        { text: 'Basic class scheduling', included: true },
-        { text: 'Manual billing & invoicing', included: true },
-        { text: 'Email notifications', included: true },
-        { text: 'Basic analytics dashboard', included: true },
-        { text: 'Mobile app access', included: true },
-        { text: 'Standard support', included: true },
-        { text: 'Basic reporting', included: true },
-        { text: 'Personal training management', included: false },
-        { text: 'Advanced integrations', included: false },
-        { text: 'Priority support', included: false }
-      ],
-      buttonText: 'Start Free Trial',
-      buttonLink: '/subscriptions',
-      popular: false,
-      badge: null,
-      savings: null
-    },
-    {
-      title: 'Professional Plan',
-      originalPrice: '₹1,200',
-      price: '₹1,200',
-      period: '/month',
-      description: 'Ideal for growing fitness businesses',
+      description: 'Perfect for growing fitness businesses',
       features: [
         { text: 'Unlimited member profiles', included: true },
         { text: 'Advanced class scheduling', included: true },
@@ -266,39 +241,38 @@ const Home = () => {
         { text: 'Personal training management', included: true },
         { text: 'Custom reporting suite', included: true },
         { text: 'API access', included: true },
-        { text: 'Priority support', included: true },
-        { text: 'Staff training sessions', included: false }
+        { text: 'Priority support', included: true }
+      ],
+      buttonText: 'Start Free Trial',
+      buttonLink: '/subscriptions',
+      popular: false,
+      badge: null,
+      savings: null
+    },
+    {
+      title: 'Annual Plan',
+      originalPrice: '₹11,988',
+      price: '₹9,999',
+      period: '/year',
+      description: 'Save 16.6% with annual billing',
+      features: [
+        { text: 'Everything in Monthly plan', included: true },
+        { text: 'Unlimited member profiles', included: true },
+        { text: 'Advanced class scheduling', included: true },
+        { text: 'Automated billing & invoicing', included: true },
+        { text: 'Multi-channel notifications (Email, SMS)', included: true },
+        { text: 'Advanced analytics dashboard', included: true },
+        { text: 'Mobile app & integrations', included: true },
+        { text: 'Personal training management', included: true },
+        { text: 'Custom reporting suite', included: true },
+        { text: 'API access', included: true },
+        { text: 'Priority support', included: true }
       ],
       buttonText: 'Start Free Trial',
       buttonLink: '/subscriptions',
       popular: true,
       badge: 'Most Popular',
-      savings: null
-    },
-    {
-      title: 'Enterprise Plan',
-      originalPrice: '₹2,000',
-      price: '₹2,000',
-      period: '/month',
-      description: 'For large gym chains and franchises',
-      features: [
-        { text: 'Everything in Professional plan', included: true },
-        { text: 'Multi-location management', included: true },
-        { text: 'Advanced automation workflows', included: true },
-        { text: 'Custom integrations & API', included: true },
-        { text: 'Advanced security features', included: true },
-        { text: 'Dedicated account manager', included: true },
-        { text: 'Staff training sessions', included: true },
-        { text: 'Custom feature development', included: true },
-        { text: 'White-label solutions', included: true },
-        { text: '24/7 priority support', included: true },
-        { text: 'SLA guarantees', included: true }
-      ],
-      buttonText: 'Contact Sales',
-      buttonLink: '/contact',
-      popular: false,
-      badge: 'Enterprise',
-      savings: null
+      savings: 'Save ₹1,989/year'
     }
   ];
 
@@ -916,7 +890,7 @@ const Home = () => {
                     >
                       Annual
                       <Badge className="absolute -top-1 -right-1 bg-green-500 text-white text-xs px-1.5 py-0.5 rounded-full">
-                        -15%
+                        -16.6%
                       </Badge>
                     </button>
                   </div>
@@ -924,7 +898,7 @@ const Home = () => {
               </div>
 
               {/* Pricing Cards */}
-              <div className="grid lg:grid-cols-2 gap-8 max-w-5xl mx-auto">
+              <div className="grid lg:grid-cols-1 gap-8 max-w-xl mx-auto">
                 {pricing.map((plan, index) => {
                   const isCurrentPlan = isYearly ? plan.title === 'Annual Plan' : plan.title === 'Monthly Plan';
                   
@@ -996,7 +970,7 @@ const Home = () => {
                           </p>
                         </CardHeader>
                         
-                        <CardContent className="px-8 pb-8">
+                        <CardContent className="px-6 pb-8">
                           <ul className="space-y-4 mb-8">
                             {plan.features.map((feature, featureIndex) => (
                               <li key={featureIndex} className="flex items-start gap-3">
@@ -1161,34 +1135,6 @@ const Home = () => {
                 </motion.div>
               ))}
             </div>
-
-            {/* Stats Section */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.3 }}
-              viewport={{ once: true }}
-              className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/50 dark:to-purple-950/50 rounded-3xl p-8 border border-blue-200 dark:border-blue-800"
-            >
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-                <div>
-                  <div className="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-2">500+</div>
-                  <div className="text-slate-600 dark:text-slate-400 font-medium">Active Gyms</div>
-                </div>
-                <div>
-                  <div className="text-3xl font-bold text-green-600 dark:text-green-400 mb-2">15K+</div>
-                  <div className="text-slate-600 dark:text-slate-400 font-medium">Members Managed</div>
-                </div>
-                <div>
-                  <div className="text-3xl font-bold text-purple-600 dark:text-purple-400 mb-2">₹25M+</div>
-                  <div className="text-slate-600 dark:text-slate-400 font-medium">Revenue Generated</div>
-                </div>
-                <div>
-                  <div className="text-3xl font-bold text-orange-600 dark:text-orange-400 mb-2">4.9/5</div>
-                  <div className="text-slate-600 dark:text-slate-400 font-medium">Customer Rating</div>
-                </div>
-              </div>
-            </motion.div>
           </div>
         </div>
       </section>

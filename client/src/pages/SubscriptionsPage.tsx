@@ -28,7 +28,7 @@ const pricing = [
   {
     title: 'Monthly',
     originalPrice: '₹600',
-    price: '₹600',
+    price: '₹999',
     period: '/month',
     description: 'Perfect for growing fitness businesses',
     features: [
@@ -50,10 +50,10 @@ const pricing = [
   },
   {
     title: 'Yearly',
-    originalPrice: '₹7,200',
-    price: '₹6,120',
+    originalPrice: '₹11988',
+    price: '₹9999',
     period: '/year',
-    description: 'Save 15% with annual billing',
+    description: 'Save 16.6% with annual billing',
     features: [
       { text: 'Unlimited members', included: true },
       { text: 'Advanced scheduling & automation', included: true },
@@ -70,7 +70,7 @@ const pricing = [
     buttonLink: '/signup',
     popular: true,
     badge: 'Most Popular',
-    savings: 'Save ₹1,080/year'
+    savings: 'Save ₹1,989/year'
   }
 ];
 
@@ -445,7 +445,7 @@ const SubscriptionsPage = () => {
               >
                 Yearly
                 <Badge className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-1.5 py-0.5">
-                  Save 15%
+                  Save 16.6%
                 </Badge>
               </button>
             </div>
