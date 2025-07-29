@@ -122,14 +122,12 @@ const Header: React.FC<HeaderProps> = ({ transparent = false }) => {
                           e.currentTarget.style.display = 'none';
                         }}
                       />
-                      <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white"></div>
                     </div>
                   ) : (
                     <div className="relative">
                       <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
                         <User className="w-4 h-4 text-white" />
                       </div>
-                      <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white"></div>
                     </div>
                   )}
                   

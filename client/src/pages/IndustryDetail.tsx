@@ -17,7 +17,8 @@ import {
   Zap,
   TrendingUp,
   Clock,
-  BarChart3
+  BarChart3,
+  Play
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -50,40 +51,40 @@ const gymData = {
   icon: <Dumbbell className="w-16 h-16 text-white" />,
   modules: [
     {
-      name: 'Workout Plan Builder',
+      name: 'Member Management',
       description:
-        'Create, customize, and assign personalized workout plans with exercise libraries and progress tracking.',
-      icon: <Dumbbell className="w-6 h-6 text-blue-600" />
+        'Complete member lifecycle from onboarding to renewal. Track attendance, manage members with renewal features.',
+      icon: <Users className="w-6 h-6 text-blue-600" />
     },
     {
-      name: 'Trainer Management',
+      name: 'Class & Session Booking',
       description:
-        'Manage trainer schedules, specializations, client assignments, and performance analytics.',
-      icon: <Users className="w-6 h-6 text-green-600" />
+        'Comprehensive booking system for classes, personal training sessions, and gym facilities with real-time availability tracking.',
+      icon: <Calendar className="w-6 h-6 text-green-600" />
     },
     {
-      name: 'Class Scheduling',
+      name: 'Billing & Payments',
       description:
-        'Advanced class scheduling with capacity management, waitlists, and automated notifications.',
-      icon: <Calendar className="w-6 h-6 text-purple-600" />
+        'Automated billing, invoice generation, payment tracking, and membership plan management with flexible pricing.',
+      icon: <CreditCard className="w-6 h-6 text-purple-600" />
     },
     {
-      name: 'Member Check-In System',
+      name: 'Analytics & Reports',
       description:
-        'QR code check-ins, attendance tracking, and real-time gym capacity monitoring.',
-      icon: <Target className="w-6 h-6 text-orange-600" />
+        'Comprehensive analytics dashboard with revenue insights, member insights, and performance metrics for data-driven decisions.',
+      icon: <BarChart3 className="w-6 h-6 text-orange-600" />
     },
     {
-      name: 'Equipment Management',
+      name: 'Communication Hub',
       description:
-        'Track equipment usage, maintenance schedules, and member equipment preferences.',
-      icon: <Award className="w-6 h-6 text-pink-600" />
+        'Multi-channel communication with email, SMS, and WhatsApp notifications for member engagement and marketing campaigns.',
+      icon: <Target className="w-6 h-6 text-pink-600" />
     },
     {
-      name: 'Nutrition Tracking',
+      name: 'Personal Training',
       description:
-        'Integrated nutrition planning and tracking tools for comprehensive member wellness.',
-      icon: <BarChart3 className="w-6 h-6 text-indigo-600" />
+        'Complete personal training management with trainer assignments, session tracking, and progress monitoring.',
+      icon: <Dumbbell className="w-6 h-6 text-indigo-600" />
     }
   ],
   benefits: [
@@ -97,48 +98,84 @@ const gymData = {
 
 const coreFeatures = [
   {
-    name: 'Smart Member Management',
+    name: 'Member Management',
     description:
-      'Comprehensive member profiles with visit history, preferences, payment status, and automated communications.',
+      'Complete member lifecycle from onboarding to renewal. Track attendance, manage members with renewal features.',
     icon: <Users className="w-5 h-5 text-blue-600" />
   },
   {
-    name: 'Intelligent Booking System',
+    name: 'Class & Session Booking',
     description:
-      'AI-powered scheduling with calendar integration, automatic reminders, and conflict resolution.',
+      'Comprehensive booking system for classes, personal training sessions, and gym facilities with real-time availability tracking.',
     icon: <Calendar className="w-5 h-5 text-green-600" />
   },
   {
-    name: 'Automated Billing & Invoices',
+    name: 'Billing & Payments',
     description:
-      'Recurring billing, payment tracking, financial reporting, and integrated payment processing.',
+      'Automated billing, invoice generation, payment tracking, and membership plan management with flexible pricing.',
     icon: <CreditCard className="w-5 h-5 text-purple-600" />
   },
   {
-    name: 'Advanced Analytics Dashboard',
+    name: 'Analytics & Reports',
     description:
-      'Real-time business insights, member analytics, revenue tracking, and predictive reports.',
+      'Comprehensive analytics dashboard with revenue insights, member insights, and performance metrics for data-driven decisions.',
     icon: <BarChart3 className="w-5 h-5 text-orange-600" />
   },
   {
-    name: 'Multi-Channel Communications',
+    name: 'Communication Hub',
     description:
-      'Automated email, SMS, and push notifications for bookings, payments, and marketing campaigns.',
+      'Multi-channel communication with email, SMS, and WhatsApp notifications for member engagement and marketing campaigns.',
     icon: <Sparkles className="w-5 h-5 text-pink-600" />
   },
   {
-    name: 'Mobile App Integration',
+    name: 'Personal Training',
     description:
-      'Native mobile apps for members and staff with offline capabilities and real-time sync.',
-    icon: <Shield className="w-5 h-5 text-indigo-600" />
+      'Complete personal training management with trainer assignments, session tracking, and progress monitoring.',
+    icon: <Dumbbell className="w-5 h-5 text-indigo-600" />
+  },
+  {
+    name: 'Staff Management',
+    description:
+      'Manage gym staff, trainers, and employees with role-based access control and performance tracking.',
+    icon: <Users className="w-5 h-5 text-cyan-600" />
+  },
+  {
+    name: 'Attendance Tracking',
+    description:
+      'QR code-based attendance system with real-time check-ins and comprehensive attendance reports.',
+    icon: <Target className="w-5 h-5 text-emerald-600" />
+  },
+  {
+    name: 'Nutrition Plans',
+    description:
+      'AI-powered nutrition planning and meal tracking for comprehensive member wellness management.',
+    icon: <Heart className="w-5 h-5 text-red-600" />
+  },
+  {
+    name: 'Workout Plans',
+    description:
+      'Create and assign personalized workout plans with exercise libraries and progress monitoring.',
+    icon: <Timer className="w-5 h-5 text-violet-600" />
+  },
+  {
+    name: 'Lead Management',
+    description:
+      'Track potential members, manage inquiries, and convert leads into active gym memberships.',
+    icon: <TrendingUp className="w-5 h-5 text-yellow-600" />
+  },
+  {
+    name: 'Expense Tracking',
+    description:
+      'Monitor gym expenses, track operational costs, and maintain financial records for better business insights.',
+    icon: <BarChart3 className="w-5 h-5 text-teal-600" />
   }
 ];
 
 const stats = [
-  { number: '500+', label: 'Gyms Using MuscleCRM', icon: Dumbbell },
-  { number: '50K+', label: 'Active Members', icon: Users },
-  { number: '99.9%', label: 'Uptime Guarantee', icon: Shield },
-  { number: '24/7', label: 'Support Available', icon: Clock }
+  { number: '500+', label: 'Active Gyms', icon: Dumbbell },
+  { number: '100K+', label: 'Members Added', icon: Users },
+  { number: '95%', label: 'Member Retention', icon: Shield },
+  { number: '10K+', label: 'Invoices Generated', icon: Clock }
 ];
 
 const pricing = [
@@ -214,7 +251,7 @@ const IndustryDetail: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+    <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950">
       <Header />
       {/* Free Trial Dialog (shared) */}
       <AlertDialog open={showFreeTrialDialog} onOpenChange={setShowFreeTrialDialog}>
@@ -265,211 +302,280 @@ const IndustryDetail: React.FC = () => {
         </AlertDialogContent>
       </AlertDialog>
       {/* Hero Section */}
-      <section className={`pt-20 ${gymData.color} relative overflow-hidden`}>
-        <div className="container px-4 py-20 mx-auto sm:px-6 lg:px-8 sm:py-28">
-          <div className="grid items-center gap-12 lg:grid-cols-2">
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6 }}
-            >
-              <Badge className="mb-6 bg-white/20 text-white border-white/30">
-                <Award className="w-4 h-4 mr-2" />
-                Industry Leading Solution
-              </Badge>
-              <div className="flex items-center gap-4 mb-6">
-                <div className="flex items-center justify-center w-20 h-20 rounded-2xl bg-white/20 backdrop-blur-sm shadow-xl">
-                  {gymData.icon}
-                </div>
-                <div>
-                  <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-5xl">
-                    {gymData.title}
-                  </h1>
-                  <p className="text-lg text-white/90 mt-2 font-medium">
-                    {gymData.subtitle}
-                  </p>
-                </div>
-              </div>
-              <p className="max-w-2xl text-lg text-white/90 leading-relaxed mb-8">
-                {gymData.description}
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
-                {gymData.benefits.slice(0, 4).map((benefit, index) => (
-                  <div key={index} className="flex items-center gap-2 text-white/90">
-                    <Check className="w-5 h-5 text-white flex-shrink-0" />
-                    <span className="text-sm font-medium">{benefit}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Button
-                  size="lg"
-                  variant="secondary"
-                  onClick={handleFreeTrialClick}
-                  className="bg-white text-primary hover:bg-white/90 px-8 py-3 text-lg font-semibold shadow-xl"
-                >
-                  Start Free Trial
-                  <ArrowRight className="w-5 h-5 ml-2" />
-                </Button>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="border-white/30 text-white bg-white/10 px-8 py-3 text-lg"
-                  asChild
-                >
-                  <Link to="/contact">
-                    Schedule Demo
-                    <Calendar className="w-5 h-5 ml-2" />
-                  </Link>
-                </Button>
-              </div>
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="relative"
-            >
-              <Card className="w-full h-[500px] bg-white/10 backdrop-blur-sm border-white/20 shadow-2xl overflow-hidden">
-                <CardContent className="p-8 h-full flex flex-col justify-center">
-                  <div className="text-center text-white">
-                    <div className="mb-6">
-                      <Dumbbell className="w-24 h-24 mx-auto mb-4 opacity-80" />
-                      <h3 className="text-2xl font-bold mb-2">Dashboard Preview</h3>
-                      <p className="text-white/80">Powerful analytics and insights</p>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div className="bg-white/10 rounded-lg p-4">
-                        <div className="text-2xl font-bold">2,847</div>
-                        <div className="text-white/70">Active Members</div>
-                      </div>
-                      <div className="bg-white/10 rounded-lg p-4">
-                        <div className="text-2xl font-bold">94%</div>
-                        <div className="text-white/70">Retention Rate</div>
-                      </div>
-                      <div className="bg-white/10 rounded-lg p-4">
-                        <div className="text-2xl font-bold">₹8.4L</div>
-                        <div className="text-white/70">Monthly Revenue</div>
-                      </div>
-                      <div className="bg-white/10 rounded-lg p-4">
-                        <div className="text-2xl font-bold">156</div>
-                        <div className="text-white/70">Classes This Week</div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <div className="absolute -top-4 -right-4 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
-              <div className="absolute -bottom-4 -left-4 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
-            </motion.div>
-          </div>
+      <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-slate-50 via-white to-blue-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-blue-950/30">
+        {/* Subtle background elements */}
+        <div className="absolute inset-0">
+          {/* Soft geometric patterns */}
+          <div className="absolute top-20 left-20 w-32 h-32 bg-gradient-to-br from-blue-500/5 to-indigo-500/5 rounded-3xl rotate-12"></div>
+          <div className="absolute top-40 right-32 w-24 h-24 bg-gradient-to-br from-purple-500/5 to-pink-500/5 rounded-full"></div>
+          <div className="absolute bottom-32 left-1/4 w-40 h-40 bg-gradient-to-br from-green-500/5 to-emerald-500/5 rounded-2xl -rotate-12"></div>
+          
+          {/* Subtle grid overlay */}
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#334155_1px,transparent_1px),linear-gradient(to_bottom,#334155_1px,transparent_1px)] bg-[size:80px_80px] opacity-10 [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]"></div>
         </div>
-        {/* Background decoration */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute w-[800px] h-[800px] rounded-full bg-white/5 -right-[200px] -top-[200px] blur-3xl"></div>
-          <div className="absolute w-[600px] h-[600px] rounded-full bg-white/5 -left-[100px] -bottom-[200px] blur-3xl"></div>
+
+        <div className="container relative z-10 px-6 py-16 mx-auto">
+          <div className="max-w-6xl mx-auto">
+            {/* Main content in a unique layout */}
+            <div className="grid lg:grid-cols-5 gap-12 items-center">
+              {/* Left column - Main content (3 columns) */}
+              <motion.div
+                initial={{ opacity: 0, x: -30 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.8, delay: 0.2 }}
+                className="lg:col-span-3"
+              >
+                <div className="space-y-8">
+                  {/* Industry badge */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6 }}
+                    className="inline-flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 rounded-full border border-blue-200 dark:border-blue-700"
+                  >
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                    <span className="text-blue-700 dark:text-blue-300 font-semibold">Industry Leading Solution</span>
+                  </motion.div>
+
+                  {/* Main headline with icon */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8, delay: 0.1 }}
+                    className="space-y-6"
+                  >
+                    <div className="flex items-center gap-6">
+                      <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center shadow-xl">
+                        {gymData.icon}
+                      </div>
+                      <div>
+                        <h1 className="text-2xl md:text-3xl lg:text-4xl font-black text-slate-900 dark:text-white leading-tight">
+                          {gymData.title}
+                        </h1>
+                        <p className="text-xl text-slate-600 dark:text-slate-300 mt-2 font-medium">
+                          {gymData.subtitle}
+                        </p>
+                      </div>
+                    </div>
+                  </motion.div>
+
+                  {/* Description */}
+                  <motion.p
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8, delay: 0.3 }}
+                    className="text-xl text-slate-600 dark:text-slate-300 leading-relaxed"
+                  >
+                    {gymData.description}
+                  </motion.p>
+                  
+                  {/* Benefits in a unique horizontal layout */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8, delay: 0.4 }}
+                    className="grid grid-cols-2 gap-4"
+                  >
+                    {gymData.benefits.slice(0, 4).map((benefit, index) => (
+                      <motion.div
+                        key={index}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.6, delay: 0.5 + index * 0.1 }}
+                        className="flex items-center gap-3 p-4 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm rounded-xl border border-slate-200/60 dark:border-slate-700/60 hover:bg-white/80 dark:hover:bg-slate-800/80 transition-all duration-300 shadow-sm hover:shadow-md"
+                      >
+                        <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <Check className="w-4 h-4 text-white" />
+                        </div>
+                        <span className="text-slate-700 dark:text-slate-200 font-medium text-sm">{benefit}</span>
+                      </motion.div>
+                    ))}
+                  </motion.div>
+
+                  {/* Action buttons */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8, delay: 0.6 }}
+                    className="flex flex-col sm:flex-row gap-4"
+                  >
+                    <Button
+                      size="lg"
+                      onClick={handleFreeTrialClick}
+                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 text-lg font-bold rounded-2xl shadow-xl hover:shadow-blue-500/25 transition-all duration-300 group"
+                    >
+                      <ArrowRight className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
+                      Start Free Trial
+                    </Button>
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      className="border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 px-8 py-4 text-lg font-bold rounded-2xl transition-all duration-300 group"
+                      asChild
+                    >
+                      <Link to="/contact">
+                        <Calendar className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
+                        Schedule Demo
+                      </Link>
+                    </Button>
+                  </motion.div>
+                </div>
+              </motion.div>
+
+              {/* Right column - Stats showcase (2 columns) */}
+              <motion.div
+                initial={{ opacity: 0, x: 30 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.8, delay: 0.4 }}
+                className="lg:col-span-2 space-y-6"
+              >
+                {/* Main stats card */}
+                <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-3xl border border-slate-200/60 dark:border-slate-700/60 p-8 shadow-xl">
+                  <div className="text-center mb-6">
+                    <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Trusted by Fitness Leaders</h3>
+                    <p className="text-slate-600 dark:text-slate-300">Join thousands of successful businesses</p>
+                  </div>
+                  
+                  {/* Stats grid */}
+                  <div className="grid grid-cols-2 gap-4">
+                    {stats.map((stat, index) => (
+                      <motion.div
+                        key={stat.label}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6, delay: 0.7 + index * 0.1 }}
+                        className="text-center p-4 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-700/50 dark:to-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-600 hover:shadow-md transition-all duration-300"
+                      >
+                        <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center mx-auto mb-3">
+                          <stat.icon className="w-5 h-5 text-white" />
+                        </div>
+                        <div className="text-2xl font-bold text-slate-900 dark:text-white mb-1">{stat.number}</div>
+                        <div className="text-slate-600 dark:text-slate-300 text-sm font-medium">{stat.label}</div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Trust indicators */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, delay: 0.8 }}
+                  className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/30 rounded-2xl border border-green-200 dark:border-green-700 p-6"
+                >
+                  <div className="flex flex-col gap-4 text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <Check className="w-5 h-5 text-green-600 dark:text-green-400" />
+                      <span className="font-semibold text-green-700 dark:text-green-300">7-day free trial</span>
+                    </div>
+                    <div className="flex items-center justify-center gap-2">
+                      <Shield className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                      <span className="font-semibold text-blue-700 dark:text-blue-300">No credit card required</span>
+                    </div>
+                    <div className="flex items-center justify-center gap-2">
+                      <Zap className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                      <span className="font-semibold text-purple-700 dark:text-purple-300">5-minute setup</span>
+                    </div>
+                  </div>
+                </motion.div>
+              </motion.div>
+            </div>
+          </div>
         </div>
       </section>
       {/* Stats Section */}
-      <section className="py-16 bg-muted/30">
-        <div className="container px-4 mx-auto sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
-            {stats.map((stat, index) => (
+      <section className="py-24 bg-white dark:bg-slate-900">
+        <div className="container px-6 mx-auto">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-16">
+              <h2 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white mb-4">
+                Trusted by Fitness Leaders
+              </h2>
+              <p className="text-lg text-slate-600 dark:text-slate-300">
+                Join thousands of successful fitness businesses worldwide
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+              {stats.map((stat, index) => (
+                <motion.div
+                  key={stat.label}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: index * 0.1 }}
+                  viewport={{ once: true }}
+                  className="group"
+                >
+                  <div className="relative bg-slate-50 dark:bg-slate-800 rounded-2xl p-6 border border-slate-200/50 dark:border-slate-700/50 hover:shadow-lg transition-all duration-300 group-hover:-translate-y-1">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform duration-300">
+                      <stat.icon className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="text-3xl font-black text-slate-900 dark:text-white mb-1">
+                      {stat.number}
+                    </div>
+                    <div className="text-slate-600 dark:text-slate-300 font-medium">
+                      {stat.label}
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+      {/* Features Section */}
+      <section className="py-24 bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-950">
+        <div className="container px-6 mx-auto">
+          <div className="max-w-7xl mx-auto">
+            {/* Header */}
+            <div className="text-center mb-20">
               <motion.div
-                key={stat.label}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8 }}
+                viewport={{ once: true }}
+              >
+                <Badge className="mb-6 bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-blue-200 dark:border-blue-800 px-4 py-2">
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Complete Solution
+                </Badge>
+                <h2 className="text-4xl md:text-5xl font-black text-slate-900 dark:text-white mb-6">
+                  <span className="block">Everything You Need,</span>
+                  <span className="block text-transparent bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text">
+                    All in One Place
+                  </span>
+                </h2>
+                <p className="text-xl text-slate-600 dark:text-slate-300 max-w-4xl mx-auto leading-relaxed">
+                  A comprehensive CRM solution specifically designed for your gym business needs.
+                </p>
+              </motion.div>
+            </div>
+          </div>
+          <div className="grid gap-8 lg:grid-cols-2 xl:grid-cols-3">
+            {/* All Features */}
+            {coreFeatures.map((feature, index) => (
+              <motion.div
+                key={feature.name}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: index * 0.1 }}
                 viewport={{ once: true }}
-                className="text-center"
               >
-                <div className="flex justify-center mb-4">
-                  <div className="flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/30">
-                    <stat.icon className="w-8 h-8 text-primary" />
-                  </div>
-                </div>
-                <div className="text-3xl font-bold text-foreground">{stat.number}</div>
-                <div className="text-sm text-muted-foreground">{stat.label}</div>
+                <Card className="border-0 shadow-lg bg-gradient-to-r from-background to-muted/30 hover:shadow-xl transition-all duration-300 h-full">
+                  <CardContent className="p-6">
+                    <div className="flex items-start gap-4">
+                      <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-primary/30 flex-shrink-0">
+                        {feature.icon}
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-lg mb-2">{feature.name}</h4>
+                        <p className="text-muted-foreground leading-relaxed">{feature.description}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </motion.div>
             ))}
-          </div>
-        </div>
-      </section>
-      {/* What's Included Section */}
-      <section className="py-20 bg-background">
-        <div className="container px-4 mx-auto sm:px-6 lg:px-8">
-          <div className="max-w-4xl mx-auto mb-16 text-center">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              viewport={{ once: true }}
-            >
-              <Badge className="mb-4 bg-gradient-to-r from-blue-100 to-blue-200 text-blue-700">
-                <Zap className="w-4 h-4 mr-2" />
-                Complete Solution
-              </Badge>
-              <h2 className="text-4xl font-bold tracking-tight sm:text-5xl bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
-                Everything You Need, All in One Place
-              </h2>
-              <p className="mt-6 text-xl text-muted-foreground">
-                A comprehensive CRM solution specifically designed for your gym business needs.
-              </p>
-            </motion.div>
-          </div>
-          <div className="grid gap-16 lg:grid-cols-2">
-            {/* Core Features */}
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6 }}
-              viewport={{ once: true }}
-            >
-              <h3 className="mb-8 text-2xl font-bold">Core CRM Features</h3>
-              <div className="space-y-6">
-                {coreFeatures.map((feature) => (
-                  <Card key={feature.name} className="border-0 shadow-lg bg-gradient-to-r from-background to-muted/30 hover:shadow-xl transition-all duration-300">
-                    <CardContent className="p-6">
-                      <div className="flex items-start gap-4">
-                        <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-primary/30 flex-shrink-0">
-                          {feature.icon}
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-lg mb-2">{feature.name}</h4>
-                          <p className="text-muted-foreground leading-relaxed">{feature.description}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </motion.div>
-            {/* Gym-Specific Modules */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6 }}
-              viewport={{ once: true }}
-            >
-              <h3 className="mb-8 text-2xl font-bold">Gym-Specific Modules</h3>
-              <div className="space-y-6">
-                {gymData.modules.map((module) => (
-                  <Card key={module.name} className="border-0 shadow-lg bg-gradient-to-r from-primary/5 to-primary/10 hover:shadow-xl transition-all duration-300">
-                    <CardContent className="p-6">
-                      <div className="flex items-start gap-4">
-                        <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-primary/30 flex-shrink-0">
-                          {module.icon}
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-lg mb-2">{module.name}</h4>
-                          <p className="text-muted-foreground leading-relaxed">{module.description}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </motion.div>
           </div>
         </div>
       </section>
@@ -740,39 +846,46 @@ const IndustryDetail: React.FC = () => {
         </div>
       </section>
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-r from-primary via-primary to-primary/90 relative overflow-hidden">
-        <div className="container relative z-10 px-4 mx-auto sm:px-6 lg:px-8">
+      <section className="py-20 bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-blue-950">
+        <div className="container px-6 mx-auto">
           <div className="max-w-4xl mx-auto text-center">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
               viewport={{ once: true }}
+              className="space-y-8"
             >
-              <Badge className="mb-6 bg-white/20 text-white border-white/30">
-                <TrendingUp className="w-4 h-4 mr-2" />
-                Join the Success Story
-              </Badge>
-              <h2 className="text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl">
-                Ready to Transform Your Gym?
-              </h2>
-              <p className="mt-6 text-xl text-white/90 max-w-3xl mx-auto">
-                Join hundreds of successful gym businesses that trust MuscleCRM to streamline operations and accelerate growth.
-              </p>
-              <div className="flex flex-col justify-center gap-4 mt-10 sm:flex-row">
+              {/* Badge */}
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-sm font-medium">
+                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                Ready to get started?
+              </div>
+
+              {/* Main content */}
+              <div className="space-y-6">
+                <h2 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white">
+                  Ready to Transform Your Gym?
+                </h2>
+                <p className="text-xl text-slate-600 dark:text-slate-300 max-w-2xl mx-auto">
+                  Join hundreds of successful gym businesses that trust MuscleCRM to streamline operations and accelerate growth.
+                </p>
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button
                   size="lg"
-                  variant="secondary"
                   onClick={handleFreeTrialClick}
-                  className="bg-white text-primary hover:bg-white/90 px-8 py-4 text-lg font-semibold shadow-xl"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
                 >
-                  Start Your Free Trial
+                  Start Free Trial
                   <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
                 <Button
                   size="lg"
                   variant="outline"
-                  className="border-white/30 text-white bg-white/10 px-8 py-4 text-lg font-semibold"
+                  className="border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 px-8 py-4 text-lg font-semibold rounded-xl transition-all duration-300"
                   asChild
                 >
                   <Link to="/contact">
@@ -781,28 +894,24 @@ const IndustryDetail: React.FC = () => {
                   </Link>
                 </Button>
               </div>
-              {/* Trust indicators */}
-              <div className="flex flex-col items-center gap-4 mt-10 sm:flex-row sm:justify-center">
-                <div className="flex items-center gap-2 text-white/80">
-                  <Check className="w-5 h-5" />
-                  <span>Free 7-day trial</span>
+
+              {/* Simple trust indicators */}
+              <div className="flex flex-wrap justify-center gap-8 text-sm text-slate-500 dark:text-slate-400 pt-8">
+                <div className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-green-500" />
+                  <span>7-day free trial</span>
                 </div>
-                <div className="flex items-center gap-2 text-white/80">
-                  <Check className="w-5 h-5" />
-                  <span>Setup in under 30 minutes</span>
+                <div className="flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-blue-500" />
+                  <span>No credit card required</span>
                 </div>
-                <div className="flex items-center gap-2 text-white/80">
-                  <Check className="w-5 h-5" />
-                  <span>Cancel anytime</span>
+                <div className="flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-purple-500" />
+                  <span>5-minute setup</span>
                 </div>
               </div>
             </motion.div>
           </div>
-        </div>
-        {/* Background decoration */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute w-[800px] h-[800px] rounded-full bg-white/5 -right-[200px] -top-[200px] blur-3xl"></div>
-          <div className="absolute w-[600px] h-[600px] rounded-full bg-white/5 -left-[100px] -bottom-[200px] blur-3xl"></div>
         </div>
       </section>
       <Footer />
