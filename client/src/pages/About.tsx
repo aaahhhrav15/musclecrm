@@ -15,15 +15,43 @@ import {
   CheckCircle,
   Building,
   Clock,
-  Dumbbell
+  Dumbbell,
+  Check
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
+import axiosInstance from '@/lib/axios';
+import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
 
 const About: React.FC = () => {
+  const { isAuthenticated } = useAuth();
+  const { toast } = useToast();
+  const [showFreeTrialDialog, setShowFreeTrialDialog] = React.useState(false);
+  const [isLoadingTrial, setIsLoadingTrial] = React.useState(false);
+
+  // Shared handler for all free trial buttons
+  const handleFreeTrialClick = () => {
+    if (!isAuthenticated) {
+      window.location.href = '/login';
+      return;
+    }
+    setShowFreeTrialDialog(true);
+  };
+
   const stats = [
     { 
       number: '10,000+', 
@@ -150,6 +178,55 @@ const About: React.FC = () => {
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
       <Header />
       
+      {/* Free Trial Dialog */}
+      <AlertDialog open={showFreeTrialDialog} onOpenChange={setShowFreeTrialDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Start Free Trial?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to start your 7-day free trial? This can only be used once per gym.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isLoadingTrial}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isLoadingTrial}
+              onClick={async () => {
+                setIsLoadingTrial(true);
+                try {
+                  const response = await axiosInstance.post('/gym/start-free-trial');
+                  if (response.data.success) {
+                    toast({
+                      title: 'Free Trial Started',
+                      description: 'Your free trial is now active!',
+                    });
+                    setShowFreeTrialDialog(false);
+                    window.location.reload();
+                  } else {
+                    toast({
+                      title: 'Error',
+                      description: response.data.message || 'Could not start free trial',
+                      variant: 'destructive',
+                    });
+                  }
+                } catch (error: unknown) {
+                  const err = error as { response?: { data?: { message?: string } } };
+                  toast({
+                    title: 'Error',
+                    description: err?.response?.data?.message || 'Could not start free trial',
+                    variant: 'destructive',
+                  });
+                } finally {
+                  setIsLoadingTrial(false);
+                }
+              }}
+            >
+              {isLoadingTrial ? 'Starting...' : 'Start Free Trial'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Hero Section */}
       <section className="relative overflow-hidden pt-24 pb-12">
         {/* Animated background elements */}
@@ -458,55 +535,68 @@ const About: React.FC = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-24 bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-700 relative overflow-hidden">
-        {/* Background decoration */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -top-20 -right-20 w-80 h-80 bg-white/10 rounded-full blur-3xl"></div>
-          <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-white/10 rounded-full blur-3xl"></div>
-        </div>
-
-        <div className="container relative z-10 px-4 mx-auto sm:px-6 lg:px-8">
+      <section className="py-20 bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-blue-950">
+        <div className="container px-6 mx-auto">
           <div className="max-w-4xl mx-auto text-center">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
               viewport={{ once: true }}
+              className="space-y-8"
             >
-              <Badge className="mb-8 bg-white/20 text-white border-white/30 backdrop-blur-sm">
-                <Dumbbell className="w-4 h-4 mr-2" />
-                Join Our Mission
-              </Badge>
-              
-              <h2 className="text-4xl font-bold text-white mb-6 sm:text-5xl">
-                Ready to Transform Your
-                <br />
-                Fitness Business?
-              </h2>
-              
-              <p className="text-xl text-white/90 mb-10 leading-relaxed max-w-3xl mx-auto">
-                Join thousands of fitness professionals who've already transformed their businesses with MuscleCRM. 
-                Start your journey today and see why we're the trusted choice for fitness management worldwide.
-              </p>
-              
+              {/* Badge */}
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-sm font-medium">
+                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                Ready to get started?
+              </div>
+
+              {/* Main content */}
+              <div className="space-y-6">
+                <h2 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white">
+                  Ready to Transform Your Fitness Business?
+                </h2>
+                <p className="text-xl text-slate-600 dark:text-slate-300 max-w-2xl mx-auto">
+                  Join thousands of fitness professionals who've already transformed their businesses with MuscleCRM. 
+                  Start your journey today and see why we're the trusted choice for fitness management worldwide.
+                </p>
+              </div>
+
+              {/* Action buttons */}
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button 
-                  size="lg" 
-                  className="bg-white text-blue-600 hover:bg-white/90 px-8 py-4 text-lg font-semibold shadow-xl hover:shadow-2xl transition-all duration-200 group"
-                  onClick={() => window.location.href = '/signup'}
+                <Button
+                  size="lg"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+                  onClick={handleFreeTrialClick}
                 >
                   Start Free Trial
-                  <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
-                
-                <Button 
-                  size="lg" 
-                  className="bg-white/10 text-white border-white/30 hover:bg-white/20 px-8 py-4 text-lg font-semibold backdrop-blur-sm group"
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 px-8 py-4 text-lg font-semibold rounded-xl transition-all duration-300"
                   onClick={() => window.location.href = '/contact'}
                 >
                   Contact Us
-                  <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
+              </div>
+
+              {/* Simple trust indicators */}
+              <div className="flex flex-wrap justify-center gap-8 text-sm text-slate-500 dark:text-slate-400 pt-8">
+                <div className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-green-500" />
+                  <span>7-day free trial</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-blue-500" />
+                  <span>No credit card required</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-purple-500" />
+                  <span>5-minute setup</span>
+                </div>
               </div>
             </motion.div>
           </div>
