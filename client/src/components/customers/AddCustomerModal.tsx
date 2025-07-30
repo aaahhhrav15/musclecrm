@@ -471,6 +471,7 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                         onChange={(e) => {
                           field.onChange(e.target.value);
                         }}
+                        onWheel={(e) => (e.target as HTMLInputElement).blur()}
                       />
                     </FormControl>
                     <FormMessage />
@@ -494,6 +495,7 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                         onChange={(e) => {
                           field.onChange(e.target.value);
                         }}
+                        onWheel={(e) => (e.target as HTMLInputElement).blur()}
                       />
                     </FormControl>
                     <FormMessage />
@@ -516,6 +518,7 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                         onChange={(e) => {
                           field.onChange(e.target.value);
                         }}
+                        onWheel={(e) => (e.target as HTMLInputElement).blur()}
                       />
                     </FormControl>
                     <FormMessage />

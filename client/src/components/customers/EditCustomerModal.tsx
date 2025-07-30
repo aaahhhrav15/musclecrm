@@ -502,6 +502,7 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
                         onChange={(e) => {
                           field.onChange(e.target.value);
                         }}
+                        onWheel={(e) => (e.target as HTMLInputElement).blur()}
                       />
                     </FormControl>
                     <FormMessage />
@@ -525,6 +526,7 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
                         onChange={(e) => {
                           field.onChange(e.target.value);
                         }}
+                        onWheel={(e) => (e.target as HTMLInputElement).blur()}
                       />
                     </FormControl>
                     <FormMessage />
@@ -548,6 +550,7 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
                         onChange={(e) => {
                           field.onChange(e.target.value);
                         }}
+                        onWheel={(e) => (e.target as HTMLInputElement).blur()}
                       />
                     </FormControl>
                     <FormMessage />
