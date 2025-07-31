@@ -480,6 +480,7 @@ export const RenewMembershipModal: React.FC<RenewMembershipModalProps> = ({
                         <SelectItem value="card">Card</SelectItem>
                         <SelectItem value="upi">UPI</SelectItem>
                         <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
