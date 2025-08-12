@@ -393,12 +393,12 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen, setIsOpen }
             <Link to="/" className="flex items-center group" onClick={handleSidebarLinkClick}>
               <motion.div
                 whileHover={{ scale: 1.05 }}
-                className="flex items-center"
+                className="flex items-center gap-3"
               >
-                <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/70 rounded-lg flex items-center justify-center mr-3 shadow-lg">
-                  <span className="text-white font-bold text-sm">M</span>
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg">
+                  <Dumbbell className="w-5 h-5 text-white" />
                 </div>
-                <h2 className="text-xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                <h2 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                   MuscleCRM
                 </h2>
               </motion.div>

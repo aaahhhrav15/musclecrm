@@ -1,7 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { 
-  Dumbbell, 
   Mail, 
   Phone, 
   MapPin, 
@@ -18,7 +17,8 @@ import {
   MessageCircle,
   Shield,
   Zap,
-  CheckCircle2
+  CheckCircle2,
+  Dumbbell
 } from 'lucide-react';
 
 const Footer: React.FC = () => {
@@ -33,7 +33,7 @@ const Footer: React.FC = () => {
             {/* Company Info */}
             <div className="lg:col-span-2">
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-300 bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg">
                   <Dumbbell className="w-6 h-6 text-white" />
                 </div>
                 <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700 bg-clip-text text-transparent">
