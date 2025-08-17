@@ -31,7 +31,7 @@ const apiKeySchema = new mongoose.Schema({
   permissions: {
     type: [String],
     enum: ['accountability_create', 'accountability_read', 'accountability_update', 'accountability_delete', 'results_create', 'results_read', 'results_update', 'results_delete'],
-    default: ['accountability_create', 'accountability_read', 'results_create', 'results_read']
+    default: ['accountability_create', 'accountability_read', 'accountability_update', 'accountability_delete', 'results_create', 'results_read', 'results_update', 'results_delete']
   },
   rateLimit: {
     requestsPerHour: {
