@@ -35,6 +35,9 @@ const personalTrainingRoutes = require('./routes/personalTraining');
 const paymentRoutes = require('./routes/payment');
 const subscriptionPlansRoutes = require('./routes/subscriptionPlans');
 const contactRoutes = require('./routes/contact');
+const accountabilityRoutes = require('./routes/accountability');
+const resultsRoutes = require('./routes/results');
+const apiKeysRoutes = require('./routes/apiKeys');
 
 const auth = require('./middleware/auth');
 const checkSubscription = require('./middleware/checkSubscription');
@@ -147,7 +150,10 @@ app.use((req, res, next) => {
     '/api/auth',
     '/api/subscription-plans',
     '/api/subscriptions',
-    '/api/contact'
+    '/api/contact',
+    '/api/v1/accountability',  // Exclude accountability API from global auth
+    '/api/v1/results',        // Exclude results API from global auth
+    '/api/api-keys'           // Exclude API keys route from global auth
   ];
   if (excluded.some(path => req.path.startsWith(path))) {
     return next();
@@ -167,7 +173,10 @@ app.use((req, res, next) => {
     '/api/gym/settings',       // If you have a settings endpoint
     '/api/gym/info',           // If you have a gym info endpoint
     '/api/dashboard/settings', // If you have a dashboard settings endpoint
-    '/api/contact'             // Allow contact endpoint
+    '/api/contact',            // Allow contact endpoint
+    '/api/v1/accountability',  // Exclude accountability API from subscription check
+    '/api/v1/results',        // Exclude results API from subscription check
+    '/api/api-keys'           // Exclude API keys route from subscription check
   ];
   if (excluded.some(path => req.path.startsWith(path))) {
     return next();
@@ -203,6 +212,9 @@ app.use('/api/leads', leadsRouter);
 app.use('/api/personal-training', personalTrainingRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/subscription-plans', subscriptionPlansRoutes);
+app.use('/api/v1/accountability', accountabilityRoutes);
+app.use('/api/v1/results', resultsRoutes);
+app.use('/api/api-keys', apiKeysRoutes);
 
 
 // Root route
