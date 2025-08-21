@@ -40,9 +40,7 @@ import CreateWorkoutPlanPage from "./pages/workout-plans/CreateWorkoutPlanPage";
 import EditWorkoutPlanPage from "./pages/workout-plans/EditWorkoutPlanPage";
 import AssignWorkoutPlanPage from "./pages/workout-plans/AssignWorkoutPlanPage";
 import AssignedWorkoutPlansPage from "./pages/workout-plans/AssignedWorkoutPlansPage";
-import ServicesPage from "./pages/spa/ServicesPage";
-import RoomManagementPage from "./pages/hotel/RoomManagementPage";
-import MembershipsPage from "./pages/club/MembershipsPage";
+// Removed unused imports for non-existent demo pages
 
 // New Gym Module Pages
 import GymMembersPage from "./pages/gym/MembersPage";
@@ -64,6 +62,8 @@ import HealthAssessmentsPage from '@/pages/gym/HealthAssessmentsPage';
 import RetailSalesPage from './pages/gym/RetailSalesPage';
 import ExpensesPage from './pages/gym/ExpensesPage';
 import PersonalTrainingPage from './pages/gym/PersonalTrainingPage';
+import ProductsPage from './pages/gym/ProductsPage';
+import ViewProductPage from './pages/gym/ViewProductPage';
 
 // Create a React Query client
 const queryClient = new QueryClient({
@@ -132,6 +132,8 @@ const App = () => (
                     <Route path="/dashboard/gym/health-assessments" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><HealthAssessmentsPage /></ProtectedSubscriptionRoute>} />} />
                     <Route path="/dashboard/gym/expenses" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><ExpensesPage /></ProtectedSubscriptionRoute>} />} />
                     <Route path="/dashboard/gym/personal-training" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><PersonalTrainingPage /></ProtectedSubscriptionRoute>} />} />
+                    <Route path="/dashboard/gym/products" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><ProductsPage /></ProtectedSubscriptionRoute>} />} />
+                    <Route path="/dashboard/gym/products/:id" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><ViewProductPage /></ProtectedSubscriptionRoute>} />} />
                     
                     {/* Existing Gym Routes */}
                     <Route path="/dashboard/gym/trainers" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><TrainersPage /></ProtectedSubscriptionRoute>} />} />

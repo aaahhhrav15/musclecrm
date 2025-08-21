@@ -25,7 +25,8 @@ import {
   File,
   QrCode,
   Clock,
-  ChevronRight
+  ChevronRight,
+  Package
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -330,6 +331,7 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen, setIsOpen }
       { icon: <File className="w-5 h-5" />, label: 'Health Assessments', href: '/dashboard/gym/health-assessments' },
       { icon: <CalendarIcon className="w-5 h-5" />, label: 'Events & Workshops', href: '/dashboard/gym/events-workshops' },
       { icon: <DollarSign className="w-5 h-5" />, label: 'Retail Sales', href: '/dashboard/gym/retail-sales' },
+      { icon: <Package className="w-5 h-5" />, label: 'Products', href: '/dashboard/gym/products' },
       { icon: <DollarSign className="w-5 h-5" />, label: 'Expenses', href: '/dashboard/gym/expenses' },
       { icon: <FileText className="w-5 h-5" />, label: 'Waiver Forms', href: '/dashboard/gym/waiver-forms' }
     ];
