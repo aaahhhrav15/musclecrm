@@ -15,6 +15,13 @@ export interface Product {
   disclaimer?: string;
   storage?: string;
   shelfLife?: string;
+  customerId?: string;
+  customer?: {
+    _id: string;
+    name: string;
+    phone?: string;
+    email?: string;
+  };
   createdAt?: string;
   updatedAt?: string;
 }
@@ -33,7 +40,7 @@ export const ProductService = {
     return ApiService.put<{ success: boolean; data: Product }>(`/gym/products/${id}`, payload);
   },
   remove: async (id: string) => {
-    return ApiService.delete<{ success: boolean; data: {} }>(`/gym/products/${id}`);
+    return ApiService.delete<{ success: boolean; data: Record<string, never> }>(`/gym/products/${id}`);
   },
 };
 

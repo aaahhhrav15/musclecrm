@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Product, ProductService } from '@/services/ProductService';
+import { Customer, CustomerService } from '@/services/CustomerService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -41,8 +42,10 @@ const ProductsPage: React.FC = () => {
   const [maxPrice, setMaxPrice] = React.useState<string>('');
   const [sortBy, setSortBy] = React.useState<'name' | 'price' | 'createdAt'>('createdAt');
   const [sortDir, setSortDir] = React.useState<'asc' | 'desc'>('desc');
-  const [page, setPage] = React.useState(1);
-  const [rowsPerPage, setRowsPerPage] = React.useState(9);
+  const [selectedCustomer, setSelectedCustomer] = React.useState<string>('');
+  // Infinite scroll state
+  const [visibleCount, setVisibleCount] = React.useState(12);
+  const loadMoreRef = React.useRef<HTMLDivElement | null>(null);
   const [priceInput, setPriceInput] = React.useState<string>('0');
   const [editPriceInput, setEditPriceInput] = React.useState<string>('');
   const [formState, setFormState] = React.useState<Partial<Product>>({
@@ -58,17 +61,22 @@ const ProductsPage: React.FC = () => {
     manufacturedBy: '',
     disclaimer: '',
     storage: '',
-    shelfLife: ''
+    shelfLife: '',
+    customerId: 'none'
   });
 
   const { data, isLoading } = useQuery({ queryKey: ['products'], queryFn: ProductService.list });
+  const { data: customersData } = useQuery({ 
+    queryKey: ['customers'], 
+    queryFn: () => CustomerService.getCustomers({ limit: 1000 }) 
+  });
 
   const createMutation = useMutation({ mutationFn: ProductService.create as (p: Product) => Promise<{ success: boolean; data: Product }>, 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       toast({ title: 'Product created' });
       setIsOpen(false);
-      setFormState({ name: '', sku: '', price: 0, imageBase64: '' });
+      setFormState({ name: '', sku: '', price: 0, imageBase64: '', customerId: 'none' });
       setPriceInput('0');
     },
     onError: (err: unknown) => {
@@ -128,9 +136,10 @@ const ProductsPage: React.FC = () => {
       const matchesSearch = !s || p.name.toLowerCase().includes(s) || p.sku.toLowerCase().includes(s);
       const matchesMin = min === undefined || p.price >= min;
       const matchesMax = max === undefined || p.price <= max;
-      return matchesSearch && matchesMin && matchesMax;
+      const matchesCustomer = !selectedCustomer || p.customerId === selectedCustomer;
+      return matchesSearch && matchesMin && matchesMax && matchesCustomer;
     });
-  }, [products, search, minPrice, maxPrice]);
+  }, [products, search, minPrice, maxPrice, selectedCustomer]);
 
   const sorted = React.useMemo(() => {
     const arr = [...filtered];
@@ -144,20 +153,29 @@ const ProductsPage: React.FC = () => {
     return arr;
   }, [filtered, sortBy, sortDir]);
 
-  const total = sorted.length;
-  const totalPages = Math.max(1, Math.ceil(total / rowsPerPage));
-  const current = React.useMemo(() => {
-    const start = (page - 1) * rowsPerPage;
-    return sorted.slice(start, start + rowsPerPage);
-  }, [sorted, page, rowsPerPage]);
+  const itemsToRender = React.useMemo(() => sorted.slice(0, visibleCount), [sorted, visibleCount]);
 
+  // Reset visible count when filters/sorting change
   React.useEffect(() => {
-    setPage(1);
-  }, [search, minPrice, maxPrice, sortBy, sortDir, rowsPerPage]);
+    setVisibleCount(12);
+  }, [search, minPrice, maxPrice, sortBy, sortDir, selectedCustomer]);
+
+  // IntersectionObserver to load more when reaching the sentinel
+  React.useEffect(() => {
+    const node = loadMoreRef.current;
+    if (!node) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0]?.isIntersecting) {
+        setVisibleCount((c) => Math.min(c + 12, sorted.length));
+      }
+    }, { threshold: 1.0 });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [sorted.length]);
 
   const openEdit = (p: Product) => {
     setEditingProduct(p);
-    setFormState({ ...p });
+    setFormState({ ...p, customerId: p.customerId || 'none' });
     setEditPriceInput(String(p.price ?? ''));
     setIsEditOpen(true);
   };
@@ -176,6 +194,8 @@ const ProductsPage: React.FC = () => {
       name: p.name,
       sku: p.sku,
       price: p.price,
+      customer: p.customer ? p.customer.name : 'No customer',
+      customerPhone: p.customer ? p.customer.phone || 'No phone' : '',
       imageBase64: p.imageBase64,
       overview: p.overview || '',
       keyBenefits: (p.keyBenefits || []).join('|'),
@@ -245,6 +265,22 @@ const ProductsPage: React.FC = () => {
                 </div>
               </div>
               <div>
+                <label className="text-sm">Customer (Optional)</label>
+                <Select value={formState.customerId || 'none'} onValueChange={(value) => setFormState(p => ({ ...p, customerId: value === 'none' ? '' : value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a customer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No customer assigned</SelectItem>
+                    {customersData?.customers?.map((customer: Customer) => (
+                      <SelectItem key={customer.id} value={customer.id}>
+                        {customer.name} - {customer.phone || 'No phone'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
                 <label className="text-sm">Product Overview</label>
                 <Textarea value={formState.overview || ''} onChange={e => setFormState(p => ({ ...p, overview: e.target.value }))} />
               </div>
@@ -305,6 +341,19 @@ const ProductsPage: React.FC = () => {
               <div className="flex items-center gap-3 w-full md:w-auto">
                 <Input placeholder="Min Price" type="number" value={minPrice} onChange={e => setMinPrice(e.target.value)} className="w-32" />
                 <Input placeholder="Max Price" type="number" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} className="w-32" />
+                <Select value={selectedCustomer || 'all'} onValueChange={(value) => setSelectedCustomer(value === 'all' ? '' : value)}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Filter by customer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All customers</SelectItem>
+                    {customersData?.customers?.map((customer: Customer) => (
+                      <SelectItem key={customer.id} value={customer.id}>
+                        {customer.name} - {customer.phone || 'No phone'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <Select value={`${sortBy}:${sortDir}`} onValueChange={(v) => {
                   const [sb, sd] = v.split(':') as ['name' | 'price' | 'createdAt', 'asc' | 'desc'];
                   setSortBy(sb);
@@ -320,17 +369,6 @@ const ProductsPage: React.FC = () => {
                     <SelectItem value="name:desc">Name Z→A</SelectItem>
                     <SelectItem value="price:asc">Price Low→High</SelectItem>
                     <SelectItem value="price:desc">Price High→Low</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={rowsPerPage.toString()} onValueChange={v => setRowsPerPage(Number(v))}>
-                  <SelectTrigger className="w-28">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="6">6 / page</SelectItem>
-                    <SelectItem value="9">9 / page</SelectItem>
-                    <SelectItem value="12">12 / page</SelectItem>
-                    <SelectItem value="24">24 / page</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -351,7 +389,7 @@ const ProductsPage: React.FC = () => {
 
             <TabsContent value="grid">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {current.map((p) => (
+                {itemsToRender.map((p) => (
                   <Card key={p._id} className="border-0 shadow-lg">
                     <CardHeader className="flex flex-row items-center justify-between">
                       <CardTitle className="flex items-center gap-2">
@@ -380,10 +418,16 @@ const ProductsPage: React.FC = () => {
                         <img src={p.imageBase64} alt={p.name} className="w-full h-40 object-cover rounded" />
                       )}
                       <div className="mt-3 font-semibold">₹ {p.price.toFixed(2)}</div>
+                      {p.customer && (
+                        <div className="mt-2 text-sm text-muted-foreground">
+                          Customer: {p.customer.name} - {p.customer.phone || 'No phone'}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 ))}
               </div>
+              <div ref={loadMoreRef} className="h-8" />
             </TabsContent>
 
             <TabsContent value="table">
@@ -400,15 +444,22 @@ const ProductsPage: React.FC = () => {
                               Price <ArrowUpDown className="w-4 h-4" />
                             </button>
                           </TableHead>
+                          <TableHead>Customer</TableHead>
                           <TableHead>Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {current.map(p => (
+                        {itemsToRender.map(p => (
                           <TableRow key={p._id} className="hover:bg-muted/30">
                             <TableCell className="font-medium cursor-pointer" onClick={() => navigate(`/dashboard/gym/products/${p._id}`)}>{p.name}</TableCell>
                             <TableCell>{p.sku}</TableCell>
                             <TableCell>₹ {p.price.toFixed(2)}</TableCell>
+                            <TableCell>
+                              {p.customer ? 
+                                `${p.customer.name} - ${p.customer.phone || 'No phone'}` : 
+                                'No customer'
+                              }
+                            </TableCell>
                             <TableCell className="space-x-2">
                               <Button size="sm" variant="outline" onClick={() => navigate(`/dashboard/gym/products/${p._id}`)}>View</Button>
                               <Button size="sm" variant="outline" onClick={() => openEdit(p)}>
@@ -425,18 +476,10 @@ const ProductsPage: React.FC = () => {
                   </div>
                 </CardContent>
               </Card>
+              <div ref={loadMoreRef} className="h-8" />
             </TabsContent>
           </Tabs>
         )}
-
-        {/* Pagination */}
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">Page {page} of {totalPages}</div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>Prev</Button>
-            <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}>Next</Button>
-          </div>
-        </div>
 
         {/* Edit Dialog */}
         <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
@@ -469,6 +512,22 @@ const ProductsPage: React.FC = () => {
                   <label className="text-sm">Image</label>
                   <Input type="file" accept="image/*" onChange={handleFileChange} />
                 </div>
+              </div>
+              <div>
+                <label className="text-sm">Customer (Optional)</label>
+                <Select value={formState.customerId || 'none'} onValueChange={(value) => setFormState(p => ({ ...p, customerId: value === 'none' ? '' : value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a customer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No customer assigned</SelectItem>
+                    {customersData?.customers?.map((customer: Customer) => (
+                      <SelectItem key={customer.id} value={customer.id}>
+                        {customer.name} - {customer.phone || 'No phone'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <label className="text-sm">Product Overview</label>

@@ -56,6 +56,11 @@ const productSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  customerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Customer',
+    required: false
+  },
   gymId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Gym',
