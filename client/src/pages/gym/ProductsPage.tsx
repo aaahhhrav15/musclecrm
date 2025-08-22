@@ -227,9 +227,18 @@ const ProductsPage: React.FC = () => {
     return () => observer.disconnect();
   }, [sorted.length]);
 
+  // Ensure form state is properly set when edit dialog opens
+  React.useEffect(() => {
+    if (isEditOpen && editingProduct) {
+      const customerIdValue = editingProduct.customerId || 'none';
+      setFormState(prev => ({ ...prev, customerId: customerIdValue }));
+    }
+  }, [isEditOpen, editingProduct]);
+
   const openEdit = (p: Product) => {
     setEditingProduct(p);
-    setFormState({ ...p, customerId: p.customerId || 'none' });
+    const customerIdValue = p.customerId || 'none';
+    setFormState({ ...p, customerId: customerIdValue });
     setEditPriceInput(String(p.price ?? ''));
     setIsEditOpen(true);
   };
@@ -473,11 +482,13 @@ const ProductsPage: React.FC = () => {
                         <img src={p.imageBase64} alt={p.name} className="w-full h-40 object-cover rounded" />
                       )}
                       <div className="mt-3 font-semibold">₹ {p.price.toFixed(2)}</div>
-                      {p.customer && (
-                        <div className="mt-2 text-sm text-muted-foreground">
-                          Customer: {p.customer.name} - {p.customer.phone || 'No phone'}
-                        </div>
-                      )}
+                      <div className="mt-2 text-sm text-muted-foreground">
+                        {p.customer ? (
+                          <>Customer: {p.customer.name} - {p.customer.phone || 'No phone'}</>
+                        ) : (
+                          <span className="text-green-600 font-medium">✓ For Everyone</span>
+                        )}
+                      </div>
                     </CardContent>
                   </Card>
                 ))}
@@ -512,7 +523,7 @@ const ProductsPage: React.FC = () => {
                             <TableCell>
                               {p.customer ? 
                                 `${p.customer.name} - ${p.customer.phone || 'No phone'}` : 
-                                'No customer'
+                                <span className="text-green-600 font-medium">✓ For Everyone</span>
                               }
                             </TableCell>
                             <TableCell className="space-x-2">
