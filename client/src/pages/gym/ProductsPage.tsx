@@ -62,7 +62,7 @@ const ProductsPage: React.FC = () => {
     disclaimer: '',
     storage: '',
     shelfLife: '',
-    customerId: 'none'
+    customerId: undefined
   });
 
   const { data, isLoading } = useQuery({ queryKey: ['products'], queryFn: ProductService.list });
@@ -76,7 +76,7 @@ const ProductsPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       toast({ title: 'Product created' });
       setIsOpen(false);
-      setFormState({ name: '', sku: '', price: 0, imageBase64: '', customerId: 'none' });
+      setFormState({ name: '', sku: '', price: 0, imageBase64: '', customerId: undefined });
       setPriceInput('0');
     },
     onError: (err: unknown) => {
@@ -230,14 +230,38 @@ const ProductsPage: React.FC = () => {
   // Ensure form state is properly set when edit dialog opens
   React.useEffect(() => {
     if (isEditOpen && editingProduct) {
-      const customerIdValue = editingProduct.customerId || 'none';
+      // Handle customerId - if it's populated (object), extract the ID; if it's a string, use it; otherwise use 'none'
+      let customerIdValue = 'none';
+      if (editingProduct.customerId) {
+        if (typeof editingProduct.customerId === 'object' && editingProduct.customerId !== null) {
+          // It's a populated customer object, extract the ID
+          const customer = editingProduct.customerId as { _id: string };
+          customerIdValue = customer._id || 'none';
+        } else if (typeof editingProduct.customerId === 'string') {
+          // It's already a string ID
+          customerIdValue = editingProduct.customerId;
+        }
+      }
       setFormState(prev => ({ ...prev, customerId: customerIdValue }));
     }
   }, [isEditOpen, editingProduct]);
 
   const openEdit = (p: Product) => {
     setEditingProduct(p);
-    const customerIdValue = p.customerId || 'none';
+    
+    // Handle customerId - if it's populated (object), extract the ID; if it's a string, use it; otherwise use 'none'
+    let customerIdValue = 'none';
+    if (p.customerId) {
+      if (typeof p.customerId === 'object' && p.customerId !== null) {
+        // It's a populated customer object, extract the ID
+        const customer = p.customerId as { _id: string };
+        customerIdValue = customer._id || 'none';
+      } else if (typeof p.customerId === 'string') {
+        // It's already a string ID
+        customerIdValue = p.customerId;
+      }
+    }
+    
     setFormState({ ...p, customerId: customerIdValue });
     setEditPriceInput(String(p.price ?? ''));
     setIsEditOpen(true);
@@ -330,7 +354,7 @@ const ProductsPage: React.FC = () => {
               </div>
               <div>
                 <label className="text-sm">Customer (Optional)</label>
-                <Select value={formState.customerId || 'none'} onValueChange={(value) => setFormState(p => ({ ...p, customerId: value === 'none' ? '' : value }))}>
+                <Select value={formState.customerId || 'none'} onValueChange={(value) => setFormState(p => ({ ...p, customerId: value === 'none' ? undefined : value }))}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a customer" />
                   </SelectTrigger>
@@ -483,11 +507,17 @@ const ProductsPage: React.FC = () => {
                       )}
                       <div className="mt-3 font-semibold">₹ {p.price.toFixed(2)}</div>
                       <div className="mt-2 text-sm text-muted-foreground">
-                        {p.customer ? (
-                          <>Customer: {p.customer.name} - {p.customer.phone || 'No phone'}</>
-                        ) : (
-                          <span className="text-green-600 font-medium">✓ For Everyone</span>
-                        )}
+                        {(() => {
+                          // Check if customerId exists and has customer data
+                          if (p.customerId && typeof p.customerId === 'object' && p.customerId !== null) {
+                            const customer = p.customerId as { name: string; phone?: string };
+                            return <div>Customer: {customer.name} - {customer.phone || 'No phone'}</div>;
+                          } else if (p.customerId && typeof p.customerId === 'string') {
+                            return <div>Customer: ID {p.customerId} (Loading...)</div>;
+                          } else {
+                            return <span className="text-green-600 font-medium">✓ For Everyone</span>;
+                          }
+                        })()}
                       </div>
                     </CardContent>
                   </Card>
@@ -521,10 +551,17 @@ const ProductsPage: React.FC = () => {
                             <TableCell>{p.sku}</TableCell>
                             <TableCell>₹ {p.price.toFixed(2)}</TableCell>
                             <TableCell>
-                              {p.customer ? 
-                                `${p.customer.name} - ${p.customer.phone || 'No phone'}` : 
-                                <span className="text-green-600 font-medium">✓ For Everyone</span>
-                              }
+                              {(() => {
+                                // Check if customerId exists and has customer data
+                                if (p.customerId && typeof p.customerId === 'object' && p.customerId !== null) {
+                                  const customer = p.customerId as { name: string; phone?: string };
+                                  return `${customer.name} - ${customer.phone || 'No phone'}`;
+                                } else if (p.customerId && typeof p.customerId === 'string') {
+                                  return `ID ${p.customerId} (Loading...)`;
+                                } else {
+                                  return '✓ For Everyone';
+                                }
+                              })()}
                             </TableCell>
                             <TableCell className="space-x-2">
                               <Button size="sm" variant="outline" onClick={() => navigate(`/dashboard/gym/products/${p._id}`)}>View</Button>
@@ -582,7 +619,7 @@ const ProductsPage: React.FC = () => {
               </div>
               <div>
                 <label className="text-sm">Customer (Optional)</label>
-                <Select value={formState.customerId || 'none'} onValueChange={(value) => setFormState(p => ({ ...p, customerId: value === 'none' ? '' : value }))}>
+                <Select value={formState.customerId || 'none'} onValueChange={(value) => setFormState(p => ({ ...p, customerId: value === 'none' ? undefined : value }))}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a customer" />
                   </SelectTrigger>

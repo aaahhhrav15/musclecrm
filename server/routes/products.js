@@ -39,10 +39,18 @@ router.post('/', auth, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Missing required fields' });
     }
 
-    const product = new Product({
+    // Prepare product data, excluding undefined customerId
+    const productData = {
       ...req.body,
       gymId: req.user.gymId
-    });
+    };
+    
+    // Remove customerId if it's undefined
+    if (productData.customerId === undefined) {
+      delete productData.customerId;
+    }
+
+    const product = new Product(productData);
     await product.save();
     res.status(201).json({ success: true, data: product });
   } catch (error) {
@@ -57,11 +65,20 @@ router.post('/', auth, async (req, res) => {
 // Update product
 router.put('/:id', auth, async (req, res) => {
   try {
+    // Prepare update data, handling undefined customerId
+    const updateData = { ...req.body };
+    
+    // If customerId is undefined, set it to null to remove the reference
+    if (updateData.customerId === undefined) {
+      updateData.customerId = null;
+    }
+
     const updated = await Product.findOneAndUpdate(
       { _id: req.params.id, gymId: req.user.gymId },
-      req.body,
+      updateData,
       { new: true, runValidators: true }
-    );
+    ).populate('customerId', 'name phone email');
+    
     if (!updated) {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
