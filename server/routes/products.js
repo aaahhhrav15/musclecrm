@@ -6,9 +6,7 @@ const auth = require('../middleware/auth');
 // List products for gym
 router.get('/', auth, async (req, res) => {
   try {
-    const products = await Product.find({ gymId: req.user.gymId })
-      .populate('customerId', 'name phone email')
-      .sort({ createdAt: -1 });
+    const products = await Product.find({ gymId: req.user.gymId }).sort({ createdAt: -1 });
     res.json({ success: true, data: products });
   } catch (error) {
     console.error('Error fetching products:', error);
@@ -19,8 +17,7 @@ router.get('/', auth, async (req, res) => {
 // Get single product
 router.get('/:id', auth, async (req, res) => {
   try {
-    const product = await Product.findOne({ _id: req.params.id, gymId: req.user.gymId })
-      .populate('customerId', 'name phone email');
+    const product = await Product.findOne({ _id: req.params.id, gymId: req.user.gymId });
     if (!product) {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
@@ -34,7 +31,7 @@ router.get('/:id', auth, async (req, res) => {
 // Create product
 router.post('/', auth, async (req, res) => {
   try {
-    const { name, sku, price, imageBase64, customerId } = req.body;
+    const { name, sku, price, imageBase64 } = req.body;
     if (!name || !sku || typeof price !== 'number' || !imageBase64) {
       return res.status(400).json({ success: false, message: 'Missing required fields' });
     }

@@ -109,11 +109,65 @@ const ProductsPage: React.FC = () => {
     }
   });
 
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d')!;
+      const img = new Image();
+      
+      img.onload = () => {
+        // Calculate new dimensions (max 800x800)
+        const maxSize = 800;
+        let { width, height } = img;
+        
+        if (width > height) {
+          if (width > maxSize) {
+            height = (height * maxSize) / width;
+            width = maxSize;
+          }
+        } else {
+          if (height > maxSize) {
+            width = (width * maxSize) / height;
+            height = maxSize;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Draw and compress
+        ctx.drawImage(img, 0, 0, width, height);
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8); // 80% quality
+        resolve(compressedDataUrl);
+      };
+      
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const dataUrl = await toDataUrl(file);
-    setFormState(prev => ({ ...prev, imageBase64: dataUrl }));
+    
+    // Check file size (10MB limit)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      toast({ 
+        title: 'File too large', 
+        description: 'Please select an image smaller than 10MB' 
+      });
+      return;
+    }
+    
+    try {
+      const compressedDataUrl = await compressImage(file);
+      setFormState(prev => ({ ...prev, imageBase64: compressedDataUrl }));
+    } catch (error) {
+      toast({ 
+        title: 'Error processing image', 
+        description: 'Please try a different image' 
+      });
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -262,6 +316,7 @@ const ProductsPage: React.FC = () => {
                 <div>
                   <label className="text-sm">Image</label>
                   <Input type="file" accept="image/*" onChange={handleFileChange} required />
+                  <p className="text-xs text-muted-foreground mt-1">Max size: 10MB. Images will be automatically compressed.</p>
                 </div>
               </div>
               <div>
@@ -511,6 +566,7 @@ const ProductsPage: React.FC = () => {
                 <div>
                   <label className="text-sm">Image</label>
                   <Input type="file" accept="image/*" onChange={handleFileChange} />
+                  <p className="text-xs text-muted-foreground mt-1">Max size: 10MB. Images will be automatically compressed.</p>
                 </div>
               </div>
               <div>

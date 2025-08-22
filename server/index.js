@@ -35,7 +35,6 @@ const personalTrainingRoutes = require('./routes/personalTraining');
 const paymentRoutes = require('./routes/payment');
 const subscriptionPlansRoutes = require('./routes/subscriptionPlans');
 const contactRoutes = require('./routes/contact');
-const productsRoutes = require('./routes/products');
 
 const auth = require('./middleware/auth');
 const checkSubscription = require('./middleware/checkSubscription');
@@ -48,10 +47,27 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Configure CORS
 app.use(cors({
-  origin: ['http://localhost:5173', 'https://MuscleCRM-ui-suite.vercel.app', 'https://www.musclecrm.com','https://musclecrm.com','http://musclecrm-frontend.s3-website.ap-south-1.amazonaws.com'], // Your frontend URL
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      'http://localhost:5173', 
+      'https://www.musclecrm.com',
+      'https://musclecrm.com',
+      'http://musclecrm-frontend.s3-website.ap-south-1.amazonaws.com'
+    ];
+    
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
+  optionsSuccessStatus: 200 // Some legacy browsers (IE11, various SmartTVs) choke on 204
 }));
 
 // Connect to MongoDB
@@ -204,7 +220,6 @@ app.use('/api/leads', leadsRouter);
 app.use('/api/personal-training', personalTrainingRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/subscription-plans', subscriptionPlansRoutes);
-app.use('/api/gym/products', productsRoutes);
 
 
 // Root route
@@ -215,6 +230,15 @@ app.get('/', (req, res) => {
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
+  
+  // Handle CORS errors
+  if (err.message === 'Not allowed by CORS') {
+    return res.status(403).json({
+      success: false,
+      message: 'CORS policy violation: Origin not allowed'
+    });
+  }
+  
   res.status(500).json({ 
     success: false,
     message: 'Something went wrong on the server' 
