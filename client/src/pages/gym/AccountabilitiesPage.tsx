@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Search, Filter, Calendar, User, Image as ImageIcon, RefreshCw, X } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { format } from 'date-fns';
 import { Modal } from '@/components/ui/modal';
 
 const AccountabilitiesPage: React.FC = () => {
@@ -108,7 +108,7 @@ const AccountabilitiesPage: React.FC = () => {
   // Format date
   const formatDate = (dateString: string) => {
     try {
-      return formatDistanceToNow(new Date(dateString), { addSuffix: true });
+      return format(new Date(dateString), 'MMM dd, yyyy');
     } catch {
       return 'Unknown date';
     }

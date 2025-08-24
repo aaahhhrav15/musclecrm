@@ -4,6 +4,7 @@ export interface Product {
   _id?: string;
   name: string;
   sku: string;
+  url: string;
   price: number;
   imageBase64: string; // data URL or base64
   overview?: string;

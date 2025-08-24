@@ -51,6 +51,7 @@ const ProductsPage: React.FC = () => {
   const [formState, setFormState] = React.useState<Partial<Product>>({
     name: '',
     sku: '',
+    url: '',
     price: 0,
     imageBase64: '',
     overview: '',
@@ -76,7 +77,7 @@ const ProductsPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       toast({ title: 'Product created' });
       setIsOpen(false);
-      setFormState({ name: '', sku: '', price: 0, imageBase64: '', customerId: undefined });
+      setFormState({ name: '', sku: '', url: '', price: 0, imageBase64: '', customerId: undefined });
       setPriceInput('0');
     },
     onError: (err: unknown) => {
@@ -173,7 +174,7 @@ const ProductsPage: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const parsedPrice = priceInput.trim() === '' ? NaN : parseFloat(priceInput);
-    if (!formState.name || !formState.sku || !formState.imageBase64 || !Number.isFinite(parsedPrice)) {
+    if (!formState.name || !formState.sku || !formState.url || !formState.imageBase64 || !Number.isFinite(parsedPrice)) {
       toast({ title: 'Please fill required fields' });
       return;
     }
@@ -280,6 +281,7 @@ const ProductsPage: React.FC = () => {
     const rows = sorted.map(p => ({
       name: p.name,
       sku: p.sku,
+      url: p.url || '',
       price: p.price,
       customer: p.customer ? p.customer.name : 'No customer',
       customerPhone: p.customer ? p.customer.phone || 'No phone' : '',
@@ -341,6 +343,16 @@ const ProductsPage: React.FC = () => {
                 <div>
                   <label className="text-sm">SKU</label>
                   <Input value={formState.sku || ''} onChange={e => setFormState(p => ({ ...p, sku: e.target.value }))} required />
+                </div>
+                <div>
+                  <label className="text-sm">Product URL</label>
+                  <Input 
+                    type="url" 
+                    value={formState.url || ''} 
+                    onChange={e => setFormState(p => ({ ...p, url: e.target.value }))} 
+                    placeholder="https://example.com/product"
+                    required 
+                  />
                 </div>
                 <div>
                   <label className="text-sm">Price</label>
@@ -595,7 +607,10 @@ const ProductsPage: React.FC = () => {
               if (!editingProduct?._id) return;
               const { _id, ...rest } = formState as Product;
               const parsedPrice = editPriceInput.trim() === '' ? NaN : parseFloat(editPriceInput);
-              if (!Number.isFinite(parsedPrice)) return;
+              if (!Number.isFinite(parsedPrice) || !formState.name || !formState.sku || !formState.url) {
+                toast({ title: 'Please fill required fields' });
+                return;
+              }
               updateMutation.mutate({ id: editingProduct._id, payload: { ...rest, price: parsedPrice } });
             }} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -606,6 +621,16 @@ const ProductsPage: React.FC = () => {
                 <div>
                   <label className="text-sm">SKU</label>
                   <Input value={formState.sku || ''} onChange={e => setFormState(p => ({ ...p, sku: e.target.value }))} required />
+                </div>
+                <div>
+                  <label className="text-sm">Product URL</label>
+                  <Input 
+                    type="url" 
+                    value={formState.url || ''} 
+                    onChange={e => setFormState(p => ({ ...p, url: e.target.value }))} 
+                    placeholder="https://example.com/product"
+                    required 
+                  />
                 </div>
                 <div>
                   <label className="text-sm">Price</label>
