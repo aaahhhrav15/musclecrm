@@ -8,7 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Edit, Trash2 } from 'lucide-react';
+import { Customer, CustomerService } from '@/services/CustomerService';
+import { useToast } from '@/hooks/use-toast';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { AxiosError } from 'axios';
 
@@ -24,11 +27,21 @@ const ViewProductPage: React.FC = () => {
   const { data, isLoading } = useQuery({ queryKey: ['product', id], queryFn: () => ProductService.get(id as string), enabled: Boolean(id) });
   const product = data?.data as any;
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [isEditOpen, setIsEditOpen] = React.useState(false);
   const [formState, setFormState] = React.useState<any>({});
+  const [editPriceInput, setEditPriceInput] = React.useState<string>('');
+
+  const { data: customersData } = useQuery({ 
+    queryKey: ['customers'], 
+    queryFn: () => CustomerService.getCustomers({ limit: 1000 }) 
+  });
 
   React.useEffect(() => {
-    if (product) setFormState(product);
+    if (product) {
+      setFormState(product);
+      setEditPriceInput(String(product.price ?? ''));
+    }
   }, [product]);
 
   const updateMutation = useMutation({ mutationFn: ({ id, payload }: { id: string; payload: any }) => ProductService.update(id, payload),
@@ -45,6 +58,27 @@ const ViewProductPage: React.FC = () => {
       window.history.back();
     }
   });
+
+  const toDataUrl = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        const dataUrl = await toDataUrl(file);
+        setFormState((p: any) => ({ ...p, imageBase64: dataUrl }));
+      } catch (error) {
+        toast({ title: 'Error', description: 'Failed to process image' });
+      }
+    }
+  };
 
   if (isLoading) return (
     <DashboardLayout>
@@ -120,7 +154,12 @@ const ViewProductPage: React.FC = () => {
             e.preventDefault();
             if (!id) return;
             const { _id, ...rest } = formState;
-            updateMutation.mutate({ id, payload: rest });
+            const parsedPrice = editPriceInput.trim() === '' ? NaN : parseFloat(editPriceInput);
+            if (!Number.isFinite(parsedPrice) || !formState.name || !formState.sku || !formState.url) {
+              toast({ title: 'Please fill required fields' });
+              return;
+            }
+            updateMutation.mutate({ id, payload: { ...rest, price: parsedPrice } });
           }} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -132,9 +171,40 @@ const ViewProductPage: React.FC = () => {
                 <Input value={formState.sku || ''} onChange={e => setFormState((p: any) => ({ ...p, sku: e.target.value }))} required />
               </div>
               <div>
-                <label className="text-sm">Price</label>
-                <Input type="number" step="0.01" value={formState.price ?? 0} onChange={e => setFormState((p: any) => ({ ...p, price: Number(e.target.value) }))} required />
+                <label className="text-sm">Product URL</label>
+                <Input 
+                  type="url" 
+                  value={formState.url || ''} 
+                  onChange={e => setFormState((p: any) => ({ ...p, url: e.target.value }))} 
+                  placeholder="https://example.com/product"
+                  required 
+                />
               </div>
+              <div>
+                <label className="text-sm">Price</label>
+                <Input type="number" step="0.01" value={editPriceInput} onChange={e => setEditPriceInput(e.target.value)} required />
+              </div>
+              <div>
+                <label className="text-sm">Image</label>
+                <Input type="file" accept="image/*" onChange={handleFileChange} />
+                <p className="text-xs text-muted-foreground mt-1">Max size: 10MB. Images will be automatically compressed.</p>
+              </div>
+            </div>
+            <div>
+              <label className="text-sm">Customer (Optional)</label>
+              <Select value={formState.customerId || 'none'} onValueChange={(value) => setFormState((p: any) => ({ ...p, customerId: value === 'none' ? undefined : value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a customer" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No customer assigned</SelectItem>
+                  {customersData?.customers?.map((customer: Customer) => (
+                    <SelectItem key={customer.id} value={customer.id}>
+                      {customer.name} - {customer.phone || 'No phone'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <label className="text-sm">Product Overview</label>
@@ -178,7 +248,7 @@ const ViewProductPage: React.FC = () => {
             </div>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="ghost" onClick={() => setIsEditOpen(false)}>Cancel</Button>
-              <Button type="submit">Save Changes</Button>
+              <Button type="submit" disabled={Boolean((updateMutation as { isPending?: boolean }).isPending)}>Save Changes</Button>
             </div>
           </form>
         </DialogContent>
