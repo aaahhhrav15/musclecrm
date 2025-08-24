@@ -36,6 +36,8 @@ const paymentRoutes = require('./routes/payment');
 const subscriptionPlansRoutes = require('./routes/subscriptionPlans');
 const contactRoutes = require('./routes/contact');
 const productsRoutes = require('./routes/products');
+const accountabilitiesRoutes = require('./routes/accountabilities');
+const resultsRoutes = require('./routes/results');
 
 const auth = require('./middleware/auth');
 const checkSubscription = require('./middleware/checkSubscription');
@@ -222,6 +224,8 @@ app.use('/api/personal-training', personalTrainingRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/subscription-plans', subscriptionPlansRoutes);
 app.use('/api/gym/products', productsRoutes);
+app.use('/api/gym/accountabilities', accountabilitiesRoutes);
+app.use('/api/gym/results', resultsRoutes);
 
 
 // Root route
