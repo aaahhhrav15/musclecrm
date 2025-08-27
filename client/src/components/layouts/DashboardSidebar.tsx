@@ -330,13 +330,13 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen, setIsOpen }
       { icon: <FileText className="w-5 h-5" />, label: 'Nutrition Plans', href: '/dashboard/gym/nutrition-plans' },
       { icon: <MessageSquare className="w-5 h-5" />, label: 'Member Communications', href: '/dashboard/gym/communications' },
       { icon: <File className="w-5 h-5" />, label: 'Health Assessments', href: '/dashboard/gym/health-assessments' },
+      { icon: <Target className="w-5 h-5" />, label: 'Accountabilities', href: '/dashboard/gym/accountabilities' },
+      { icon: <Target className="w-5 h-5" />, label: 'Results', href: '/dashboard/gym/results' },
+      { icon: <Package className="w-5 h-5" />, label: 'Products', href: '/dashboard/gym/products' },
       { icon: <CalendarIcon className="w-5 h-5" />, label: 'Events & Workshops', href: '/dashboard/gym/events-workshops' },
       { icon: <DollarSign className="w-5 h-5" />, label: 'Retail Sales', href: '/dashboard/gym/retail-sales' },
-      { icon: <Package className="w-5 h-5" />, label: 'Products', href: '/dashboard/gym/products' },
       { icon: <DollarSign className="w-5 h-5" />, label: 'Expenses', href: '/dashboard/gym/expenses' },
-      { icon: <FileText className="w-5 h-5" />, label: 'Waiver Forms', href: '/dashboard/gym/waiver-forms' },
-      { icon: <Target className="w-5 h-5" />, label: 'Accountabilities', href: '/dashboard/gym/accountabilities' },
-      { icon: <Target className="w-5 h-5" />, label: 'Results', href: '/dashboard/gym/results' }
+      { icon: <FileText className="w-5 h-5" />, label: 'Waiver Forms', href: '/dashboard/gym/waiver-forms' }
     ];
   };
 
