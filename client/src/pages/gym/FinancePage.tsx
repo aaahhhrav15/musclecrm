@@ -70,7 +70,6 @@ import { Calendar } from '@/components/ui/calendar';
 import { addMonths, startOfMonth, endOfMonth, isSameDay, isSameMonth, isWithinInterval } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import * as Papa from 'papaparse';
-import { PDFViewer, pdf } from '@react-pdf/renderer';
 import InvoicePDF from '@/components/invoices/InvoicePDF';
 import { useGym } from '@/context/GymContext';
 
@@ -212,7 +211,7 @@ const FinancePage: React.FC = () => {
       return;
     }
     try {
-      const blob = await pdf(<InvoicePDF invoice={{ ...invoice, gym }} />).toBlob();
+      const blob = await InvoiceService.downloadInvoice(invoiceId);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -884,9 +883,7 @@ const FinancePage: React.FC = () => {
               <button onClick={() => setIsPDFModalOpen(false)} className="text-gray-500 hover:text-gray-800">✕</button>
             </div>
             <div className="flex-1 overflow-auto">
-              <PDFViewer width="100%" height="100%">
-                <InvoicePDF invoice={pdfInvoice as Invoice} />
-              </PDFViewer>
+              <InvoicePDF invoice={pdfInvoice as Invoice} />
             </div>
           </div>
         </div>
