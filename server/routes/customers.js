@@ -403,7 +403,7 @@ router.put('/:id', async (req, res) => {
     const {
       name, email, phone, address, source, membershipType, membershipFees,
       membershipDuration, joinDate, membershipStartDate, membershipEndDate,
-      transactionDate, paymentMode, notes, birthday
+      transactionDate, paymentMode, notes, birthday, height, weight
     } = req.body;
 
     // Clear cache for this gym and specific customer
@@ -457,7 +457,9 @@ router.put('/:id', async (req, res) => {
       ...(membershipStartDate && { membershipStartDate }),
       ...(transactionDate && { transactionDate }),
       ...(paymentMode && { paymentMode }),
-      ...(notes !== undefined && { notes })
+      ...(notes !== undefined && { notes }),
+      ...(height !== undefined && { height }),
+      ...(weight !== undefined && { weight })
     };
 
     // **OPTIMIZATION: Auto-calculate membership end date when start date or duration changes**

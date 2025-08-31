@@ -86,6 +86,18 @@ const customerSchema = new mongoose.Schema({
   birthday: {
     type: Date
   },
+  height: {
+    type: Number,
+    min: 0,
+    max: 300, // Reasonable height range in cm
+    required: false
+  },
+  weight: {
+    type: Number,
+    min: 0,
+    max: 500, // Reasonable weight range in kg
+    required: false
+  },
   createdAt: {
     type: Date,
     default: Date.now

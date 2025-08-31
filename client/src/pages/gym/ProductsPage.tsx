@@ -53,7 +53,7 @@ const ProductsPage: React.FC = () => {
     sku: '',
     url: '',
     price: 0,
-    imageBase64: '',
+    imageUrl: '',
     overview: '',
     keyBenefits: [],
     fastFacts: '',
@@ -77,7 +77,7 @@ const ProductsPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       toast({ title: 'Product created' });
       setIsOpen(false);
-      setFormState({ name: '', sku: '', url: '', price: 0, imageBase64: '', customerId: undefined });
+      setFormState({ name: '', sku: '', url: '', price: 0, imageUrl: '', customerId: undefined });
       setPriceInput('0');
     },
     onError: (err: unknown) => {
@@ -150,19 +150,19 @@ const ProductsPage: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     
-    // Check file size (10MB limit)
-    const maxSize = 10 * 1024 * 1024; // 10MB
+    // Check file size (50MB limit)
+    const maxSize = 50 * 1024 * 1024; // 50MB
     if (file.size > maxSize) {
       toast({ 
         title: 'File too large', 
-        description: 'Please select an image smaller than 10MB' 
+        description: 'Please select an image smaller than 50MB' 
       });
       return;
     }
     
     try {
       const compressedDataUrl = await compressImage(file);
-      setFormState(prev => ({ ...prev, imageBase64: compressedDataUrl }));
+      setFormState(prev => ({ ...prev, imageUrl: compressedDataUrl }));
     } catch (error) {
       toast({ 
         title: 'Error processing image', 
@@ -174,7 +174,7 @@ const ProductsPage: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const parsedPrice = priceInput.trim() === '' ? NaN : parseFloat(priceInput);
-    if (!formState.name || !formState.sku || !formState.url || !formState.imageBase64 || !Number.isFinite(parsedPrice)) {
+    if (!formState.name || !formState.sku || !formState.url || !formState.imageUrl || !Number.isFinite(parsedPrice)) {
       toast({ title: 'Please fill required fields' });
       return;
     }
@@ -285,7 +285,7 @@ const ProductsPage: React.FC = () => {
       price: p.price,
       customer: p.customer ? p.customer.name : 'No customer',
       customerPhone: p.customer ? p.customer.phone || 'No phone' : '',
-      imageBase64: p.imageBase64,
+              imageUrl: p.imageUrl,
       overview: p.overview || '',
       keyBenefits: (p.keyBenefits || []).join('|'),
       fastFacts: p.fastFacts || '',
@@ -514,9 +514,9 @@ const ProductsPage: React.FC = () => {
                       </DropdownMenu>
                     </CardHeader>
                     <CardContent className="cursor-pointer" onClick={() => navigate(`/dashboard/gym/products/${p._id}`)}>
-                      {p.imageBase64 && (
-                        <img src={p.imageBase64} alt={p.name} className="w-full h-40 object-cover rounded" />
-                      )}
+                              {p.imageUrl && (
+          <img src={p.imageUrl} alt={p.name} className="w-full h-40 object-cover rounded" />
+        )}
                       <div className="mt-3 font-semibold">₹ {p.price.toFixed(2)}</div>
                       <div className="mt-2 text-sm text-muted-foreground">
                         {(() => {

@@ -245,6 +245,14 @@ export const ViewCustomerModal: React.FC<ViewCustomerModalProps> = ({
                       <p className="font-medium">{formatBirthday(customer.birthday)}</p>
                     </div>
                     <div>
+                      <p className="text-sm text-muted-foreground">Height</p>
+                      <p className="font-medium">{customer.height ? `${customer.height} cm` : 'Not provided'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Weight</p>
+                      <p className="font-medium">{customer.weight ? `${customer.weight} kg` : 'Not provided'}</p>
+                    </div>
+                    <div>
                       <p className="text-sm text-muted-foreground">Personal Trainer</p>
                       <div className="font-medium">
                         {customer.personalTrainer ? (

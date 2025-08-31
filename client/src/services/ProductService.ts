@@ -6,7 +6,7 @@ export interface Product {
   sku: string;
   url: string;
   price: number;
-  imageBase64: string; // data URL or base64
+  imageUrl: string; // S3 URL for the product image
   overview?: string;
   keyBenefits?: string[];
   fastFacts?: string;

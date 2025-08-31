@@ -18,6 +18,8 @@ export interface Customer {
   transactionDate: string;
   paymentMode: string;
   birthday?: string;
+  height?: number;
+  weight?: number;
   totalSpent: number;
   personalTrainer?: string | { _id: string; name: string; email?: string; phone?: string };
   createdAt: string;
@@ -77,6 +79,8 @@ interface ApiCustomersResponse extends ApiResponse {
     transactionDate: string;
     paymentMode: string;
     birthday?: string;
+    height?: number;
+    weight?: number;
     totalSpent: number;
     personalTrainer?: string | { _id: string; name: string; email?: string; phone?: string };
     createdAt: string;
@@ -104,6 +108,8 @@ interface ApiCustomerResponse extends ApiResponse {
     transactionDate: string;
     paymentMode: string;
     birthday?: string;
+    height?: number;
+    weight?: number;
     totalSpent: number;
     personalTrainer?: string | { _id: string; name: string; email?: string; phone?: string };
     createdAt: string;
@@ -147,6 +153,8 @@ export interface CustomerFormData {
   transactionDate: Date;
   paymentMode: 'cash' | 'card' | 'upi' | 'bank_transfer' | 'other';
   birthday?: Date;
+  height?: number;
+  weight?: number;
   totalSpent?: number;
   notes?: string;
 }
@@ -167,6 +175,8 @@ export interface CustomerApiUpdateData {
   transactionDate?: string;
   paymentMode?: 'cash' | 'card' | 'upi' | 'bank_transfer' | 'other';
   birthday?: string;
+  height?: number;
+  weight?: number;
   totalSpent?: number;
   notes?: string;
   isRenewal?: boolean; // Add this property for renewal flag
@@ -200,6 +210,8 @@ interface ApiCustomerData {
   transactionDate: string;
   paymentMode: string;
   birthday?: string;
+  height?: number;
+  weight?: number;
   totalSpent: number;
   personalTrainer?: string | { _id: string; name: string; email?: string; phone?: string };
   createdAt: string;
@@ -224,6 +236,8 @@ const mapCustomerFromApi = (apiCustomer: ApiCustomerData): Customer => ({
   transactionDate: apiCustomer.transactionDate,
   paymentMode: apiCustomer.paymentMode,
   birthday: apiCustomer.birthday,
+  height: apiCustomer.height,
+  weight: apiCustomer.weight,
   totalSpent: apiCustomer.totalSpent || 0,
   personalTrainer: apiCustomer.personalTrainer,
   createdAt: apiCustomer.createdAt,

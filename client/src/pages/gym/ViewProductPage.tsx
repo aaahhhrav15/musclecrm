@@ -73,7 +73,7 @@ const ViewProductPage: React.FC = () => {
     if (file) {
       try {
         const dataUrl = await toDataUrl(file);
-        setFormState((p: any) => ({ ...p, imageBase64: dataUrl }));
+        setFormState((p: any) => ({ ...p, imageUrl: dataUrl }));
       } catch (error) {
         toast({ title: 'Error', description: 'Failed to process image' });
       }
@@ -113,8 +113,8 @@ const ViewProductPage: React.FC = () => {
         </div>
         <div className="flex flex-col md:flex-row gap-6">
         <div className="md:w-1/2">
-          {product.imageBase64 && (
-            <img src={product.imageBase64} alt={product.name} className="w-full rounded shadow" />
+          {product.imageUrl && (
+            <img src={product.imageUrl} alt={product.name} className="w-full rounded shadow" />
           )}
         </div>
         <div className="md:w-1/2 space-y-4">

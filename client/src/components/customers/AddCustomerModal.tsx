@@ -209,6 +209,16 @@ const formSchema = z.object({
   paymentMode: z.enum(['cash', 'card', 'upi', 'bank_transfer', 'other']),
   notes: z.string().optional(),
   birthday: z.date().optional(),
+  height: z.string().refine((val) => {
+    if (val === '') return true; // Allow empty string
+    const num = parseFloat(val);
+    return !isNaN(num) && num >= 0 && num <= 300;
+  }, 'Height must be between 0 and 300 cm').optional(),
+  weight: z.string().refine((val) => {
+    if (val === '') return true; // Allow empty string
+    const num = parseFloat(val);
+    return !isNaN(num) && num >= 0 && num <= 500;
+  }, 'Weight must be between 0 and 500 kg').optional(),
 });
 
 interface AddCustomerModalProps {
@@ -242,7 +252,9 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
       transactionDate: new Date(),
       paymentMode: 'cash',
       notes: '',
-      birthday: undefined
+      birthday: undefined,
+      height: '',
+      weight: ''
     }
   });
 
@@ -294,7 +306,9 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
         paymentMode: values.paymentMode,
         totalSpent: membershipFees,
         notes: values.notes || '',
-        birthday: values.birthday
+        birthday: values.birthday,
+        height: values.height ? parseFloat(values.height) : undefined,
+        weight: values.weight ? parseFloat(values.weight) : undefined
       });
 
       if (response.success && response.customer) {
@@ -589,6 +603,34 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                         fromYear={1950}
                         toYear={new Date().getFullYear()}
                       />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="height"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Height (cm) - Optional</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="number" min="0" max="300" placeholder="e.g., 175" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="weight"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Weight (kg) - Optional</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="number" min="0" max="500" placeholder="e.g., 70" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

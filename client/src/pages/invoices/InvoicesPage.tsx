@@ -67,7 +67,6 @@ import * as Papa from 'papaparse';
 import { addMonths, startOfMonth, endOfMonth, isSameDay, isSameMonth, isWithinInterval } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { PDFDownloadLink, PDFViewer, pdf } from '@react-pdf/renderer';
 import InvoicePDF from '@/components/invoices/InvoicePDF';
 import { useGym } from '@/context/GymContext';
 
@@ -180,7 +179,14 @@ const InvoicesPage: React.FC = () => {
   }) || [];
 
   const createInvoiceMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: {
+      customerId: string;
+      items: Array<{ description: string; amount: number; quantity?: number; unitPrice?: number }>;
+      amount: number;
+      dueDate: string;
+      notes?: string;
+      paymentMode?: string;
+    }) => {
       console.log('Creating invoice with data:', data);
       try {
         const response = await axios.post(`${API_URL}/invoices`, {
@@ -236,7 +242,14 @@ const InvoicesPage: React.FC = () => {
     },
   });
 
-  const handleCreateInvoice = async (data: unknown) => {
+  const handleCreateInvoice = async (data: {
+    customerId: string;
+    items: Array<{ description: string; amount: number; quantity?: number; unitPrice?: number }>;
+    amount: number;
+    dueDate: string;
+    notes?: string;
+    paymentMode?: string;
+  }) => {
     console.log('handleCreateInvoice called with data:', data);
     try {
       await createInvoiceMutation.mutateAsync(data);
@@ -283,15 +296,10 @@ const InvoicesPage: React.FC = () => {
   };
 
   const handleDownloadInvoice = async (invoice: Invoice) => {
-    const blob = await pdf(<InvoicePDF invoice={{ ...invoice, gym }} />).toBlob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `invoice-${invoice.invoiceNumber}.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
+    // The new InvoicePDF component handles PDF generation internally
+    // Just open the invoice view modal
+    setPdfInvoice({ ...invoice, gym });
+    setIsPDFModalOpen(true);
   };
 
   const handleExport = () => {
@@ -879,10 +887,8 @@ const InvoicesPage: React.FC = () => {
               <h2 className="text-lg font-bold">Invoice Preview</h2>
               <button onClick={() => setIsPDFModalOpen(false)} className="text-gray-500 hover:text-gray-800">✕</button>
             </div>
-            <div className="flex-1 overflow-auto">
-              <PDFViewer width="100%" height="100%">
-                <InvoicePDF invoice={pdfInvoice as any} />
-              </PDFViewer>
+            <div className="flex-1 overflow-auto p-4">
+              <InvoicePDF invoice={pdfInvoice as Invoice & { gym: any }} />
             </div>
           </div>
         </div>

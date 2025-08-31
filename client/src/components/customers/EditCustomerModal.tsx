@@ -198,6 +198,16 @@ const formSchema = z.object({
   paymentMode: z.enum(['cash', 'card', 'upi', 'bank_transfer', 'other']),
   notes: z.string().optional(),
   birthday: z.date().optional(),
+  height: z.string().refine((val) => {
+    if (val === '') return true; // Allow empty string
+    const num = parseFloat(val);
+    return !isNaN(num) && num >= 0 && num <= 300;
+  }, 'Height must be between 0 and 300 cm').optional(),
+  weight: z.string().refine((val) => {
+    if (val === '') return true; // Allow empty string
+    const num = parseFloat(val);
+    return !isNaN(num) && num >= 0 && num <= 500;
+  }, 'Weight must be between 0 and 500 kg').optional(),
 });
 
 interface EditCustomerModalProps {
@@ -241,6 +251,8 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
       paymentMode: (customer.paymentMode as 'cash' | 'card' | 'upi' | 'bank_transfer' | 'other') || 'cash',
       notes: customer.notes || '',
       birthday: customer.birthday ? (typeof customer.birthday === 'string' ? new Date(customer.birthday) : customer.birthday) : undefined,
+      height: customer.height || '',
+      weight: customer.weight || '',
     }
   });
 
@@ -308,6 +320,8 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
         paymentMode: values.paymentMode,
         notes: values.notes || '',
         birthday: values.birthday ? values.birthday.toISOString() : undefined,
+        height: values.height || undefined,
+        weight: values.weight || undefined,
         totalSpent: membershipFees // Ensure totalSpent is included
       };
 
@@ -339,6 +353,8 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
             transactionDate: response.customer.transactionDate,
             paymentMode: response.customer.paymentMode,
             birthday: response.customer.birthday,
+            height: response.customer.height || '',
+            weight: response.customer.weight || '',
             totalSpent: response.customer.totalSpent || 0,
             createdAt: response.customer.createdAt,
             updatedAt: response.customer.updatedAt
@@ -605,6 +621,60 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
                         onChange={field.onChange}
                         placeholder="Pick join date"
                         className=""
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            
+            {/* Height and Weight Fields */}
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="height"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Height (cm)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        min="0" 
+                        max="300" 
+                        step="0.1" 
+                        placeholder="Enter height in cm" 
+                        {...field}
+                        value={field.value}
+                        onChange={(e) => {
+                          field.onChange(e.target.value);
+                        }}
+                        onWheel={(e) => (e.target as HTMLInputElement).blur()}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="weight"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Weight (kg)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        min="0" 
+                        max="500" 
+                        step="0.1" 
+                        placeholder="Enter weight in kg" 
+                        {...field}
+                        value={field.value}
+                        onChange={(e) => {
+                          field.onChange(e.target.value);
+                        }}
+                        onWheel={(e) => (e.target as HTMLInputElement).blur()}
                       />
                     </FormControl>
                     <FormMessage />

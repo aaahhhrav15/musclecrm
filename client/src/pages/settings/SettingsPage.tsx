@@ -222,7 +222,7 @@ const SettingsPage: React.FC = () => {
     if (file.size > maxSize) {
       toast({
         title: "File Too Large",
-        description: "Image size should be less than 5MB.",
+        description: "Image size should be less than 50MB.",
         variant: "destructive",
       });
       return;
@@ -970,7 +970,7 @@ const SettingsPage: React.FC = () => {
                   
                   <div className="mt-3 text-center">
                     <p className="text-xs text-muted-foreground">
-                      Maximum file size: 5MB
+                      Maximum file size: 50MB
                     </p>
                     <p className="text-xs text-muted-foreground">
                       Supported formats: JPEG, PNG, GIF, WebP

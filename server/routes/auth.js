@@ -8,6 +8,7 @@ const path = require('path');
 const fs = require('fs');
 const bcrypt = require('bcryptjs');
 const nodemailer = require('nodemailer');
+const s3Service = require('../services/s3Service');
 
 const router = express.Router();
 
@@ -48,7 +49,7 @@ const storage = multer.diskStorage({
 const upload = multer({ 
   storage: storage,
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
+    fileSize: 50 * 1024 * 1024 // 50MB limit
   },
   fileFilter: function (req, file, cb) {
     const filetypes = /jpeg|jpg|png|gif/;
@@ -81,7 +82,7 @@ const profileStorage = multer.diskStorage({
 const profileUpload = multer({
   storage: profileStorage,
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
+    fileSize: 50 * 1024 * 1024 // 50MB limit
   },
   fileFilter: function (req, file, cb) {
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
@@ -140,10 +141,27 @@ router.post('/register', async (req, res) => {
       // Generate a unique gym code
       const gymCode = await generateGymCode();
 
+      // Handle logo upload to S3 if provided
+      let logoUrl = null;
+      if (logo && logo.startsWith('data:image/')) {
+        try {
+          // Convert base64 to buffer
+          const base64Data = logo.split(',')[1];
+          const imageBuffer = Buffer.from(base64Data, 'base64');
+          
+          // Upload to S3
+          const uploadResult = await s3Service.uploadLogo(imageBuffer, 'gym-logo.png');
+          logoUrl = uploadResult.url;
+        } catch (error) {
+          console.error('Error uploading logo to S3:', error);
+          // Continue without logo if S3 upload fails
+        }
+      }
+
       const newGym = new Gym({
         gymCode,
         name: gymName,
-        logo: logo, // base64 string
+        logo: logoUrl, // S3 URL instead of base64
         address: parsedAddress,
         contactInfo: {
           phone: phone,

@@ -21,8 +21,8 @@ const productSchema = new mongoose.Schema({
     required: true,
     min: 0
   },
-  imageBase64: {
-    type: String, // expect data URL or raw base64 string
+  imageUrl: {
+    type: String, // S3 URL for the product image
     required: true
   },
   overview: {

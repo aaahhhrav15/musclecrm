@@ -1,7 +1,28 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const mongoose = require('mongoose');
 const Product = require('../models/Product');
 const auth = require('../middleware/auth');
+const s3Service = require('../services/s3Service');
+
+// Configure multer for product image uploads with 50MB limit
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB limit
+    files: 1, // Only one file at a time
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept only image files with specific MIME types
+    const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (allowedMimes.includes(file.mimetype.toLowerCase())) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed.'), false);
+    }
+  }
+});
 
 // List products for gym
 router.get('/', auth, async (req, res) => {
@@ -34,24 +55,103 @@ router.get('/:id', auth, async (req, res) => {
 // Create product
 router.post('/', auth, async (req, res) => {
   try {
-    const { name, sku, price, imageBase64, customerId } = req.body;
-    if (!name || !sku || typeof price !== 'number' || !imageBase64) {
-      return res.status(400).json({ success: false, message: 'Missing required fields' });
+    console.log('=== PRODUCT CREATION REQUEST ===');
+    console.log('Full request body:', JSON.stringify(req.body, null, 2));
+    console.log('Request headers:', req.headers);
+    console.log('User gymId:', req.user.gymId);
+    
+    const { name, sku, price, imageUrl, customerId, url } = req.body;
+    
+    console.log('Extracted fields:');
+    console.log('  - name:', name, 'type:', typeof name);
+    console.log('  - sku:', sku, 'type:', typeof sku);
+    console.log('  - price:', price, 'type:', typeof price);
+    console.log('  - imageUrl:', imageUrl ? 'present' : 'missing', 'type:', typeof imageUrl);
+    console.log('  - url:', url, 'type:', typeof url);
+    console.log('  - customerId:', customerId, 'type:', typeof customerId);
+    
+    // Check for required fields
+    const missingFields = [];
+    if (!name) missingFields.push('name');
+    if (!sku) missingFields.push('sku');
+    if (typeof price !== 'number') missingFields.push('price (must be number)');
+    if (!imageUrl) missingFields.push('image');
+    if (!url) missingFields.push('url');
+    
+    if (missingFields.length > 0) {
+      console.log('❌ Validation failed. Missing fields:', missingFields);
+      return res.status(400).json({ 
+        success: false, 
+        message: `Missing required fields: ${missingFields.join(', ')}`,
+        missingFields 
+      });
+    }
+    
+    console.log('✅ All required fields present');
+
+    // Handle image upload to S3
+    let finalImageUrl = null;
+    
+    if (imageUrl && imageUrl.startsWith('data:image/')) {
+      console.log('📸 Processing image (data URL)...');
+      try {
+        // Convert data URL to buffer
+        const base64Data = imageUrl.split(',')[1];
+        const imageBuffer = Buffer.from(base64Data, 'base64');
+        
+        // Upload to S3
+        const uploadResult = await s3Service.uploadProductImage(imageBuffer, 'product-image.png');
+        finalImageUrl = uploadResult.url;
+        console.log('✅ Image uploaded to S3:', finalImageUrl);
+      } catch (error) {
+        console.error('❌ Error uploading image to S3:', error);
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Error uploading image: ' + error.message 
+        });
+      }
+    } else if (imageUrl && imageUrl.startsWith('http')) {
+      console.log('📸 Using direct S3 URL:', imageUrl);
+      finalImageUrl = imageUrl;
+    } else {
+      console.log('❌ No valid image found');
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid image format. Please provide a valid image.' 
+      });
     }
 
-    // Prepare product data, excluding undefined customerId
+    // Prepare product data with S3 URL
     const productData = {
-      ...req.body,
+      name,
+      sku,
+      url,
+      price,
+      imageUrl: finalImageUrl,
+      overview: req.body.overview || '',
+      keyBenefits: req.body.keyBenefits || [],
+      fastFacts: req.body.fastFacts || '',
+      usage: req.body.usage || '',
+      marketedBy: req.body.marketedBy || '',
+      manufacturedBy: req.body.manufacturedBy || '',
+      disclaimer: req.body.disclaimer || '',
+      storage: req.body.storage || '',
+      shelfLife: req.body.shelfLife || '',
       gymId: req.user.gymId
     };
     
-    // Remove customerId if it's undefined
-    if (productData.customerId === undefined) {
-      delete productData.customerId;
+    // Add customerId if provided
+    if (customerId && customerId !== 'none') {
+      productData.customerId = customerId;
     }
+    
+    console.log('📦 Final product data:', JSON.stringify(productData, null, 2));
 
     const product = new Product(productData);
+    console.log('💾 Saving product to database...');
     await product.save();
+    console.log('✅ Product saved successfully with ID:', product._id);
+    console.log('✅ Final imageUrl:', product.imageUrl);
     res.status(201).json({ success: true, data: product });
   } catch (error) {
     if (error.code === 11000) {
@@ -68,9 +168,43 @@ router.put('/:id', auth, async (req, res) => {
     // Prepare update data, handling undefined customerId
     const updateData = { ...req.body };
     
-    // If customerId is undefined, set it to null to remove the reference
-    if (updateData.customerId === undefined) {
+    // Handle customerId properly - convert "none" to null and undefined to null
+    if (updateData.customerId === undefined || updateData.customerId === 'none' || updateData.customerId === '' || updateData.customerId === 'null') {
+      console.log('🔄 Converting customerId from', updateData.customerId, 'to null');
       updateData.customerId = null;
+    }
+    
+    // Validate customerId if it's provided (should be a valid ObjectId)
+    if (updateData.customerId && !mongoose.Types.ObjectId.isValid(updateData.customerId)) {
+      console.log('⚠️ Invalid customerId format provided:', updateData.customerId);
+      updateData.customerId = null;
+    }
+    
+    console.log('📝 Final updateData.customerId:', updateData.customerId);
+
+    // Handle image upload to S3 if a new image is provided
+    if (updateData.imageUrl && updateData.imageUrl.startsWith('data:image/')) {
+      console.log('📸 Processing new product image for update...');
+      try {
+        // Convert data URL to buffer
+        const base64Data = updateData.imageUrl.split(',')[1];
+        const imageBuffer = Buffer.from(base64Data, 'base64');
+        
+        // Upload to S3
+        const uploadResult = await s3Service.uploadProductImage(imageBuffer, 'product-image.png');
+        updateData.imageUrl = uploadResult.url;
+        console.log('✅ New product image uploaded to S3:', updateData.imageUrl);
+      } catch (error) {
+        console.error('❌ Error uploading new product image to S3:', error);
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Error uploading new image: ' + error.message 
+        });
+      }
+    } else if (updateData.imageUrl && !updateData.imageUrl.startsWith('http')) {
+      // If imageUrl is provided but not a valid URL or base64, remove it
+      console.log('⚠️ Invalid image format provided, removing imageUrl');
+      delete updateData.imageUrl;
     }
 
     const updated = await Product.findOneAndUpdate(

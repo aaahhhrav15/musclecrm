@@ -12,7 +12,7 @@ const gymSchema = new mongoose.Schema({
     required: true
   },
   logo: {
-    type: String, // Base64 string with MIME type (e.g., 'data:image/png;base64,...')
+    type: String, // S3 URL for the gym logo (e.g., 'https://bucket.s3.region.amazonaws.com/logos/logo-123.png')
     default: null
   },
   address: {

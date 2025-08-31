@@ -16,6 +16,8 @@ export const customerFormSchema = z.object({
   paymentMode: z.enum(['cash', 'card', 'upi', 'bank_transfer', 'other']),
   notes: z.string().optional(),
   birthday: z.date().optional(),
+  height: z.number().min(0).max(300).optional(), // Height in cm
+  weight: z.number().min(0).max(500).optional(), // Weight in kg
 });
 
 export type CustomerFormData = z.infer<typeof customerFormSchema>; 

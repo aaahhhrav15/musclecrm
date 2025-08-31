@@ -70,6 +70,17 @@ const Signup: React.FC = () => {
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Check file size (50MB limit)
+      const maxSize = 50 * 1024 * 1024; // 50MB
+      if (file.size > maxSize) {
+        toast({ 
+          title: 'File too large', 
+          description: 'Please select an image smaller than 50MB',
+          variant: 'destructive'
+        });
+        return;
+      }
+      
       form.setValue('logo', file);
       const reader = new FileReader();
       reader.onloadend = () => {
