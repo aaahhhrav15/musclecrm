@@ -63,7 +63,12 @@ interface Meal {
 
 export interface NutritionPlan {
   _id: string;
-  user_id: string;
+  user_id: {
+    _id: string;
+    name: string;
+    email?: string;
+    phone?: string;
+  };
   plan_name: string;
   total_calories: number;
   protein_target: number;
@@ -180,10 +185,34 @@ const NutritionPlansPage: React.FC = () => {
     return customer ? customer.name : 'Unknown User';
   };
 
+  // Helper function to safely get customer name from nutrition plan
+  const getCustomerName = (plan: NutritionPlan) => {
+    if (plan.user_id && typeof plan.user_id === 'object' && plan.user_id.name) {
+      return plan.user_id.name;
+    }
+    // Fallback to looking up by ID if user_id is a string
+    if (typeof plan.user_id === 'string') {
+      return getUserName(plan.user_id);
+    }
+    return 'Unknown User';
+  };
+
+  // Helper function to safely get customer ID from nutrition plan
+  const getCustomerId = (plan: NutritionPlan) => {
+    if (plan.user_id && typeof plan.user_id === 'object' && plan.user_id._id) {
+      return plan.user_id._id;
+    }
+    // Fallback to user_id if it's a string
+    if (typeof plan.user_id === 'string') {
+      return plan.user_id;
+    }
+    return '';
+  };
+
   // Enhanced filtering and sorting
   const filteredAndSortedPlans = React.useMemo(() => {
-    let filtered = plans.filter(plan => {
-      const userName = getUserName(plan.user_id).toLowerCase();
+    const filtered = plans.filter(plan => {
+      const userName = getCustomerName(plan).toLowerCase();
       const planName = plan.plan_name.toLowerCase();
       const query = searchQuery.toLowerCase();
       return userName.includes(query) || planName.includes(query);
@@ -315,7 +344,7 @@ const NutritionPlansPage: React.FC = () => {
   const handleEdit = (plan: NutritionPlan) => {
     setEditingPlan(plan);
     setFormData({
-      user_id: plan.user_id,
+      user_id: getCustomerId(plan),
       plan_name: plan.plan_name,
       total_calories: plan.total_calories.toString(),
       protein_target: plan.protein_target.toString(),
@@ -346,7 +375,7 @@ const NutritionPlansPage: React.FC = () => {
 
     const dataToExport = filteredAndSortedPlans.map(plan => ({
       "Plan Name": plan.plan_name,
-      "User": getUserName(plan.user_id),
+      "User": getCustomerName(plan),
       "Total Calories": plan.total_calories,
       "Protein Target": plan.protein_target,
       "Carbs Target": plan.carbs_target,
@@ -733,7 +762,7 @@ const NutritionPlansPage: React.FC = () => {
                         <CardTitle className="text-lg font-semibold line-clamp-1">{plan.plan_name}</CardTitle>
                         <div className="flex items-center gap-2">
                           <Badge variant="secondary" className="text-xs">
-                            {getUserName(plan.user_id)}
+                            {getCustomerName(plan)}
                           </Badge>
                           <span className="text-xs text-muted-foreground">
                             {new Date(plan.createdAt).toLocaleDateString()}
@@ -1172,7 +1201,7 @@ const NutritionPlansPage: React.FC = () => {
                 {selectedPlan && (
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span>User: {getUserName(selectedPlan.user_id)}</span>
+                      <span>User: {getCustomerName(selectedPlan)}</span>
                       <Badge variant="outline">{new Date(selectedPlan.createdAt).toLocaleDateString()}</Badge>
                     </div>
                   </div>

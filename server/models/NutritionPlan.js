@@ -18,7 +18,8 @@ const mealSchema = new mongoose.Schema({
 
 const nutritionPlanSchema = new mongoose.Schema({
   user_id: {
-    type: String,
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Customer',
     required: true
   },
   plan_name: {

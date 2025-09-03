@@ -17,6 +17,7 @@ try {
 exports.getAllNutritionPlans = async (req, res) => {
   try {
     const nutritionPlans = await NutritionPlan.find({ gymId: req.gymId })
+      .populate('user_id', 'name email phone')
       .sort({ createdAt: -1 });
     res.json({ success: true, nutritionPlans });
   } catch (error) {
@@ -168,7 +169,12 @@ exports.generateNutritionPlan = async (req, res) => {
       });
 
       const savedPlan = await nutritionPlan.save();
-      res.status(201).json({ success: true, nutritionPlan: savedPlan });
+      
+      // Populate the customer data before sending response
+      const populatedPlan = await NutritionPlan.findById(savedPlan._id)
+        .populate('user_id', 'name email phone');
+      
+      res.status(201).json({ success: true, nutritionPlan: populatedPlan });
     } catch (error) {
       console.error('Error in Gemini API call:', error);
       return res.status(500).json({ 
@@ -197,7 +203,12 @@ exports.createNutritionPlan = async (req, res) => {
       createdAt: new Date()
     });
     const savedPlan = await nutritionPlan.save();
-    res.status(201).json({ success: true, nutritionPlan: savedPlan });
+    
+    // Populate the customer data before sending response
+    const populatedPlan = await NutritionPlan.findById(savedPlan._id)
+      .populate('user_id', 'name email phone');
+    
+    res.status(201).json({ success: true, nutritionPlan: populatedPlan });
   } catch (error) {
     console.error('Error creating nutrition plan:', error);
     res.status(400).json({ 
@@ -219,10 +230,15 @@ exports.updateNutritionPlan = async (req, res) => {
     if (!nutritionPlan) {
       return res.status(404).json({ success: false, message: 'Nutrition plan not found' });
     }
-    res.json({ success: true, nutritionPlan });
+    
+    // Populate the customer data before sending response
+    const populatedPlan = await NutritionPlan.findById(nutritionPlan._id)
+      .populate('user_id', 'name email phone');
+    
+    res.json({ success: true, nutritionPlan: populatedPlan });
   } catch (error) {
     console.error('Error updating nutrition plan:', error);
-    res.status(400).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -249,7 +265,7 @@ exports.getNutritionPlan = async (req, res) => {
     const nutritionPlan = await NutritionPlan.findOne({
       _id: req.params.id,
       gymId: req.gymId
-    });
+    }).populate('user_id', 'name email phone');
     if (!nutritionPlan) {
       return res.status(404).json({ success: false, message: 'Nutrition plan not found' });
     }

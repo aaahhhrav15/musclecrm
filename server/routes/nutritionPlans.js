@@ -10,16 +10,7 @@ router.use(auth);
 router.use(gymAuth);
 
 // Get all nutrition plans for the gym
-router.get('/', async (req, res) => {
-  try {
-    const nutritionPlans = await NutritionPlan.find({ gymId: req.gymId })
-      .sort({ createdAt: -1 });
-    res.json({ success: true, nutritionPlans });
-  } catch (error) {
-    console.error('Error fetching nutrition plans:', error);
-    res.status(500).json({ success: false, message: 'Error fetching nutrition plans' });
-  }
-});
+router.get('/', nutritionPlanController.getAllNutritionPlans);
 
 // Generate nutrition plan using Gemini
 router.post('/gemini', nutritionPlanController.generateNutritionPlan);
