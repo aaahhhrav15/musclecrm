@@ -5,7 +5,7 @@ export interface Result {
   gymId: string;
   userId: string;
   description: string;
-  imageBase64?: string;
+  s3Key?: string; // S3 object key like folder/filename.jpg
   weight?: number;
   createdAt: string;
   updatedAt: string;

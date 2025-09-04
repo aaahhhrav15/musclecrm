@@ -124,9 +124,7 @@ invoiceSchema.pre('validate', async function(next) {
 });
 
 // Add indexes for common queries
-invoiceSchema.index({ userId: 1, createdAt: -1 });
 invoiceSchema.index({ gymId: 1 });
-invoiceSchema.index({ bookingId: 1 });
 invoiceSchema.index({ customerId: 1 });
 
 // **OPTIMIZATION: Add compound indexes for dashboard queries**

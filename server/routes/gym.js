@@ -8,8 +8,8 @@ const path = require('path');
 const fs = require('fs');
 const PDFDocument = require('pdfkit');
 const QRCode = require('qrcode');
-const sharp = require('sharp');
 const User = require('../models/User');
+const s3Service = require('../services/s3Service');
 
 // **OPTIMIZATION: In-memory cache for gym data**
 const gymCache = new Map();
@@ -215,11 +215,10 @@ router.get('/info', async (req, res) => {
 });
 
 // **OPTIMIZED: Update gym information with validation and caching**
-router.put('/info', upload.single('logo'), handleMulterError, async (req, res) => {
+router.put('/info', async (req, res) => {
   try {
     const gymId = req.gymId;
-    const { name, contactInfo, address } = req.body;
-    const logoFile = req.file;
+    const { name, contactInfo, address, logo, removeLogo } = req.body;
 
     // **OPTIMIZATION: Validate input data**
     if (name && typeof name !== 'string') {
@@ -268,39 +267,31 @@ router.put('/info', upload.single('logo'), handleMulterError, async (req, res) =
     if (parsedContactInfo) updateData.contactInfo = parsedContactInfo;
     if (parsedAddress) updateData.address = parsedAddress;
 
-    // Handle logo upload if provided
-    if (logoFile) {
+    // Handle logo upload to S3 if provided (like registration)
+    if (logo && logo.startsWith('data:image/')) {
       try {
-        console.log('Processing logo file:', logoFile.originalname, logoFile.mimetype, logoFile.size);
+        console.log('Processing base64 logo for S3 upload...');
         
-        // Process the uploaded image with better error handling
-        const processedImageBuffer = await sharp(logoFile.buffer)
-          .resize(300, 300, { 
-            fit: 'inside', 
-            withoutEnlargement: true,
-            background: { r: 255, g: 255, b: 255, alpha: 1 }
-          })
-          .png({ quality: 90 })
-          .toBuffer();
-
-        console.log('Image processed successfully, buffer size:', processedImageBuffer.length);
+        // Convert base64 to buffer
+        const base64Data = logo.split(',')[1];
+        const imageBuffer = Buffer.from(base64Data, 'base64');
         
-        // Convert to base64
-        const base64Logo = `data:image/png;base64,${processedImageBuffer.toString('base64')}`;
-        updateData.logo = base64Logo;
+        // Upload to S3
+        const uploadResult = await s3Service.uploadLogo(imageBuffer, 'gym-logo.png');
+        updateData.logo = uploadResult.url;
         
-        console.log('Base64 logo created, length:', base64Logo.length);
+        console.log('Logo uploaded to S3 successfully:', uploadResult.url);
       } catch (error) {
-        console.error('Error processing logo:', error);
+        console.error('Error uploading logo to S3:', error);
         return res.status(400).json({ 
           success: false, 
-          message: 'Error processing logo image: ' + error.message 
+          message: 'Error uploading logo: ' + error.message 
         });
       }
     }
 
     // Handle logo removal if requested
-    if (req.body.removeLogo === 'true') {
+    if (removeLogo === true || removeLogo === 'true') {
       updateData.logo = null;
     }
 
@@ -364,91 +355,13 @@ router.put('/info', upload.single('logo'), handleMulterError, async (req, res) =
   }
 });
 
+// **DEPRECATED: This endpoint is no longer used - logo uploads now go through /info endpoint**
 // **OPTIMIZED: Upload gym logo with enhanced processing**
 router.put('/logo', upload.single('logo'), handleMulterError, async (req, res) => {
-  try {
-    const gymId = req.gymId;
-
-    if (!req.file) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'No file uploaded' 
-      });
-    }
-
-    // **OPTIMIZATION: Additional file validation**
-    const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-    if (!allowedMimes.includes(req.file.mimetype.toLowerCase())) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed.' 
-      });
-    }
-
-    // Clear cache before update
-    clearGymCache(gymId);
-
-    const gym = await Gym.findById(gymId);
-    if (!gym) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Gym not found' 
-      });
-    }
-
-    try {
-      console.log('Processing logo file:', req.file.originalname, req.file.mimetype, req.file.size);
-      
-      // **OPTIMIZATION: Enhanced image processing with Sharp**
-      const processedImageBuffer = await sharp(req.file.buffer)
-        .resize(512, 512, { 
-          fit: 'inside', 
-          withoutEnlargement: true,
-          background: { r: 255, g: 255, b: 255, alpha: 1 }
-        })
-        .png({ 
-          quality: 90,
-          compressionLevel: 6
-        })
-        .toBuffer();
-
-      console.log('Image processed successfully, buffer size:', processedImageBuffer.length);
-
-      // Convert to base64 with optimized MIME type
-      const base64Logo = `data:image/png;base64,${processedImageBuffer.toString('base64')}`;
-      
-      console.log('Base64 logo created, length:', base64Logo.length);
-
-      // **OPTIMIZATION: Update only the logo field**
-      await Gym.findByIdAndUpdate(gymId, { logo: base64Logo });
-
-      // Update cache
-      gym.logo = base64Logo;
-      gymCache.set(getGymCacheKey(gymId), {
-        data: gym,
-        timestamp: Date.now()
-      });
-
-      res.json({ 
-        success: true,
-        message: 'Logo uploaded successfully', 
-        logo: base64Logo 
-      });
-    } catch (imageError) {
-      console.error('Image processing error:', imageError);
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Invalid image file or corrupted data' 
-      });
-    }
-  } catch (error) {
-    console.error('Error uploading logo:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Error uploading logo',
-      ...(process.env.NODE_ENV === 'development' && { error: error.message })
-    });
-  }
+  return res.status(410).json({ 
+    success: false, 
+    message: 'This endpoint is deprecated. Please use the /info endpoint to update gym logo.' 
+  });
 });
 
 // **OPTIMIZED: Delete gym logo with cache management**
@@ -571,45 +484,16 @@ router.get('/generate-pdf', async (req, res) => {
     let logoBuffer = null;
     let logoDimensions = { width: 0, height: 0 };
 
-    // Logo processing (same as before but with cleaner styling)
-    if (gym.logo && typeof gym.logo === 'string' && gym.logo.startsWith('data:image/')) {
+    // Logo processing - handle S3 URLs only
+    if (gym.logo && typeof gym.logo === 'string' && gym.logo.startsWith('http')) {
       try {
-        const base64Data = gym.logo.split(',')[1];
-        logoBuffer = Buffer.from(base64Data, 'base64');
-        
-        const metadata = await sharp(logoBuffer).metadata();
-        const originalWidth = metadata.width;
-        const originalHeight = metadata.height;
-        const aspectRatio = originalWidth / originalHeight;
-        
-        // Calculate optimal dimensions
-        if (aspectRatio > 1) {
-          logoDimensions.width = Math.min(logoMaxWidth, originalWidth);
-          logoDimensions.height = logoDimensions.width / aspectRatio;
-          if (logoDimensions.height > logoMaxHeight) {
-            logoDimensions.height = logoMaxHeight;
-            logoDimensions.width = logoDimensions.height * aspectRatio;
-          }
-        } else {
-          logoDimensions.height = Math.min(logoMaxHeight, originalHeight);
-          logoDimensions.width = logoDimensions.height * aspectRatio;
-          if (logoDimensions.width > logoMaxWidth) {
-            logoDimensions.width = logoMaxWidth;
-            logoDimensions.height = logoDimensions.width / aspectRatio;
-          }
-        }
-        
-        logoBuffer = await sharp(logoBuffer)
-          .png()
-          .resize(Math.round(logoDimensions.width), Math.round(logoDimensions.height), {
-            fit: 'inside',
-            withoutEnlargement: true,
-            background: { r: 255, g: 255, b: 255, alpha: 0 }
-          })
-          .toBuffer();
-        hasLogo = true;
+        // For S3 URLs, we'll use the URL directly in the PDF
+        // Note: PDFKit doesn't support direct URL loading, so we'll skip logo in PDF for now
+        // or implement a fetch-and-convert approach if needed
+        console.log('S3 logo URL detected for PDF generation:', gym.logo);
+        hasLogo = false; // Skip logo for now with S3 URLs
       } catch (error) {
-        console.error('Error processing logo for PDF:', error);
+        console.error('Error processing S3 logo for PDF:', error);
         hasLogo = false;
       }
     }

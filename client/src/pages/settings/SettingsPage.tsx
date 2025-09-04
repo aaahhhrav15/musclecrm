@@ -342,32 +342,56 @@ const SettingsPage: React.FC = () => {
       setIsSaving(true);
       console.log('Saving gym info:', data);
       
-      // Create FormData to handle both regular data and file upload
-      const formData = new FormData();
-      formData.append('name', data.name.trim());
-      formData.append('contactInfo', JSON.stringify({
-        email: data.contactInfo.email.trim(),
-        phone: data.contactInfo.phone.trim()
-      }));
-      formData.append('address', JSON.stringify({
-        street: data.address.street.trim(),
-        city: data.address.city.trim(),
-        state: data.address.state.trim(),
-        zipCode: data.address.zipCode.trim(),
-        country: data.address.country.trim()
-      }));
+      // Prepare the request data
+      const requestData: {
+        name: string;
+        contactInfo: { email: string; phone: string };
+        address: { street: string; city: string; state: string; zipCode: string; country: string };
+        logo?: string;
+        removeLogo?: boolean;
+      } = {
+        name: data.name.trim(),
+        contactInfo: {
+          email: data.contactInfo.email.trim(),
+          phone: data.contactInfo.phone.trim()
+        },
+        address: {
+          street: data.address.street.trim(),
+          city: data.address.city.trim(),
+          state: data.address.state.trim(),
+          zipCode: data.address.zipCode.trim(),
+          country: data.address.country.trim()
+        }
+      };
       
-      // Add logo if selected, or flag for removal if null
+      // Handle logo conversion to base64 like registration
       if (data.logo) {
-        formData.append('logo', data.logo);
+        try {
+          const base64Logo = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(data.logo!);
+          });
+          requestData.logo = base64Logo;
+          console.log('Logo converted to base64, length:', base64Logo.length);
+        } catch (error) {
+          console.error('Error converting logo to base64:', error);
+          toast({
+            title: "Error",
+            description: "Failed to process logo. Please try again.",
+            variant: "destructive",
+          });
+          return;
+        }
       } else if (logoRemoved) {
         // This means user explicitly removed the logo
-        formData.append('removeLogo', 'true');
+        requestData.removeLogo = true;
       }
 
-      const response = await axiosInstance.put('/gym/info', formData, {
+      const response = await axiosInstance.put('/gym/info', requestData, {
         headers: {
-          'Content-Type': 'multipart/form-data',
+          'Content-Type': 'application/json',
         },
       });
 
@@ -450,17 +474,17 @@ const SettingsPage: React.FC = () => {
     };
   }, [gymInfo]);
 
+  const formIsDirty = personalForm.formState.isDirty;
+  const currentLogo = personalForm.watch('logo');
+  
   const hasUnsavedChanges = useMemo(() => {
     if (!gymInfo || !isEditing) return false;
     
-    // Check if form fields are dirty
-    const formIsDirty = personalForm.formState.isDirty;
-    
     // Check if logo has been changed (either uploaded or removed)
-    const logoChanged = personalForm.watch('logo') !== null || logoRemoved;
+    const logoChanged = currentLogo !== null || logoRemoved;
     
     return formIsDirty || logoChanged;
-  }, [gymInfo, personalForm.formState.isDirty, personalForm.watch('logo'), logoRemoved, isEditing]);
+  }, [gymInfo, isEditing, formIsDirty, currentLogo, logoRemoved]);
 
   if (isLoading) {
     return (

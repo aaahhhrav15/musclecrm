@@ -53,7 +53,7 @@ interface AuthContextType {
       zipCode: string;
       country: string;
     };
-    logo?: string | null; // base64 string
+    logo?: string | null; // S3 URL
   }) => Promise<SignupResponse>;
   logout: () => void;
   updateUserProfile: (userData: Partial<User>) => Promise<void>;
@@ -181,7 +181,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       zipCode: string;
       country: string;
     };
-    logo?: string | null; // base64 string
+    logo?: string | null; // S3 URL
   }): Promise<SignupResponse> => {
     console.log('AuthContext signup called with data:', data);
     setLoading(true);

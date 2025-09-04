@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import * as React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { 
@@ -23,18 +23,19 @@ import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { ResultService, Result } from '@/services/ResultService';
 import { useToast } from '@/hooks/use-toast';
 import { Modal } from '@/components/ui/modal';
+import { S3_BUCKET_URL } from '@/config';
 
 const ResultsPage: React.FC = () => {
-  const [currentPage, setCurrentPage] = useState(1);
-  const [sortBy, setSortBy] = useState('createdAt');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [search, setSearch] = useState('');
-  const [selectedResult, setSelectedResult] = useState<Result | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
-  const [showDateFilters, setShowDateFilters] = useState(false);
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const [sortBy, setSortBy] = React.useState('createdAt');
+  const [sortOrder, setSortOrder] = React.useState<'asc' | 'desc'>('desc');
+  const [viewMode, setViewMode] = React.useState<'grid' | 'list'>('grid');
+  const [search, setSearch] = React.useState('');
+  const [selectedResult, setSelectedResult] = React.useState<Result | null>(null);
+  const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const [startDate, setStartDate] = React.useState<string>('');
+  const [endDate, setEndDate] = React.useState<string>('');
+  const [showDateFilters, setShowDateFilters] = React.useState(false);
   const { toast } = useToast();
 
   // Fetch results
@@ -358,15 +359,18 @@ const ResultsPage: React.FC = () => {
                       </div>
                     )}
                     
-                                         {result.imageBase64 && (
-                       <div className="h-32 rounded-lg overflow-hidden bg-muted">
-                         <img
-                           src={result.imageBase64}
-                           alt="Result"
-                           className="w-full h-full object-cover"
-                         />
-                       </div>
-                     )}
+                    {result.s3Key && (
+                      <div className="h-32 rounded-lg overflow-hidden bg-muted">
+                        <img
+                          src={`${S3_BUCKET_URL}/${result.s3Key}`}
+                          alt="Result"
+                          className="w-full h-full object-cover"
+                          onLoad={() => {
+                            console.log('Result image URL:', `${S3_BUCKET_URL}/${result.s3Key}`);
+                          }}
+                        />
+                      </div>
+                    )}
                     
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <div className="flex items-center gap-1">
@@ -470,17 +474,20 @@ const ResultsPage: React.FC = () => {
                )}
 
                {/* Full Image */}
-               {selectedResult.imageBase64 && (
+               {selectedResult.s3Key && (
                  <div>
                    <h4 className="font-semibold mb-2">Image</h4>
                    <div className="rounded-lg overflow-hidden border">
                      <img
-                       src={selectedResult.imageBase64}
+                       src={`${S3_BUCKET_URL}/${selectedResult.s3Key}`}
                        alt="Result"
                        className="w-full max-h-96 object-contain"
                        onError={(e) => {
                          const target = e.target as HTMLImageElement;
                          target.style.display = 'none';
+                       }}
+                       onLoad={() => {
+                         console.log('Result image URL:', `${S3_BUCKET_URL}/${selectedResult.s3Key}`);
                        }}
                      />
                    </div>

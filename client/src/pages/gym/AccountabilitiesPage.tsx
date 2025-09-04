@@ -12,6 +12,7 @@ import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Search, Filter, Calendar, User, Image as ImageIcon, RefreshCw, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { Modal } from '@/components/ui/modal';
+import { S3_BUCKET_URL } from '@/config';
 
 const AccountabilitiesPage: React.FC = () => {
   const { toast } = useToast();
@@ -152,15 +153,19 @@ const AccountabilitiesPage: React.FC = () => {
           </div>
 
           {/* Image if available */}
-          {accountability.imageBase64 && (
+          {accountability.s3Key && (
             <div className="relative group/image">
               <img
-                src={accountability.imageBase64}
+                src={`${S3_BUCKET_URL}/${accountability.s3Key}`}
                 alt="Accountability image"
                 className="w-full h-32 object-cover rounded-lg border border-border/50 group-hover/image:border-primary/50 transition-all duration-300"
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
                   target.style.display = 'none';
+                }}
+                onLoad={() => {
+                  console.log('Accountability image URL:', `${S3_BUCKET_URL}/${accountability.s3Key}`);
+                  console.log('Accountability image URL:', `${S3_BUCKET_URL}/${accountability.s3Key}`);
                 }}
               />
               <div className="absolute inset-0 bg-black/0 group-hover/image:bg-black/10 transition-all duration-300 rounded-lg flex items-center justify-center">
@@ -217,15 +222,19 @@ const AccountabilitiesPage: React.FC = () => {
             </p>
 
             {/* Image if available */}
-            {accountability.imageBase64 && (
+            {accountability.s3Key && (
               <div className="mb-3">
                 <img
-                  src={accountability.imageBase64}
+                  src={`${S3_BUCKET_URL}/${accountability.s3Key}`}
                   alt="Accountability image"
                   className="w-32 h-24 object-cover rounded-lg border border-border/50"
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
                     target.style.display = 'none';
+                  }}
+                  onLoad={() => {
+                    console.log('Accountability image URL:', `${S3_BUCKET_URL}/${accountability.s3Key}`);
+                    console.log('Accountability image URL:', `${S3_BUCKET_URL}/${accountability.s3Key}`);
                   }}
                 />
               </div>
@@ -557,17 +566,20 @@ const AccountabilitiesPage: React.FC = () => {
               </div>
 
               {/* Full Image */}
-              {selectedAccountability.imageBase64 && (
+              {selectedAccountability.s3Key && (
                 <div>
                   <h4 className="font-semibold mb-2">Image</h4>
                   <div className="rounded-lg overflow-hidden border">
                     <img
-                      src={selectedAccountability.imageBase64}
+                      src={`${S3_BUCKET_URL}/${selectedAccountability.s3Key}`}
                       alt="Accountability image"
                       className="w-full max-h-96 object-contain"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
                         target.style.display = 'none';
+                      }}
+                      onLoad={() => {
+                        console.log('Accountability image URL:', `${S3_BUCKET_URL}/${selectedAccountability.s3Key}`);
                       }}
                     />
                   </div>
