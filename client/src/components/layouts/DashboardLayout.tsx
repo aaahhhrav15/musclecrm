@@ -90,7 +90,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               <span className="sr-only">Toggle sidebar</span>
             </Button>
             <h1 className="text-xl font-semibold">
-              Dashboard {selectedIndustry === 'gym' && gym ? `- ${gym.name}` : selectedIndustry ? `- ${selectedIndustry.charAt(0).toUpperCase() + selectedIndustry.slice(1)}` : ''}
+              Dashboard
             </h1>
           </div>
 
