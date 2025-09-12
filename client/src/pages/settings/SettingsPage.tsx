@@ -364,36 +364,39 @@ const SettingsPage: React.FC = () => {
         }
       };
       
-      // Handle logo conversion to base64 like registration
+      // Handle logo upload using FormData
+      let response;
       if (data.logo) {
-        try {
-          const base64Logo = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(data.logo!);
-          });
-          requestData.logo = base64Logo;
-          console.log('Logo converted to base64, length:', base64Logo.length);
-        } catch (error) {
-          console.error('Error converting logo to base64:', error);
-          toast({
-            title: "Error",
-            description: "Failed to process logo. Please try again.",
-            variant: "destructive",
-          });
-          return;
-        }
+        const formData = new FormData();
+        formData.append('name', requestData.name);
+        formData.append('contactInfo', JSON.stringify(requestData.contactInfo));
+        formData.append('address', JSON.stringify(requestData.address));
+        formData.append('logo', data.logo);
+        
+        console.log('Uploading logo as FormData, file size:', data.logo.size);
+        
+        response = await axiosInstance.put('/gym/info', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
       } else if (logoRemoved) {
         // This means user explicitly removed the logo
         requestData.removeLogo = true;
+        
+        response = await axiosInstance.put('/gym/info', requestData, {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+      } else {
+        // No logo changes
+        response = await axiosInstance.put('/gym/info', requestData, {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
       }
-
-      const response = await axiosInstance.put('/gym/info', requestData, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
 
       console.log('Save response:', response.data);
 

@@ -181,15 +181,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       zipCode: string;
       country: string;
     };
-    logo?: string | null; // S3 URL
+    logo?: File | null; // File object
   }): Promise<SignupResponse> => {
     console.log('AuthContext signup called with data:', data);
     setLoading(true);
     try {
-      // Send as JSON, not FormData
-      const response = await axiosInstance.post('/auth/register', data, {
-        headers: { 'Content-Type': 'application/json' },
-      });
+      let response;
+      
+      if (data.logo) {
+        // Use FormData for file upload
+        const formData = new FormData();
+        formData.append('name', data.name);
+        formData.append('email', data.email);
+        formData.append('password', data.password);
+        formData.append('industry', data.industry);
+        formData.append('gymName', data.gymName || '');
+        formData.append('phone', data.phone || '');
+        formData.append('address', JSON.stringify(data.address || {}));
+        formData.append('logo', data.logo);
+        
+        response = await axiosInstance.post('/auth/register', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+      } else {
+        // Send as JSON for no logo
+        response = await axiosInstance.post('/auth/register', data, {
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
       console.log('Backend response:', response.data);
 
       if (response.data.success) {

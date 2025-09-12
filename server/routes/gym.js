@@ -215,10 +215,11 @@ router.get('/info', async (req, res) => {
 });
 
 // **OPTIMIZED: Update gym information with validation and caching**
-router.put('/info', async (req, res) => {
+router.put('/info', upload.single('logo'), handleMulterError, async (req, res) => {
   try {
     const gymId = req.gymId;
-    const { name, contactInfo, address, logo, removeLogo } = req.body;
+    const { name, contactInfo, address, removeLogo } = req.body;
+    const logoFile = req.file;
 
     // **OPTIMIZATION: Validate input data**
     if (name && typeof name !== 'string') {
@@ -267,17 +268,18 @@ router.put('/info', async (req, res) => {
     if (parsedContactInfo) updateData.contactInfo = parsedContactInfo;
     if (parsedAddress) updateData.address = parsedAddress;
 
-    // Handle logo upload to S3 if provided (like registration)
-    if (logo && logo.startsWith('data:image/')) {
+    // Handle logo upload to S3 if provided
+    if (logoFile) {
       try {
-        console.log('Processing base64 logo for S3 upload...');
+        console.log('Processing uploaded logo file for S3 upload...');
+        console.log('File details:', {
+          originalname: logoFile.originalname,
+          mimetype: logoFile.mimetype,
+          size: logoFile.size
+        });
         
-        // Convert base64 to buffer
-        const base64Data = logo.split(',')[1];
-        const imageBuffer = Buffer.from(base64Data, 'base64');
-        
-        // Upload to S3
-        const uploadResult = await s3Service.uploadLogo(imageBuffer, 'gym-logo.png');
+        // Upload to S3 using the file buffer
+        const uploadResult = await s3Service.uploadLogo(logoFile.buffer, logoFile.originalname);
         updateData.logo = uploadResult.url;
         
         console.log('Logo uploaded to S3 successfully:', uploadResult.url);

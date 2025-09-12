@@ -70,12 +70,12 @@ const Signup: React.FC = () => {
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Check file size (50MB limit)
-      const maxSize = 50 * 1024 * 1024; // 50MB
+      // Check file size (10MB limit)
+      const maxSize = 10 * 1024 * 1024; // 10MB
       if (file.size > maxSize) {
         toast({ 
           title: 'File too large', 
-          description: 'Please select an image smaller than 50MB',
+          description: 'Please select an image smaller than 10MB',
           variant: 'destructive'
         });
         return;
@@ -85,7 +85,6 @@ const Signup: React.FC = () => {
       const reader = new FileReader();
       reader.onloadend = () => {
         setLogoPreview(reader.result as string);
-        setLogoBase64(reader.result as string); // Save base64 string
       };
       reader.readAsDataURL(file);
     }
@@ -112,7 +111,7 @@ const Signup: React.FC = () => {
           zipCode: values.address.zipCode,
           country: values.address.country,
         },
-        logo: logoBase64 || undefined, // Send base64 string
+        logo: values.logo || undefined, // Send File object
       });
       console.log('Signup successful:', response);
       setSelectedIndustry('gym');

@@ -12,6 +12,49 @@ const s3Service = require('../services/s3Service');
 
 const router = express.Router();
 
+// Multer configuration for file uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+    files: 1, // Only one file at a time
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept only image files with specific MIME types
+    const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (allowedMimes.includes(file.mimetype.toLowerCase())) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed.'), false);
+    }
+  }
+});
+
+// Multer error handler
+const handleMulterError = (err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'File size too large. Maximum size is 5MB.' 
+      });
+    }
+    if (err.code === 'LIMIT_FILE_COUNT') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Too many files. Only one file is allowed.' 
+      });
+    }
+  }
+  if (err.message.includes('Invalid file type')) {
+    return res.status(400).json({ 
+      success: false, 
+      message: err.message 
+    });
+  }
+  next(err);
+};
+
 // Function to generate a unique gym code
 const generateGymCode = async () => {
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -43,23 +86,6 @@ const storage = multer.diskStorage({
   },
   filename: function (req, file, cb) {
     cb(null, Date.now() + path.extname(file.originalname));
-  }
-});
-
-const upload = multer({ 
-  storage: storage,
-  limits: {
-    fileSize: 50 * 1024 * 1024 // 50MB limit
-  },
-  fileFilter: function (req, file, cb) {
-    const filetypes = /jpeg|jpg|png|gif/;
-    const mimetype = filetypes.test(file.mimetype);
-    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-
-    if (mimetype && extname) {
-      return cb(null, true);
-    }
-    cb(new Error('Only image files are allowed!'));
   }
 });
 
@@ -102,9 +128,10 @@ const generateToken = (userId) => {
 };
 
 // Register a new user
-router.post('/register', async (req, res) => {
+router.post('/register', upload.single('logo'), handleMulterError, async (req, res) => {
   try {
-    const { name, email, password, industry, role, gymName, phone, address, logo } = req.body;
+    const { name, email, password, industry, role, gymName, phone, address } = req.body;
+    const logoFile = req.file;
 
     // Parse address if it's a JSON string
     let parsedAddress;
@@ -143,15 +170,19 @@ router.post('/register', async (req, res) => {
 
       // Handle logo upload to S3 if provided
       let logoUrl = null;
-      if (logo && logo.startsWith('data:image/')) {
+      if (logoFile) {
         try {
-          // Convert base64 to buffer
-          const base64Data = logo.split(',')[1];
-          const imageBuffer = Buffer.from(base64Data, 'base64');
+          console.log('Processing uploaded logo file for S3 upload...');
+          console.log('File details:', {
+            originalname: logoFile.originalname,
+            mimetype: logoFile.mimetype,
+            size: logoFile.size
+          });
           
-          // Upload to S3
-          const uploadResult = await s3Service.uploadLogo(imageBuffer, 'gym-logo.png');
+          // Upload to S3 using the file buffer
+          const uploadResult = await s3Service.uploadLogo(logoFile.buffer, logoFile.originalname);
           logoUrl = uploadResult.url;
+          console.log('Logo uploaded to S3 successfully:', uploadResult.url);
         } catch (error) {
           console.error('Error uploading logo to S3:', error);
           // Continue without logo if S3 upload fails
