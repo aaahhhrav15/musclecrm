@@ -5,6 +5,7 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const path = require('path');
 const fs = require('fs');
+const morgan = require('morgan');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -43,6 +44,8 @@ const auth = require('./middleware/auth');
 const checkSubscription = require('./middleware/checkSubscription');
 
 const app = express();
+
+app.use(morgan('dev'));
 
 // Increase payload size limit to 50MB
 app.use(express.json({ limit: '50mb' }));
