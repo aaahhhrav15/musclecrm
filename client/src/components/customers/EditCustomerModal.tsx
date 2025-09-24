@@ -256,6 +256,31 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
     }
   });
 
+  // Reset form when switching between customers or reopening modal
+  React.useEffect(() => {
+    if (!isOpen || !customer) return;
+    form.reset({
+      name: customer.name,
+      email: customer.email,
+      phone: customer.phone || '',
+      address: customer.address || '',
+      source: (customer.source as 'website' | 'referral' | 'walk-in' | 'social_media' | 'other') || 'other',
+      membershipType: (customer.membershipType as 'none' | 'basic' | 'premium' | 'vip') || 'none',
+      membershipFees: customer.membershipFees ? customer.membershipFees.toString() : '',
+      membershipDuration: customer.membershipDuration ? customer.membershipDuration.toString() : '',
+      membershipDays: customer.membershipDays ? customer.membershipDays.toString() : '',
+      joinDate: customer.joinDate ? (typeof customer.joinDate === 'string' ? new Date(customer.joinDate) : customer.joinDate) : new Date(),
+      membershipStartDate: customer.membershipStartDate ? (typeof customer.membershipStartDate === 'string' ? new Date(customer.membershipStartDate) : customer.membershipStartDate) : new Date(),
+      membershipEndDate: customer.membershipEndDate ? (typeof customer.membershipEndDate === 'string' ? new Date(customer.membershipEndDate) : customer.membershipEndDate) : undefined,
+      transactionDate: customer.transactionDate ? (typeof customer.transactionDate === 'string' ? new Date(customer.transactionDate) : customer.transactionDate) : new Date(),
+      paymentMode: (customer.paymentMode as 'cash' | 'card' | 'upi' | 'bank_transfer' | 'other') || 'cash',
+      notes: customer.notes || '',
+      birthday: customer.birthday ? (typeof customer.birthday === 'string' ? new Date(customer.birthday) : customer.birthday) : undefined,
+      height: (customer.height as any) || '',
+      weight: (customer.weight as any) || '',
+    });
+  }, [customer, isOpen, form]);
+
   // Add effect to calculate end date when start date or duration changes
   React.useEffect(() => {
     const subscription = form.watch((value, { name }) => {
@@ -457,7 +482,7 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Source</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select source" />
@@ -481,7 +506,7 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Membership Type</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select membership type" />
@@ -729,7 +754,7 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
                     <FormLabel>Payment Mode</FormLabel>
                     <Select
                       onValueChange={field.onChange}
-                      defaultValue={field.value}
+                      value={field.value}
                     >
                       <FormControl>
                         <SelectTrigger>
