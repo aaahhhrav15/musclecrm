@@ -136,6 +136,45 @@ class S3Service {
   }
 
   /**
+   * Upload a video to S3 (no re-encoding here; expects a Buffer)
+   * @param {Buffer} videoBuffer
+   * @param {string} originalName
+   * @param {string} folder
+   * @returns {Promise<{ url: string, key: string, filename: string, size: number, format: string }>}
+   */
+  async uploadVideo(videoBuffer, originalName, folder = 'reels') {
+    try {
+      const timestamp = Date.now();
+      const random = Math.floor(Math.random() * 1000000);
+      const extension = (originalName?.split('.')?.pop() || 'mp4').toLowerCase();
+      const safeExt = ['mp4', 'mov', 'webm', 'mkv'].includes(extension) ? extension : 'mp4';
+      const filename = `${folder}-${timestamp}-${random}.${safeExt}`;
+      const key = `${folder}/${filename}`;
+
+      const uploadParams = {
+        Bucket: this.bucketName,
+        Key: key,
+        Body: videoBuffer,
+        ContentType: `video/${safeExt === 'mp4' ? 'mp4' : safeExt}`,
+        CacheControl: 'public, max-age=31536000',
+        Metadata: {
+          originalName: originalName || filename,
+          uploadedAt: new Date().toISOString(),
+          processed: 'false'
+        }
+      };
+
+      await this.s3Client.send(new PutObjectCommand(uploadParams));
+
+      const url = `https://${this.bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+      return { url, key, filename, size: videoBuffer.length, format: safeExt };
+    } catch (error) {
+      console.error('Error uploading video to S3:', error);
+      throw new Error(`Failed to upload video: ${error.message}`);
+    }
+  }
+
+  /**
    * Delete an image from S3
    * @param {string} key - The S3 key to delete
    * @returns {Promise<boolean>} - Success status

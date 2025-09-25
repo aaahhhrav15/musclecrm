@@ -251,8 +251,8 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
       paymentMode: (customer.paymentMode as 'cash' | 'card' | 'upi' | 'bank_transfer' | 'other') || 'cash',
       notes: customer.notes || '',
       birthday: customer.birthday ? (typeof customer.birthday === 'string' ? new Date(customer.birthday) : customer.birthday) : undefined,
-      height: customer.height || '',
-      weight: customer.weight || '',
+      height: (customer.height !== undefined && customer.height !== null) ? String(customer.height) : '',
+      weight: (customer.weight !== undefined && customer.weight !== null) ? String(customer.weight) : '',
     }
   });
 
@@ -276,8 +276,8 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
       paymentMode: (customer.paymentMode as 'cash' | 'card' | 'upi' | 'bank_transfer' | 'other') || 'cash',
       notes: customer.notes || '',
       birthday: customer.birthday ? (typeof customer.birthday === 'string' ? new Date(customer.birthday) : customer.birthday) : undefined,
-      height: (customer.height as any) || '',
-      weight: (customer.weight as any) || '',
+      height: (customer.height !== undefined && customer.height !== null) ? String(customer.height) : '',
+      weight: (customer.weight !== undefined && customer.weight !== null) ? String(customer.weight) : '',
     });
   }, [customer, isOpen, form]);
 
@@ -345,8 +345,8 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
         paymentMode: values.paymentMode,
         notes: values.notes || '',
         birthday: values.birthday ? values.birthday.toISOString() : undefined,
-        height: values.height || undefined,
-        weight: values.weight || undefined,
+        height: values.height ? parseFloat(values.height) : undefined,
+        weight: values.weight ? parseFloat(values.weight) : undefined,
         totalSpent: membershipFees // Ensure totalSpent is included
       };
 

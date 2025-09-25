@@ -96,6 +96,16 @@ export const ApiService = {
       throw error;
     }
   },
+  // POST request (raw) for multipart/form-data or other custom content types
+  postRaw: async <T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> => {
+    try {
+      const response = await apiClient.post<T>(url, data, config);
+      return response.data as T;
+    } catch (error) {
+      console.error(`POST (raw) request failed: ${url}`, error);
+      throw error;
+    }
+  },
   
   // PUT request
   put: async <T>(url: string, data?: any): Promise<T> => {
