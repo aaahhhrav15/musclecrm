@@ -218,7 +218,7 @@ router.get('/info', async (req, res) => {
 router.put('/info', upload.single('logo'), handleMulterError, async (req, res) => {
   try {
     const gymId = req.gymId;
-    const { name, contactInfo, address, removeLogo } = req.body;
+    const { name, contactInfo, address, removeLogo, razorpayKeyId, razorpayKeySecret } = req.body;
     const logoFile = req.file;
 
     // **OPTIMIZATION: Validate input data**
@@ -267,6 +267,8 @@ router.put('/info', upload.single('logo'), handleMulterError, async (req, res) =
     if (name) updateData.name = name.trim();
     if (parsedContactInfo) updateData.contactInfo = parsedContactInfo;
     if (parsedAddress) updateData.address = parsedAddress;
+    if (typeof razorpayKeyId === 'string') updateData.razorpayKeyId = razorpayKeyId.trim();
+    if (typeof razorpayKeySecret === 'string') updateData.razorpayKeySecret = razorpayKeySecret.trim();
 
     // Handle logo upload to S3 if provided
     if (logoFile) {

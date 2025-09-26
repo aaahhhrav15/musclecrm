@@ -86,6 +86,8 @@ interface GymInfo {
   subscriptionEndDate?: string;
   subscriptionDuration?: string;
   freeTrialCounter?: number; // Added for free trial status
+  razorpayKeyId?: string;
+  razorpayKeySecret?: string;
 }
 
 interface GymFormData {
@@ -102,6 +104,8 @@ interface GymFormData {
     country: string;
   };
   logo?: File | null;
+  razorpayKeyId?: string;
+  razorpayKeySecret?: string;
 }
 
 const SettingsPage: React.FC = () => {
@@ -133,7 +137,9 @@ const SettingsPage: React.FC = () => {
         zipCode: '',
         country: ''
       },
-      logo: null
+      logo: null,
+      razorpayKeyId: '',
+      razorpayKeySecret: ''
     }
   });
 
@@ -180,7 +186,9 @@ const SettingsPage: React.FC = () => {
             state: '',
             zipCode: '',
             country: ''
-          }
+          },
+          razorpayKeyId: gymData.razorpayKeyId || '',
+          razorpayKeySecret: gymData.razorpayKeySecret || ''
         });
       }
     } catch (error) {
@@ -349,6 +357,8 @@ const SettingsPage: React.FC = () => {
         address: { street: string; city: string; state: string; zipCode: string; country: string };
         logo?: string;
         removeLogo?: boolean;
+        razorpayKeyId?: string;
+        razorpayKeySecret?: string;
       } = {
         name: data.name.trim(),
         contactInfo: {
@@ -361,7 +371,9 @@ const SettingsPage: React.FC = () => {
           state: data.address.state.trim(),
           zipCode: data.address.zipCode.trim(),
           country: data.address.country.trim()
-        }
+        },
+        razorpayKeyId: (data.razorpayKeyId || '').trim(),
+        razorpayKeySecret: (data.razorpayKeySecret || '').trim()
       };
       
       // Handle logo upload using FormData
@@ -372,6 +384,8 @@ const SettingsPage: React.FC = () => {
         formData.append('contactInfo', JSON.stringify(requestData.contactInfo));
         formData.append('address', JSON.stringify(requestData.address));
         formData.append('logo', data.logo);
+        formData.append('razorpayKeyId', requestData.razorpayKeyId || '');
+        formData.append('razorpayKeySecret', requestData.razorpayKeySecret || '');
         
         console.log('Uploading logo as FormData, file size:', data.logo.size);
         
@@ -853,6 +867,40 @@ const SettingsPage: React.FC = () => {
                           </div>
                         </div>
                       </div>
+                    </div>
+
+                    <Separator />
+
+                    {/* Payments - Razorpay */}
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 mb-4">
+                        <CreditCard className="h-4 w-4" />
+                        <h3 className="text-lg font-semibold">Payments - Razorpay</h3>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="razorpayKeyId">Razorpay Key ID</Label>
+                          <Input
+                            id="razorpayKeyId"
+                            disabled={!isEditing}
+                            className="shadow-sm"
+                            placeholder="rzp_test_xxxxxxxx"
+                            {...personalForm.register('razorpayKeyId')}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="razorpayKeySecret">Razorpay Key Secret</Label>
+                          <Input
+                            id="razorpayKeySecret"
+                            type="password"
+                            disabled={!isEditing}
+                            className="shadow-sm"
+                            placeholder="••••••••"
+                            {...personalForm.register('razorpayKeySecret')}
+                          />
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground">These credentials are stored securely for your gym only. Leave blank if not configured.</p>
                     </div>
 
                     <Separator />

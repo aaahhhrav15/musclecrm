@@ -56,6 +56,15 @@ const gymSchema = new mongoose.Schema({
   invoiceCounter: {
     type: Number,
     default: 1
+  },
+  // Razorpay credentials (per gym)
+  razorpayKeyId: {
+    type: String,
+    default: ''
+  },
+  razorpayKeySecret: {
+    type: String,
+    default: ''
   }
 });
 

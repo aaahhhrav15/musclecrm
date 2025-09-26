@@ -67,6 +67,7 @@ import ViewProductPage from './pages/gym/ViewProductPage';
 import AccountabilitiesPage from './pages/gym/AccountabilitiesPage';
 import ResultsPage from './pages/gym/ResultsPage';
 import ReelsPage from './pages/gym/ReelsPage';
+import PaymentsPage from './pages/gym/PaymentsPage';
 
 // Create a React Query client
 const queryClient = new QueryClient({
@@ -140,6 +141,7 @@ const App = () => (
                     <Route path="/dashboard/gym/accountabilities" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><AccountabilitiesPage /></ProtectedSubscriptionRoute>} />} />
                     <Route path="/dashboard/gym/results" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><ResultsPage /></ProtectedSubscriptionRoute>} />} />
                     <Route path="/dashboard/gym/reels" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><ReelsPage /></ProtectedSubscriptionRoute>} />} />
+                    <Route path="/dashboard/gym/payments" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><PaymentsPage /></ProtectedSubscriptionRoute>} />} />
                     
                     {/* Existing Gym Routes */}
                     <Route path="/dashboard/gym/trainers" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><TrainersPage /></ProtectedSubscriptionRoute>} />} />

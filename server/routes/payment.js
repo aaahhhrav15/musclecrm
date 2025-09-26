@@ -4,6 +4,9 @@ const crypto = require('crypto');
 const router = express.Router();
 const Gym = require('../models/Gym');
 const SubscriptionPlan = require('../models/SubscriptionPlan');
+const Payment = require('../models/Payment');
+const auth = require('../middleware/auth');
+const { gymAuth } = require('../middleware/gymAuth');
 
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID;
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
@@ -89,6 +92,22 @@ router.post('/verify', async (req, res) => {
   } catch (error) {
     console.error('Razorpay payment verification error:', error);
     res.status(500).json({ success: false, message: 'Error verifying payment', error: error.message });
+  }
+});
+
+// Get all paid payments for the current gym
+router.get('/paid', auth, gymAuth, async (req, res) => {
+  try {
+    const gymId = req.gymId;
+    const payments = await Payment.find({ 
+      gymId: gymId, 
+      status: 'paid' 
+    }).sort({ createdAt: -1 });
+    
+    return res.json({ success: true, data: payments });
+  } catch (error) {
+    console.error('Error fetching paid payments:', error);
+    return res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
