@@ -427,6 +427,10 @@ router.put('/:id', async (req, res) => {
 
     const results = await Promise.all(operations);
     const customer = results[0];
+    
+    // IMPORTANT: Capture the ORIGINAL dates from the database BEFORE any updates
+    const originalEndDateForInvoice = customer.membershipEndDate ? new Date(customer.membershipEndDate) : null;
+    const originalStartDateForInvoice = customer.membershipStartDate ? new Date(customer.membershipStartDate) : null;
     const existingCustomer = (email && email.trim() !== '') ? results[1] : null;
 
     if (!customer) {
@@ -526,34 +530,79 @@ router.put('/:id', async (req, res) => {
           const invoiceNumber = `${gymCode}${String(invoiceCounter).padStart(6, '0')}`;
 
           // --- Renewal Date Logic ---
-          let renewalStartDate = null;
-          let renewalEndDate = null;
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          const currentEndDate = updatedCustomer.membershipEndDate ? new Date(updatedCustomer.membershipEndDate) : null;
-          if (currentEndDate && currentEndDate >= today) {
-            // Membership is active, renewal starts after current end date
-            renewalStartDate = new Date(currentEndDate);
-            renewalStartDate.setDate(renewalStartDate.getDate() + 1);
+          // For renewals, use the dates calculated by the frontend (they're already correct)
+          let renewalStartDate, renewalEndDate;
+          
+          // Original dates are already captured at the beginning of the function
+          
+          console.log('Renewal request body:', {
+            membershipStartDate: req.body.membershipStartDate,
+            membershipEndDate: req.body.membershipEndDate,
+            membershipDuration: req.body.membershipDuration,
+            membershipDays: req.body.membershipDays,
+            isRenewal: req.body.isRenewal
+          });
+          
+          if (req.body.membershipStartDate && req.body.membershipEndDate) {
+            // Use the dates calculated by the frontend
+            renewalStartDate = new Date(req.body.membershipStartDate);
+            renewalEndDate = new Date(req.body.membershipEndDate);
+            console.log('Using frontend calculated dates:', {
+              renewalStartDate: renewalStartDate.toISOString(),
+              renewalEndDate: renewalEndDate.toISOString()
+            });
           } else {
-            // Membership expired, renewal starts today
-            renewalStartDate = new Date(today);
+            // Fallback calculation if frontend didn't send dates
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const currentEndDate = updatedCustomer.membershipEndDate ? new Date(updatedCustomer.membershipEndDate) : null;
+            
+            if (currentEndDate && currentEndDate >= today) {
+              // Membership is active - keep original start date, extend from current end date
+              renewalStartDate = new Date(updatedCustomer.membershipStartDate); // Keep original start date
+              const renewalFrom = new Date(currentEndDate);
+              renewalFrom.setDate(renewalFrom.getDate() + 1);
+              renewalEndDate = new Date(renewalFrom);
+              
+              // Calculate renewal end date by adding duration
+              if (membershipDurationToUse > 0) {
+                renewalEndDate.setMonth(renewalEndDate.getMonth() + membershipDurationToUse);
+              }
+              if (membershipDaysToUse > 0) {
+                renewalEndDate.setDate(renewalEndDate.getDate() + membershipDaysToUse);
+              }
+              renewalEndDate.setDate(renewalEndDate.getDate() - 1); // Inclusive
+            } else {
+              // Membership expired, renewal starts from the provided start date
+              renewalStartDate = req.body.membershipStartDate ? new Date(req.body.membershipStartDate) : new Date(today);
+              renewalEndDate = new Date(renewalStartDate);
+              
+              // Calculate renewal end date by adding duration
+              if (membershipDurationToUse > 0) {
+                renewalEndDate.setMonth(renewalEndDate.getMonth() + membershipDurationToUse);
+              }
+              if (membershipDaysToUse > 0) {
+                renewalEndDate.setDate(renewalEndDate.getDate() + membershipDaysToUse);
+              }
+              renewalEndDate.setDate(renewalEndDate.getDate() - 1); // Inclusive
+            }
           }
-          // Calculate renewal end date
-          renewalEndDate = new Date(renewalStartDate);
-          if (membershipDurationToUse > 0) {
-            renewalEndDate.setMonth(renewalEndDate.getMonth() + membershipDurationToUse);
-          }
-          if (membershipDaysToUse > 0) {
-            renewalEndDate.setDate(renewalEndDate.getDate() + membershipDaysToUse);
-          }
-          renewalEndDate.setDate(renewalEndDate.getDate() - 1); // Inclusive
 
           // Update customer membershipStartDate and membershipEndDate
           updatedCustomer.membershipStartDate = renewalStartDate;
           updatedCustomer.membershipEndDate = renewalEndDate;
           updatedCustomer.membershipDuration = membershipDurationToUse;
           updatedCustomer.membershipDays = membershipDaysToUse;
+          
+          console.log('Final dates being saved:', {
+            membershipStartDate: renewalStartDate.toISOString(),
+            membershipEndDate: renewalEndDate.toISOString(),
+            membershipDuration: membershipDurationToUse,
+            membershipDays: membershipDaysToUse,
+            originalEndDateForInvoice: originalEndDateForInvoice?.toISOString(),
+            originalStartDateForInvoice: originalStartDateForInvoice?.toISOString()
+          });
+          
           await updatedCustomer.save();
 
           const formatDate = (date) => {
@@ -564,9 +613,74 @@ router.put('/:id', async (req, res) => {
             const year = d.getFullYear();
             return `${day}/${month}/${year}`;
           };
-          const dateRange = renewalStartDate && renewalEndDate ? ` (${formatDate(renewalStartDate)} to ${formatDate(renewalEndDate)})` : '';
+          // For invoice, show the actual renewal period (new period being added)
+          let invoiceStartDate, invoiceEndDate;
+          
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          
+          // Determine if this is an active membership renewal
+          // For active membership renewals: renewal start date = original start date AND renewal extends beyond original end date
+          const isActiveMembershipRenewal = originalEndDateForInvoice && 
+            originalEndDateForInvoice >= today && 
+            renewalStartDate.getTime() === originalStartDateForInvoice.getTime() &&
+            renewalEndDate.getTime() > originalEndDateForInvoice.getTime();
+          
+          console.log('=== INVOICE DATE CALCULATION DEBUG ===');
+          console.log('originalEndDateForInvoice:', originalEndDateForInvoice?.toISOString());
+          console.log('renewalStartDate:', renewalStartDate.toISOString());
+          console.log('renewalEndDate:', renewalEndDate.toISOString());
+          console.log('originalStartDateForInvoice:', originalStartDateForInvoice?.toISOString());
+          console.log('today:', today.toISOString());
+          console.log('--- CONDITIONS ---');
+          console.log('condition1 - originalEndDate >= today:', originalEndDateForInvoice && originalEndDateForInvoice >= today);
+          console.log('condition2 - renewalStartDate === originalStartDate:', renewalStartDate.getTime() === originalStartDateForInvoice?.getTime());
+          console.log('condition3 - renewalEndDate > originalEndDate:', renewalEndDate.getTime() > originalEndDateForInvoice?.getTime());
+          console.log('FINAL RESULT - isActiveMembershipRenewal:', isActiveMembershipRenewal);
+          console.log('=== END DEBUG ===');
+          
+          if (isActiveMembershipRenewal) {
+            console.log('✅ TAKING ACTIVE MEMBERSHIP RENEWAL BRANCH');
+            // Active membership renewal - invoice covers only the NEW period (day after original end to new end)
+            console.log('BEFORE calculation:', {
+              originalEndDateForInvoice: originalEndDateForInvoice.toISOString(),
+              renewalEndDate: renewalEndDate.toISOString()
+            });
+            
+            // For active membership renewals, the invoice start date should be the original end date + 1 day
+            // This represents the NEW period being added to the existing membership
+            invoiceStartDate = new Date(originalEndDateForInvoice);
+            invoiceStartDate.setDate(invoiceStartDate.getDate() + 1);
+            invoiceEndDate = new Date(renewalEndDate);
+            
+            console.log('AFTER calculation:', {
+              invoiceStartDate: invoiceStartDate.toISOString(),
+              invoiceEndDate: invoiceEndDate.toISOString()
+            });
+            console.log('Active membership renewal - invoice period:', {
+              invoiceStartDate: invoiceStartDate.toISOString(),
+              invoiceEndDate: invoiceEndDate.toISOString(),
+              reason: 'Active membership being extended',
+              originalEndDate: originalEndDateForInvoice.toISOString(),
+              originalStartDate: originalStartDateForInvoice.toISOString(),
+              renewalStartDate: renewalStartDate.toISOString()
+            });
+          } else {
+            console.log('❌ TAKING EXPIRED/NEW MEMBERSHIP BRANCH');
+            // Expired membership or new membership - invoice covers the full new membership
+            invoiceStartDate = new Date(renewalStartDate);
+            invoiceEndDate = new Date(renewalEndDate);
+            console.log('Expired/New membership - invoice period:', {
+              invoiceStartDate: invoiceStartDate.toISOString(),
+              invoiceEndDate: invoiceEndDate.toISOString(),
+              reason: originalEndDateForInvoice && originalEndDateForInvoice < today ? 'Membership expired' : 'New membership',
+              note: 'This branch was taken instead of active membership renewal'
+            });
+          }
+          
+          const invoiceDateRange = ` (${formatDate(invoiceStartDate)} to ${formatDate(invoiceEndDate)})`;
           const membershipItem = {
-            description: `${membershipTypeToUse?.toUpperCase() || 'MEMBERSHIP'} Membership Renewal - ${membershipDurationToUse} months${dateRange}`,
+            description: `${membershipTypeToUse?.toUpperCase() || 'MEMBERSHIP'} Membership Renewal - ${membershipDurationToUse} months${invoiceDateRange}`,
             quantity: 1,
             unitPrice: feesToUse,
             amount: feesToUse
@@ -580,10 +694,9 @@ router.put('/:id', async (req, res) => {
             invoiceNumber,
             amount: feesToUse,
             currency: 'INR',
-            status: 'pending',
             dueDate,
             items: [membershipItem],
-            notes: `Membership renewal fees for ${updatedCustomer.name} - ${membershipTypeToUse?.toUpperCase() || 'MEMBERSHIP'} plan for ${membershipDurationToUse} months${dateRange}`
+            notes: `Membership renewal fees for ${updatedCustomer.name} - ${membershipTypeToUse?.toUpperCase() || 'MEMBERSHIP'} plan for ${membershipDurationToUse} months${invoiceDateRange}`
           });
           await invoice.save();
           gym.invoiceCounter = invoiceCounter + 1;
