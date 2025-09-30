@@ -121,6 +121,56 @@ class S3Service {
   }
 
   /**
+   * Upload gym banner with enforced 3:1 aspect ratio and optimization
+   * @param {Buffer} imageBuffer - The banner buffer
+   * @param {string} originalName - Original filename
+   * @returns {Promise<Object>} - { url, key, filename }
+   */
+  async uploadBanner(imageBuffer, originalName) {
+    try {
+      // Enforce 3:1 ratio by center-cropping and resizing to a reasonable max size
+      // e.g., 1800x600 with high quality webp
+      const targetWidth = 1800;
+      const targetHeight = 600; // 3:1
+      const processedBuffer = await sharp(imageBuffer)
+        .resize({
+          width: targetWidth,
+          height: targetHeight,
+          fit: 'cover',
+          position: 'center'
+        })
+        .webp({ quality: 90 })
+        .toBuffer();
+
+      const timestamp = Date.now();
+      const random = Math.floor(Math.random() * 1000000);
+      const filename = `banner-${timestamp}-${random}.webp`;
+      const key = `banners/${filename}`;
+
+      const uploadParams = {
+        Bucket: this.bucketName,
+        Key: key,
+        Body: processedBuffer,
+        ContentType: 'image/webp',
+        CacheControl: 'public, max-age=31536000',
+        Metadata: {
+          originalName,
+          uploadedAt: new Date().toISOString(),
+          processed: 'true',
+          aspect: '3:1'
+        }
+      };
+
+      await this.s3Client.send(new PutObjectCommand(uploadParams));
+      const url = `https://${this.bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+      return { url, key, filename, size: processedBuffer.length, format: 'webp' };
+    } catch (error) {
+      console.error('Error uploading banner to S3:', error);
+      throw new Error(`Failed to upload banner: ${error.message}`);
+    }
+  }
+
+  /**
    * Upload product image with specific optimization
    * @param {Buffer} imageBuffer - The product image buffer
    * @param {string} originalName - Original filename

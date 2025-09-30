@@ -15,6 +15,10 @@ const gymSchema = new mongoose.Schema({
     type: String, // S3 URL for the gym logo (e.g., 'https://bucket.s3.region.amazonaws.com/logos/logo-123.png')
     default: null
   },
+  banner: {
+    type: String, // S3 URL for the gym banner image (3:1)
+    default: null
+  },
   address: {
     street: String,
     city: String,

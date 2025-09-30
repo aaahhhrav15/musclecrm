@@ -215,11 +215,13 @@ router.get('/info', async (req, res) => {
 });
 
 // **OPTIMIZED: Update gym information with validation and caching**
-router.put('/info', upload.single('logo'), handleMulterError, async (req, res) => {
+// Accept optional 'logo' and 'banner' image fields
+router.put('/info', upload.fields([{ name: 'logo', maxCount: 1 }, { name: 'banner', maxCount: 1 }]), handleMulterError, async (req, res) => {
   try {
     const gymId = req.gymId;
-    const { name, contactInfo, address, removeLogo, razorpayKeyId, razorpayKeySecret } = req.body;
-    const logoFile = req.file;
+    const { name, contactInfo, address, removeLogo, removeBanner, razorpayKeyId, razorpayKeySecret } = req.body;
+    const logoFile = req.files && req.files.logo ? req.files.logo[0] : null;
+    const bannerFile = req.files && req.files.banner ? req.files.banner[0] : null;
 
     // **OPTIMIZATION: Validate input data**
     if (name && typeof name !== 'string') {
@@ -294,9 +296,36 @@ router.put('/info', upload.single('logo'), handleMulterError, async (req, res) =
       }
     }
 
+    // Handle banner upload to S3 if provided
+    if (bannerFile) {
+      try {
+        console.log('Processing uploaded banner file for S3 upload...');
+        console.log('File details:', {
+          originalname: bannerFile.originalname,
+          mimetype: bannerFile.mimetype,
+          size: bannerFile.size
+        });
+
+        const uploadResult = await s3Service.uploadBanner(bannerFile.buffer, bannerFile.originalname);
+        updateData.banner = uploadResult.url;
+        console.log('Banner uploaded to S3 successfully:', uploadResult.url);
+      } catch (error) {
+        console.error('Error uploading banner to S3:', error);
+        return res.status(400).json({
+          success: false,
+          message: 'Error uploading banner: ' + error.message
+        });
+      }
+    }
+
     // Handle logo removal if requested
     if (removeLogo === true || removeLogo === 'true') {
       updateData.logo = null;
+    }
+
+    // Handle banner removal if requested
+    if (removeBanner === true || removeBanner === 'true') {
+      updateData.banner = null;
     }
 
     // **OPTIMIZATION: Update gym with lean query**

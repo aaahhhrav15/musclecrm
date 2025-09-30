@@ -69,6 +69,7 @@ interface GymInfo {
   name: string;
   gymCode: string;
   logo: string | null;
+  banner?: string | null;
   contactInfo: {
     email: string;
     phone: string;
@@ -104,6 +105,7 @@ interface GymFormData {
     country: string;
   };
   logo?: File | null;
+  banner?: File | null;
   razorpayKeyId?: string;
   razorpayKeySecret?: string;
 }
@@ -115,13 +117,16 @@ const SettingsPage: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [bannerPreview, setBannerPreview] = useState<string | null>(null);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [isUploadingBanner, setIsUploadingBanner] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [logoRemoved, setLogoRemoved] = useState(false);
   const [showFreeTrialDialog, setShowFreeTrialDialog] = useState(false); // Added for free trial dialog
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
 
   const personalForm = useForm<GymFormData>({
     defaultValues: {
@@ -173,6 +178,7 @@ const SettingsPage: React.FC = () => {
         const gymData = response.data.gym;
         setGymInfo(gymData);
         setLogoPreview(gymData.logo);
+        setBannerPreview(gymData.banner || null);
         
         personalForm.reset({
           name: gymData.name || '',
@@ -187,6 +193,7 @@ const SettingsPage: React.FC = () => {
             zipCode: '',
             country: ''
           },
+          banner: null,
           razorpayKeyId: gymData.razorpayKeyId || '',
           razorpayKeySecret: gymData.razorpayKeySecret || ''
         });
@@ -201,6 +208,46 @@ const SettingsPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  }, [personalForm, toast]);
+
+  const handleBannerChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        title: 'Invalid File Type',
+        description: 'Please upload a JPEG, PNG, GIF, or WebP image.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const maxSize = 8 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast({ title: 'File Too Large', description: 'Image size should be less than 8MB.', variant: 'destructive' });
+      return;
+    }
+
+    // Approximate 3:1 check for UX. Server enforces true crop.
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const ratio = img.width / img.height;
+      if (ratio < 2.7 || ratio > 3.3) {
+        toast({ title: 'Aspect Ratio', description: 'Use a wide image (~3:1). We crop on upload.' });
+      }
+      personalForm.setValue('banner', file);
+      personalForm.trigger('banner');
+      const reader = new FileReader();
+      reader.onloadend = () => setBannerPreview(reader.result as string);
+      reader.readAsDataURL(file);
+      URL.revokeObjectURL(url);
+    };
+    img.src = url;
+
+    if (bannerInputRef.current) bannerInputRef.current.value = '';
   }, [personalForm, toast]);
 
   useEffect(() => {
@@ -376,18 +423,20 @@ const SettingsPage: React.FC = () => {
         razorpayKeySecret: (data.razorpayKeySecret || '').trim()
       };
       
-      // Handle logo upload using FormData
+      // Handle logo/banner upload using FormData
       let response;
-      if (data.logo) {
+      if (data.logo || data.banner) {
         const formData = new FormData();
         formData.append('name', requestData.name);
         formData.append('contactInfo', JSON.stringify(requestData.contactInfo));
         formData.append('address', JSON.stringify(requestData.address));
-        formData.append('logo', data.logo);
+        if (data.logo) formData.append('logo', data.logo);
+        if (data.banner) formData.append('banner', data.banner);
         formData.append('razorpayKeyId', requestData.razorpayKeyId || '');
         formData.append('razorpayKeySecret', requestData.razorpayKeySecret || '');
         
-        console.log('Uploading logo as FormData, file size:', data.logo.size);
+        if (data.logo) console.log('Uploading logo as FormData, file size:', data.logo.size);
+        if (data.banner) console.log('Uploading banner as FormData, file size:', data.banner.size);
         
         response = await axiosInstance.put('/gym/info', formData, {
           headers: {
@@ -420,6 +469,7 @@ const SettingsPage: React.FC = () => {
         
         // Clear the logo from form after successful save
         personalForm.setValue('logo', null);
+        personalForm.setValue('banner', null);
         
         // Clear gym cache to ensure fresh data for QR generation
         try {
@@ -433,6 +483,8 @@ const SettingsPage: React.FC = () => {
           title: "Success",
           description: "Gym information updated successfully",
         });
+        setLogoPreview(response.data.gym.logo || null);
+        setBannerPreview(response.data.gym.banner || null);
       }
     } catch (error: unknown) {
       const err = error as AxiosError;
@@ -493,15 +545,17 @@ const SettingsPage: React.FC = () => {
 
   const formIsDirty = personalForm.formState.isDirty;
   const currentLogo = personalForm.watch('logo');
+  const currentBanner = personalForm.watch('banner');
   
   const hasUnsavedChanges = useMemo(() => {
     if (!gymInfo || !isEditing) return false;
     
     // Check if logo has been changed (either uploaded or removed)
     const logoChanged = currentLogo !== null || logoRemoved;
+    const bannerChanged = currentBanner !== null;
     
-    return formIsDirty || logoChanged;
-  }, [gymInfo, isEditing, formIsDirty, currentLogo, logoRemoved]);
+    return formIsDirty || logoChanged || bannerChanged;
+  }, [gymInfo, isEditing, formIsDirty, currentLogo, currentBanner, logoRemoved]);
 
   if (isLoading) {
     return (
@@ -1137,6 +1191,49 @@ const SettingsPage: React.FC = () => {
                       </>
                     )}
                   </Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Banner Status</span>
+                  <Badge 
+                    variant={bannerPreview ? "default" : "secondary"}
+                    className={bannerPreview ? "bg-green-100 text-green-800" : "bg-orange-100 text-orange-800"}
+                  >
+                    {bannerPreview ? (
+                      <>
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Uploaded
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="h-3 w-3 mr-1" />
+                        Missing
+                      </>
+                    )}
+                  </Badge>
+                </div>
+                <div className="space-y-2 pt-2">
+                  <div className="text-sm text-muted-foreground">Banner (3:1)</div>
+                  <div className="w-full aspect-[3/1] bg-muted/30 border-2 border-dashed border-muted-foreground/25 rounded-md overflow-hidden flex items-center justify-center relative">
+                    {bannerPreview ? (
+                      <img src={bannerPreview} alt="Gym Banner" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="text-xs text-muted-foreground">No banner uploaded</div>
+                    )}
+                    {isEditing && (
+                      <div className="absolute inset-0 flex items-end justify-end p-2 gap-2">
+                        <input type="file" ref={bannerInputRef} className="hidden" accept="image/jpeg,image/png,image/gif,image/webp" onChange={handleBannerChange} />
+                        <button
+                          type="button"
+                          onClick={() => bannerInputRef.current?.click()}
+                          className="px-3 py-1 text-xs rounded-md border bg-white shadow-sm hover:bg-blue-50"
+                          disabled={isUploadingBanner}
+                        >
+                          {isUploadingBanner ? 'Uploading...' : (bannerPreview ? 'Change Banner' : 'Upload Banner')}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">Recommended ~1800x600. We enforce 3:1 on upload.</div>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">QR Code</span>
