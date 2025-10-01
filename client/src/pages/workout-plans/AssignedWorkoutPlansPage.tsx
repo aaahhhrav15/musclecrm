@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from "@/components/ui/button";
@@ -68,7 +68,7 @@ interface Week {
 
 interface AssignedPlan {
   _id: string;
-  memberId: string;
+  customerId: string;
   memberName: string;
   startDate: string;
   notes: string;
@@ -86,13 +86,13 @@ interface AssignedPlan {
 }
 
 const AssignedWorkoutPlansPage: React.FC = () => {
-  const [assignedPlans, setAssignedPlans] = useState<AssignedPlan[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedPlan, setSelectedPlan] = useState<AssignedPlan | null>(null);
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [assignedPlans, setAssignedPlans] = React.useState<AssignedPlan[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+  const [selectedPlan, setSelectedPlan] = React.useState<AssignedPlan | null>(null);
+  const [isViewModalOpen, setIsViewModalOpen] = React.useState(false);
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [filterStatus, setFilterStatus] = React.useState<string>('all');
   const navigate = useNavigate();
 
   const fetchAssignedPlans = async () => {
@@ -109,7 +109,7 @@ const AssignedWorkoutPlansPage: React.FC = () => {
     }
   };
 
-  useEffect(() => {
+  React.useEffect(() => {
     fetchAssignedPlans();
   }, []);
 
@@ -177,7 +177,7 @@ const AssignedWorkoutPlansPage: React.FC = () => {
     totalAssigned: assignedPlans.length,
     activeAssignments: assignedPlans.filter(p => p.status === 'active').length,
     completedAssignments: assignedPlans.filter(p => p.status === 'completed').length,
-    uniqueMembers: new Set(assignedPlans.map(p => p.memberId)).size,
+    uniqueMembers: new Set(assignedPlans.map(p => p.customerId)).size,
   };
 
   if (loading) {

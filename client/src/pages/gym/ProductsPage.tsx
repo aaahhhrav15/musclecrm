@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Product, ProductService } from '@/services/ProductService';
-import { Customer, CustomerService } from '@/services/CustomerService';
+// Customer selection removed per request
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -42,7 +42,7 @@ const ProductsPage: React.FC = () => {
   const [maxPrice, setMaxPrice] = React.useState<string>('');
   const [sortBy, setSortBy] = React.useState<'name' | 'price' | 'createdAt'>('createdAt');
   const [sortDir, setSortDir] = React.useState<'asc' | 'desc'>('desc');
-  const [selectedCustomer, setSelectedCustomer] = React.useState<string>('');
+  // Removed customer filter state
   // Infinite scroll state
   const [visibleCount, setVisibleCount] = React.useState(12);
   const loadMoreRef = React.useRef<HTMLDivElement | null>(null);
@@ -51,7 +51,6 @@ const ProductsPage: React.FC = () => {
   const [formState, setFormState] = React.useState<Partial<Product>>({
     name: '',
     sku: '',
-    url: '',
     price: 0,
     imageUrl: '',
     overview: '',
@@ -62,22 +61,18 @@ const ProductsPage: React.FC = () => {
     manufacturedBy: '',
     disclaimer: '',
     storage: '',
-    shelfLife: '',
-    customerId: undefined
+    shelfLife: ''
   });
 
   const { data, isLoading } = useQuery({ queryKey: ['products'], queryFn: ProductService.list });
-  const { data: customersData } = useQuery({ 
-    queryKey: ['customers'], 
-    queryFn: () => CustomerService.getCustomers({ limit: 1000 }) 
-  });
+  // Removed customers query
 
   const createMutation = useMutation({ mutationFn: ProductService.create as (p: Product) => Promise<{ success: boolean; data: Product }>, 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       toast({ title: 'Product created' });
       setIsOpen(false);
-      setFormState({ name: '', sku: '', url: '', price: 0, imageUrl: '', customerId: undefined });
+      setFormState({ name: '', sku: '', price: 0, imageUrl: '' });
       setPriceInput('0');
     },
     onError: (err: unknown) => {
@@ -174,7 +169,7 @@ const ProductsPage: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const parsedPrice = priceInput.trim() === '' ? NaN : parseFloat(priceInput);
-    if (!formState.name || !formState.sku || !formState.url || !formState.imageUrl || !Number.isFinite(parsedPrice)) {
+    if (!formState.name || !formState.sku || !formState.imageUrl || !Number.isFinite(parsedPrice)) {
       toast({ title: 'Please fill required fields' });
       return;
     }
@@ -191,10 +186,9 @@ const ProductsPage: React.FC = () => {
       const matchesSearch = !s || p.name.toLowerCase().includes(s) || p.sku.toLowerCase().includes(s);
       const matchesMin = min === undefined || p.price >= min;
       const matchesMax = max === undefined || p.price <= max;
-      const matchesCustomer = !selectedCustomer || p.customerId === selectedCustomer;
-      return matchesSearch && matchesMin && matchesMax && matchesCustomer;
+      return matchesSearch && matchesMin && matchesMax;
     });
-  }, [products, search, minPrice, maxPrice, selectedCustomer]);
+  }, [products, search, minPrice, maxPrice]);
 
   const sorted = React.useMemo(() => {
     const arr = [...filtered];
@@ -213,7 +207,7 @@ const ProductsPage: React.FC = () => {
   // Reset visible count when filters/sorting change
   React.useEffect(() => {
     setVisibleCount(12);
-  }, [search, minPrice, maxPrice, sortBy, sortDir, selectedCustomer]);
+  }, [search, minPrice, maxPrice, sortBy, sortDir]);
 
   // IntersectionObserver to load more when reaching the sentinel
   React.useEffect(() => {
@@ -281,11 +275,8 @@ const ProductsPage: React.FC = () => {
     const rows = sorted.map(p => ({
       name: p.name,
       sku: p.sku,
-      url: p.url || '',
       price: p.price,
-      customer: p.customer ? p.customer.name : 'No customer',
-      customerPhone: p.customer ? p.customer.phone || 'No phone' : '',
-              imageUrl: p.imageUrl,
+      imageUrl: p.imageUrl,
       overview: p.overview || '',
       keyBenefits: (p.keyBenefits || []).join('|'),
       fastFacts: p.fastFacts || '',
@@ -344,16 +335,7 @@ const ProductsPage: React.FC = () => {
                   <label className="text-sm">SKU</label>
                   <Input value={formState.sku || ''} onChange={e => setFormState(p => ({ ...p, sku: e.target.value }))} required />
                 </div>
-                <div>
-                  <label className="text-sm">Product URL</label>
-                  <Input 
-                    type="url" 
-                    value={formState.url || ''} 
-                    onChange={e => setFormState(p => ({ ...p, url: e.target.value }))} 
-                    placeholder="https://example.com/product"
-                    required 
-                  />
-                </div>
+                {/* URL removed per request */}
                 <div>
                   <label className="text-sm">Price</label>
                   <Input type="number" step="0.01" value={priceInput} onChange={e => setPriceInput(e.target.value)} required />
@@ -364,22 +346,7 @@ const ProductsPage: React.FC = () => {
                   <p className="text-xs text-muted-foreground mt-1">Max size: 10MB. Images will be automatically compressed.</p>
                 </div>
               </div>
-              <div>
-                <label className="text-sm">Customer (Optional)</label>
-                <Select value={formState.customerId || 'none'} onValueChange={(value) => setFormState(p => ({ ...p, customerId: value === 'none' ? undefined : value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a customer" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No customer assigned</SelectItem>
-                    {customersData?.customers?.map((customer: Customer) => (
-                      <SelectItem key={customer.id} value={customer.id}>
-                        {customer.name} - {customer.phone || 'No phone'}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {/* Customer selection removed per request */}
               <div>
                 <label className="text-sm">Product Overview</label>
                 <Textarea value={formState.overview || ''} onChange={e => setFormState(p => ({ ...p, overview: e.target.value }))} />
@@ -441,19 +408,7 @@ const ProductsPage: React.FC = () => {
               <div className="flex items-center gap-3 w-full md:w-auto">
                 <Input placeholder="Min Price" type="number" value={minPrice} onChange={e => setMinPrice(e.target.value)} className="w-32" />
                 <Input placeholder="Max Price" type="number" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} className="w-32" />
-                <Select value={selectedCustomer || 'all'} onValueChange={(value) => setSelectedCustomer(value === 'all' ? '' : value)}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Filter by customer" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All customers</SelectItem>
-                    {customersData?.customers?.map((customer: Customer) => (
-                      <SelectItem key={customer.id} value={customer.id}>
-                        {customer.name} - {customer.phone || 'No phone'}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {/* Customer filter removed per request */}
                 <Select value={`${sortBy}:${sortDir}`} onValueChange={(v) => {
                   const [sb, sd] = v.split(':') as ['name' | 'price' | 'createdAt', 'asc' | 'desc'];
                   setSortBy(sb);
@@ -518,19 +473,7 @@ const ProductsPage: React.FC = () => {
           <img src={p.imageUrl} alt={p.name} className="w-full h-40 object-cover rounded" />
         )}
                       <div className="mt-3 font-semibold">₹ {p.price.toFixed(2)}</div>
-                      <div className="mt-2 text-sm text-muted-foreground">
-                        {(() => {
-                          // Check if customerId exists and has customer data
-                          if (p.customerId && typeof p.customerId === 'object' && p.customerId !== null) {
-                            const customer = p.customerId as { name: string; phone?: string };
-                            return <div>Customer: {customer.name} - {customer.phone || 'No phone'}</div>;
-                          } else if (p.customerId && typeof p.customerId === 'string') {
-                            return <div>Customer: ID {p.customerId} (Loading...)</div>;
-                          } else {
-                            return <span className="text-green-600 font-medium">✓ For Everyone</span>;
-                          }
-                        })()}
-                      </div>
+                      {/* Customer visibility text removed; products visible to all */}
                     </CardContent>
                   </Card>
                 ))}
@@ -552,7 +495,7 @@ const ProductsPage: React.FC = () => {
                               Price <ArrowUpDown className="w-4 h-4" />
                             </button>
                           </TableHead>
-                          <TableHead>Customer</TableHead>
+                          {/* Customer column removed */}
                           <TableHead>Actions</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -562,19 +505,7 @@ const ProductsPage: React.FC = () => {
                             <TableCell className="font-medium cursor-pointer" onClick={() => navigate(`/dashboard/gym/products/${p._id}`)}>{p.name}</TableCell>
                             <TableCell>{p.sku}</TableCell>
                             <TableCell>₹ {p.price.toFixed(2)}</TableCell>
-                            <TableCell>
-                              {(() => {
-                                // Check if customerId exists and has customer data
-                                if (p.customerId && typeof p.customerId === 'object' && p.customerId !== null) {
-                                  const customer = p.customerId as { name: string; phone?: string };
-                                  return `${customer.name} - ${customer.phone || 'No phone'}`;
-                                } else if (p.customerId && typeof p.customerId === 'string') {
-                                  return `ID ${p.customerId} (Loading...)`;
-                                } else {
-                                  return '✓ For Everyone';
-                                }
-                              })()}
-                            </TableCell>
+                            {/* Customer column removed */}
                             <TableCell className="space-x-2">
                               <Button size="sm" variant="outline" onClick={() => navigate(`/dashboard/gym/products/${p._id}`)}>View</Button>
                               <Button size="sm" variant="outline" onClick={() => openEdit(p)}>
@@ -607,7 +538,7 @@ const ProductsPage: React.FC = () => {
               if (!editingProduct?._id) return;
               const { _id, ...rest } = formState as Product;
               const parsedPrice = editPriceInput.trim() === '' ? NaN : parseFloat(editPriceInput);
-              if (!Number.isFinite(parsedPrice) || !formState.name || !formState.sku || !formState.url) {
+              if (!Number.isFinite(parsedPrice) || !formState.name || !formState.sku) {
                 toast({ title: 'Please fill required fields' });
                 return;
               }
@@ -622,16 +553,7 @@ const ProductsPage: React.FC = () => {
                   <label className="text-sm">SKU</label>
                   <Input value={formState.sku || ''} onChange={e => setFormState(p => ({ ...p, sku: e.target.value }))} required />
                 </div>
-                <div>
-                  <label className="text-sm">Product URL</label>
-                  <Input 
-                    type="url" 
-                    value={formState.url || ''} 
-                    onChange={e => setFormState(p => ({ ...p, url: e.target.value }))} 
-                    placeholder="https://example.com/product"
-                    required 
-                  />
-                </div>
+                {/* URL removed per request */}
                 <div>
                   <label className="text-sm">Price</label>
                   <Input type="number" step="0.01" value={editPriceInput} onChange={e => setEditPriceInput(e.target.value)} required />
@@ -642,22 +564,7 @@ const ProductsPage: React.FC = () => {
                   <p className="text-xs text-muted-foreground mt-1">Max size: 10MB. Images will be automatically compressed.</p>
                 </div>
               </div>
-              <div>
-                <label className="text-sm">Customer (Optional)</label>
-                <Select value={formState.customerId || 'none'} onValueChange={(value) => setFormState(p => ({ ...p, customerId: value === 'none' ? undefined : value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a customer" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No customer assigned</SelectItem>
-                    {customersData?.customers?.map((customer: Customer) => (
-                      <SelectItem key={customer.id} value={customer.id}>
-                        {customer.name} - {customer.phone || 'No phone'}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {/* Customer selection removed per request */}
               <div>
                 <label className="text-sm">Product Overview</label>
                 <Textarea value={formState.overview || ''} onChange={e => setFormState(p => ({ ...p, overview: e.target.value }))} />

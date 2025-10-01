@@ -4,7 +4,6 @@ export interface Product {
   _id?: string;
   name: string;
   sku: string;
-  url: string;
   price: number;
   imageUrl: string; // S3 URL for the product image
   overview?: string;
@@ -16,13 +15,8 @@ export interface Product {
   disclaimer?: string;
   storage?: string;
   shelfLife?: string;
-  customerId?: string;
-  customer?: {
-    _id: string;
-    name: string;
-    phone?: string;
-    email?: string;
-  };
+  customerId?: never;
+  customer?: never;
   createdAt?: string;
   updatedAt?: string;
 }

@@ -38,7 +38,7 @@ router.get('/assigned', async (req, res) => {
     // Transform the data
     const transformedPlans = assignedPlans.map(plan => ({
       _id: plan._id,
-      memberId: plan.memberId,
+      customerId: plan.customerId,
       memberName: plan.memberName,
       startDate: plan.startDate,
       notes: plan.notes,
@@ -62,10 +62,10 @@ router.get('/assigned', async (req, res) => {
 // Assign workout plan to a member
 router.post('/assign', async (req, res) => {
   try {
-    const { memberId, memberName, planId, startDate, notes } = req.body;
+    const { customerId, memberName, planId, startDate, notes } = req.body;
 
     // Validate required fields
-    if (!memberId || !memberName || !planId || !startDate) {
+    if (!customerId || !memberName || !planId || !startDate) {
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
@@ -77,7 +77,7 @@ router.post('/assign', async (req, res) => {
 
     // Create assigned workout plan with complete plan details
     const assignedPlan = new AssignedWorkoutPlan({
-      memberId,
+      customerId,
       memberName,
       planId,
       plan: {
@@ -97,7 +97,7 @@ router.post('/assign', async (req, res) => {
 
     // Send notification to app
     axios.post('http://13.233.43.147/send-notification', {
-      user_id: memberId,
+      user_id: customerId,
       title: 'Your Workout Plan has been Updated ☑️',
       body: 'Happy Workout'
     })
@@ -136,9 +136,15 @@ router.delete('/assigned/:id', async (req, res) => {
 // Update an assigned workout plan
 router.put('/assigned/:id', async (req, res) => {
   try {
+    const payload = { ...req.body };
+    // Normalize legacy memberId to customerId if provided
+    if (payload.memberId && !payload.customerId) {
+      payload.customerId = payload.memberId;
+      delete payload.memberId;
+    }
     const assignedPlan = await AssignedWorkoutPlan.findOneAndUpdate(
       { _id: req.params.id, gymId: req.gymId },
-      req.body,
+      payload,
       { new: true }
     );
     if (!assignedPlan) {
@@ -146,7 +152,7 @@ router.put('/assigned/:id', async (req, res) => {
     }
     // Send notification to app
     axios.post('http://13.233.43.147/send-notification', {
-      user_id: assignedPlan.memberId,
+      user_id: assignedPlan.customerId,
       title: 'Your Workout Plan has been Updated ☑️',
       body: 'Happy Workout'
     })
@@ -207,8 +213,26 @@ router.put('/:id', async (req, res) => {
     if (!workoutPlan) {
       return res.status(404).json({ success: false, message: 'Workout plan not found' });
     }
-    
-    res.json({ success: true, workoutPlan });
+    // Sync embedded plan snapshot in assigned workout plans
+    try {
+      const updateResult = await AssignedWorkoutPlan.updateMany(
+        { planId: workoutPlan._id, gymId: req.gymId },
+        {
+          $set: {
+            'plan.name': workoutPlan.name,
+            'plan.goal': workoutPlan.goal,
+            'plan.duration': workoutPlan.duration,
+            'plan.level': workoutPlan.level,
+            'plan.weeks': workoutPlan.weeks,
+          }
+        }
+      );
+      return res.json({ success: true, workoutPlan, syncedAssignedCount: updateResult.modifiedCount ?? updateResult.nModified ?? 0 });
+    } catch (syncErr) {
+      console.error('Error syncing assigned workout plans:', syncErr);
+      // Return success for plan update but report sync error
+      return res.status(207).json({ success: true, workoutPlan, warning: 'Plan updated, but failed to sync assigned plans. Check server logs.' });
+    }
   } catch (error) {
     console.error('Error updating workout plan:', error);
     res.status(500).json({ success: false, message: 'Error updating workout plan' });

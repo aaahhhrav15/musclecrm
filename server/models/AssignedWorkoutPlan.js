@@ -1,9 +1,10 @@
 const mongoose = require('mongoose');
 
 const assignedWorkoutPlanSchema = new mongoose.Schema({
-  memberId: { 
-    type: String, 
-    required: true 
+  customerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Customer',
+    required: true
   },
   gymId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -51,14 +52,14 @@ const assignedWorkoutPlanSchema = new mongoose.Schema({
     enum: ['active', 'completed', 'cancelled'],
     default: 'active'
   }
-}, { 
+  }, { 
   timestamps: true,
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
 });
 
 // Add indexes for better query performance
-assignedWorkoutPlanSchema.index({ memberId: 1, planId: 1 });
+assignedWorkoutPlanSchema.index({ customerId: 1, planId: 1 });
 assignedWorkoutPlanSchema.index({ gymId: 1 });
 
 const AssignedWorkoutPlan = mongoose.model('AssignedWorkoutPlan', assignedWorkoutPlanSchema);

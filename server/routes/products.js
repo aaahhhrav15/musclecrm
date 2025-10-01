@@ -28,7 +28,6 @@ const upload = multer({
 router.get('/', auth, async (req, res) => {
   try {
     const products = await Product.find({ gymId: req.user.gymId })
-      .populate('customerId', 'name phone email')
       .sort({ createdAt: -1 });
     res.json({ success: true, data: products });
   } catch (error) {
@@ -41,7 +40,7 @@ router.get('/', auth, async (req, res) => {
 router.get('/:id', auth, async (req, res) => {
   try {
     const product = await Product.findOne({ _id: req.params.id, gymId: req.user.gymId })
-      .populate('customerId', 'name phone email');
+      ;
     if (!product) {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
@@ -60,15 +59,13 @@ router.post('/', auth, async (req, res) => {
     console.log('Request headers:', req.headers);
     console.log('User gymId:', req.user.gymId);
     
-    const { name, sku, price, imageUrl, customerId, url } = req.body;
+    const { name, sku, price, imageUrl } = req.body;
     
     console.log('Extracted fields:');
     console.log('  - name:', name, 'type:', typeof name);
     console.log('  - sku:', sku, 'type:', typeof sku);
     console.log('  - price:', price, 'type:', typeof price);
     console.log('  - imageUrl:', imageUrl ? 'present' : 'missing', 'type:', typeof imageUrl);
-    console.log('  - url:', url, 'type:', typeof url);
-    console.log('  - customerId:', customerId, 'type:', typeof customerId);
     
     // Check for required fields
     const missingFields = [];
@@ -76,7 +73,6 @@ router.post('/', auth, async (req, res) => {
     if (!sku) missingFields.push('sku');
     if (typeof price !== 'number') missingFields.push('price (must be number)');
     if (!imageUrl) missingFields.push('image');
-    if (!url) missingFields.push('url');
     
     if (missingFields.length > 0) {
       console.log('❌ Validation failed. Missing fields:', missingFields);
@@ -125,7 +121,6 @@ router.post('/', auth, async (req, res) => {
     const productData = {
       name,
       sku,
-      url,
       price,
       imageUrl: finalImageUrl,
       overview: req.body.overview || '',
@@ -139,11 +134,6 @@ router.post('/', auth, async (req, res) => {
       shelfLife: req.body.shelfLife || '',
       gymId: req.user.gymId
     };
-    
-    // Add customerId if provided
-    if (customerId && customerId !== 'none') {
-      productData.customerId = customerId;
-    }
     
     console.log('📦 Final product data:', JSON.stringify(productData, null, 2));
 
@@ -165,22 +155,10 @@ router.post('/', auth, async (req, res) => {
 // Update product
 router.put('/:id', auth, async (req, res) => {
   try {
-    // Prepare update data, handling undefined customerId
+    // Prepare update data
     const updateData = { ...req.body };
-    
-    // Handle customerId properly - convert "none" to null and undefined to null
-    if (updateData.customerId === undefined || updateData.customerId === 'none' || updateData.customerId === '' || updateData.customerId === 'null') {
-      console.log('🔄 Converting customerId from', updateData.customerId, 'to null');
-      updateData.customerId = null;
-    }
-    
-    // Validate customerId if it's provided (should be a valid ObjectId)
-    if (updateData.customerId && !mongoose.Types.ObjectId.isValid(updateData.customerId)) {
-      console.log('⚠️ Invalid customerId format provided:', updateData.customerId);
-      updateData.customerId = null;
-    }
-    
-    console.log('📝 Final updateData.customerId:', updateData.customerId);
+    delete updateData.customerId;
+    delete updateData.url;
 
     // Handle image upload to S3 if a new image is provided
     if (updateData.imageUrl && updateData.imageUrl.startsWith('data:image/')) {
@@ -211,7 +189,7 @@ router.put('/:id', auth, async (req, res) => {
       { _id: req.params.id, gymId: req.user.gymId },
       updateData,
       { new: true, runValidators: true }
-    ).populate('customerId', 'name phone email');
+    );
     
     if (!updated) {
       return res.status(404).json({ success: false, message: 'Product not found' });

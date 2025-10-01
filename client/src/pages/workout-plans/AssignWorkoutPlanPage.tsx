@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import * as React from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -61,7 +62,7 @@ interface WorkoutPlan {
 }
 
 const formSchema = z.object({
-  memberId: z.string().min(1, 'Member is required'),
+  customerId: z.string().min(1, 'Member is required'),
   planId: z.string().min(1, 'Workout plan is required'),
   startDate: z.string().min(1, 'Start date is required'),
   notes: z.string().optional(),
@@ -86,7 +87,7 @@ const AssignWorkoutPlanPage: React.FC = () => {
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      memberId: '',
+      customerId: '',
       planId: '',
       startDate: new Date().toISOString().split('T')[0], // Default to today
       notes: '',
@@ -157,7 +158,7 @@ const AssignWorkoutPlanPage: React.FC = () => {
   const handleSubmit = async (data: FormData) => {
     try {
       // Find the selected member to get their name
-      const member = allCustomers.find(c => c._id === data.memberId);
+      const member = allCustomers.find(c => c._id === data.customerId);
       if (!member) {
         toast.error('Selected member not found');
         return;
@@ -210,7 +211,7 @@ const AssignWorkoutPlanPage: React.FC = () => {
   };
 
   // Watch form changes to update selected items
-  const watchedMemberId = form.watch('memberId');
+  const watchedMemberId = form.watch('customerId');
   const watchedPlanId = form.watch('planId');
 
   useEffect(() => {
@@ -225,7 +226,7 @@ const AssignWorkoutPlanPage: React.FC = () => {
 
   // Handle customer selection
   const handleCustomerSelect = (customerId: string) => {
-    form.setValue('memberId', customerId);
+    form.setValue('customerId', customerId);
     setCustomerDropdownOpen(false);
     setCustomerSearch('');
   };
@@ -239,7 +240,7 @@ const AssignWorkoutPlanPage: React.FC = () => {
 
   // Clear customer selection
   const clearCustomerSelection = () => {
-    form.setValue('memberId', '');
+    form.setValue('customerId', '');
     setSelectedMember(null);
     setCustomerSearch('');
   };
@@ -360,7 +361,7 @@ const AssignWorkoutPlanPage: React.FC = () => {
                     {/* Client Selection with Search */}
                     <FormField
                       control={form.control}
-                      name="memberId"
+                      name="customerId"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel className="flex items-center gap-2">

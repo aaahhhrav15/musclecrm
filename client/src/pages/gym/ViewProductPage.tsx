@@ -8,9 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Edit, Trash2 } from 'lucide-react';
-import { Customer, CustomerService } from '@/services/CustomerService';
 import { useToast } from '@/hooks/use-toast';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { AxiosError } from 'axios';
@@ -32,10 +30,7 @@ const ViewProductPage: React.FC = () => {
   const [formState, setFormState] = React.useState<any>({});
   const [editPriceInput, setEditPriceInput] = React.useState<string>('');
 
-  const { data: customersData } = useQuery({ 
-    queryKey: ['customers'], 
-    queryFn: () => CustomerService.getCustomers({ limit: 1000 }) 
-  });
+  // Customer selection removed per request
 
   React.useEffect(() => {
     if (product) {
@@ -155,7 +150,7 @@ const ViewProductPage: React.FC = () => {
             if (!id) return;
             const { _id, ...rest } = formState;
             const parsedPrice = editPriceInput.trim() === '' ? NaN : parseFloat(editPriceInput);
-            if (!Number.isFinite(parsedPrice) || !formState.name || !formState.sku || !formState.url) {
+            if (!Number.isFinite(parsedPrice) || !formState.name || !formState.sku) {
               toast({ title: 'Please fill required fields' });
               return;
             }
@@ -170,16 +165,7 @@ const ViewProductPage: React.FC = () => {
                 <label className="text-sm">SKU</label>
                 <Input value={formState.sku || ''} onChange={e => setFormState((p: any) => ({ ...p, sku: e.target.value }))} required />
               </div>
-              <div>
-                <label className="text-sm">Product URL</label>
-                <Input 
-                  type="url" 
-                  value={formState.url || ''} 
-                  onChange={e => setFormState((p: any) => ({ ...p, url: e.target.value }))} 
-                  placeholder="https://example.com/product"
-                  required 
-                />
-              </div>
+              {/* URL removed per request */}
               <div>
                 <label className="text-sm">Price</label>
                 <Input type="number" step="0.01" value={editPriceInput} onChange={e => setEditPriceInput(e.target.value)} required />
@@ -190,22 +176,7 @@ const ViewProductPage: React.FC = () => {
                 <p className="text-xs text-muted-foreground mt-1">Max size: 10MB. Images will be automatically compressed.</p>
               </div>
             </div>
-            <div>
-              <label className="text-sm">Customer (Optional)</label>
-              <Select value={formState.customerId || 'none'} onValueChange={(value) => setFormState((p: any) => ({ ...p, customerId: value === 'none' ? undefined : value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a customer" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No customer assigned</SelectItem>
-                  {customersData?.customers?.map((customer: Customer) => (
-                    <SelectItem key={customer.id} value={customer.id}>
-                      {customer.name} - {customer.phone || 'No phone'}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Customer selection removed per request */}
             <div>
               <label className="text-sm">Product Overview</label>
               <Textarea value={formState.overview || ''} onChange={e => setFormState((p: any) => ({ ...p, overview: e.target.value }))} />

@@ -124,6 +124,7 @@ const SettingsPage: React.FC = () => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [logoRemoved, setLogoRemoved] = useState(false);
+  const [bannerRemoved, setBannerRemoved] = useState(false);
   const [showFreeTrialDialog, setShowFreeTrialDialog] = useState(false); // Added for free trial dialog
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
@@ -330,6 +331,14 @@ const SettingsPage: React.FC = () => {
     setShowDeleteDialog(false);
   }, [personalForm, toast]);
 
+  const handleRemoveBanner = useCallback(() => {
+    personalForm.setValue('banner', null);
+    setBannerPreview(null);
+    setBannerRemoved(true);
+    personalForm.trigger('banner');
+    toast({ title: 'Banner Removed', description: "Banner will be removed when you click 'Save Changes'" });
+  }, [personalForm, toast]);
+
   const generatePDF = useCallback(async (preview: boolean = false) => {
     try {
       console.log('Generating PDF, preview:', preview);
@@ -443,9 +452,10 @@ const SettingsPage: React.FC = () => {
             'Content-Type': 'multipart/form-data',
           },
         });
-      } else if (logoRemoved) {
+      } else if (logoRemoved || bannerRemoved) {
         // This means user explicitly removed the logo
-        requestData.removeLogo = true;
+        if (logoRemoved) requestData.removeLogo = true;
+        if (bannerRemoved) (requestData as any).removeBanner = true;
         
         response = await axiosInstance.put('/gym/info', requestData, {
           headers: {
@@ -467,9 +477,10 @@ const SettingsPage: React.FC = () => {
         setGymInfo(response.data.gym);
         setIsEditing(false);
         
-        // Clear the logo from form after successful save
+        // Clear the logo/banner from form after successful save
         personalForm.setValue('logo', null);
         personalForm.setValue('banner', null);
+        setBannerRemoved(false);
         
         // Clear gym cache to ensure fresh data for QR generation
         try {
@@ -497,11 +508,12 @@ const SettingsPage: React.FC = () => {
     } finally {
       setIsSaving(false);
     }
-  }, [personalForm, toast, logoRemoved]);
+  }, [personalForm, toast, logoRemoved, bannerRemoved]);
 
   const handleCancelEdit = useCallback(() => {
     setIsEditing(false);
     setLogoRemoved(false);
+    setBannerRemoved(false);
     if (gymInfo) {
       personalForm.reset({
         name: gymInfo.name || '',
@@ -516,10 +528,12 @@ const SettingsPage: React.FC = () => {
           zipCode: '',
           country: ''
         },
-        logo: null
+        logo: null,
+        banner: null
       });
       // Reset logo preview to original
       setLogoPreview(gymInfo.logo);
+      setBannerPreview(gymInfo.banner || null);
     }
   }, [gymInfo, personalForm]);
 
@@ -552,10 +566,10 @@ const SettingsPage: React.FC = () => {
     
     // Check if logo has been changed (either uploaded or removed)
     const logoChanged = currentLogo !== null || logoRemoved;
-    const bannerChanged = currentBanner !== null;
+    const bannerChanged = currentBanner !== null || bannerRemoved;
     
     return formIsDirty || logoChanged || bannerChanged;
-  }, [gymInfo, isEditing, formIsDirty, currentLogo, currentBanner, logoRemoved]);
+  }, [gymInfo, isEditing, formIsDirty, currentLogo, currentBanner, logoRemoved, bannerRemoved]);
 
   if (isLoading) {
     return (
@@ -1230,6 +1244,15 @@ const SettingsPage: React.FC = () => {
                         >
                           {isUploadingBanner ? 'Uploading...' : (bannerPreview ? 'Change Banner' : 'Upload Banner')}
                         </button>
+                        {bannerPreview && (
+                          <button
+                            type="button"
+                            onClick={handleRemoveBanner}
+                            className="px-3 py-1 text-xs rounded-md border bg-red-50 text-red-700 hover:bg-red-100"
+                          >
+                            Remove
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
