@@ -25,7 +25,8 @@ import {
   Clock,
   AlertCircle,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  X
 } from 'lucide-react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -138,6 +139,7 @@ const LeadsPage: React.FC = () => {
       contactedLeads: 0,
       interestedLeads: 0,
       negotiationLeads: 0,
+      notInterestedLeads: 0,
       closedLeads: 0,
       followUpsDue: 0,
       todayLeads: 0,
@@ -152,8 +154,9 @@ const LeadsPage: React.FC = () => {
       contactedLeads: allLeads.filter(l => l.status === 'Contacted').length,
       interestedLeads: allLeads.filter(l => l.status === 'Interested').length,
       negotiationLeads: allLeads.filter(l => l.status === 'Negotiation').length,
+      notInterestedLeads: allLeads.filter(l => l.status === 'Not Interested').length,
       closedLeads: allLeads.filter(l => l.status === 'Closed').length,
-      followUpsDue: allLeads.filter(l => l.followUpDate && l.followUpDate.slice(0, 10) <= today && l.status !== 'Closed').length,
+      followUpsDue: allLeads.filter(l => l.followUpDate && l.followUpDate.slice(0, 10) <= today && l.status !== 'Closed' && l.status !== 'Not Interested').length,
       todayLeads: allLeads.filter(l => l.createdAt && l.createdAt.slice(0, 10) === today).length,
       conversionRate: 0
     };
@@ -201,6 +204,9 @@ const LeadsPage: React.FC = () => {
         break;
       case 'negotiation':
         filtered = filtered.filter(l => l.status === 'Negotiation');
+        break;
+      case 'not-interested':
+        filtered = filtered.filter(l => l.status === 'Not Interested');
         break;
       case 'closed':
         filtered = filtered.filter(l => l.status === 'Closed');
@@ -349,6 +355,7 @@ const LeadsPage: React.FC = () => {
       case 'Contacted': return 'bg-yellow-100 text-yellow-800';
       case 'Interested': return 'bg-purple-100 text-purple-800';
       case 'Negotiation': return 'bg-orange-100 text-orange-800';
+      case 'Not Interested': return 'bg-red-100 text-red-800';
       case 'Closed': return 'bg-green-100 text-green-800';
       default: return 'bg-gray-100 text-gray-800';
     }
@@ -360,6 +367,7 @@ const LeadsPage: React.FC = () => {
       case 'Contacted': return <Phone className="h-3 w-3" />;
       case 'Interested': return <MessageSquare className="h-3 w-3" />;
       case 'Negotiation': return <TrendingUp className="h-3 w-3" />;
+      case 'Not Interested': return <X className="h-3 w-3" />;
       case 'Closed': return <CheckCircle className="h-3 w-3" />;
       default: return <AlertCircle className="h-3 w-3" />;
     }
@@ -612,12 +620,13 @@ const LeadsPage: React.FC = () => {
           <CardContent className="p-0">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <div className="border-b px-6 pt-6">
-                <TabsList className="grid grid-cols-6 bg-muted/50">
+                <TabsList className="grid grid-cols-7 bg-muted/50">
                   <TabsTrigger value="all">All ({allLeads.length})</TabsTrigger>
                   <TabsTrigger value="new">New ({leadInsights.newLeads})</TabsTrigger>
                   <TabsTrigger value="contacted">Contacted ({leadInsights.contactedLeads})</TabsTrigger>
                   <TabsTrigger value="interested">Interested ({leadInsights.interestedLeads})</TabsTrigger>
                   <TabsTrigger value="negotiation">Negotiation ({leadInsights.negotiationLeads})</TabsTrigger>
+                  <TabsTrigger value="not-interested">Not Interested ({leadInsights.notInterestedLeads})</TabsTrigger>
                   <TabsTrigger value="closed">Closed ({leadInsights.closedLeads})</TabsTrigger>
                 </TabsList>
               </div>
@@ -828,6 +837,7 @@ const LeadsPage: React.FC = () => {
                   <SelectItem value="Contacted">Contacted</SelectItem>
                   <SelectItem value="Interested">Interested</SelectItem>
                   <SelectItem value="Negotiation">Negotiation</SelectItem>
+                  <SelectItem value="Not Interested">Not Interested</SelectItem>
                   <SelectItem value="Closed">Closed</SelectItem>
                 </SelectContent>
               </Select>
