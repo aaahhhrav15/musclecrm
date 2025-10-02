@@ -7,7 +7,7 @@ const Booking = require('../models/Booking');
 const GymStaff = require('../models/GymStaff');
 const Lead = require('../models/Lead');
 const Transaction = require('../models/Transaction');
-const GymAttendance = require('../models/GymAttendance');
+const Attendance = require('../models/GymAttendance');
 const RetailSale = require('../models/RetailSale');
 const Expense = require('../models/Expense');
 
@@ -235,11 +235,11 @@ router.get('/comprehensive', auth, async (req, res) => {
       ]),
 
       // Attendance data
-      attendanceByDay = await GymAttendance.aggregate([
+      attendanceByDay = await Attendance.aggregate([
         {
           $match: {
             ...baseQuery,
-            date: { $gte: startDate, $lte: endDate }
+            markedAt: { $gte: startDate, $lte: endDate }
           }
         },
         {
@@ -384,7 +384,7 @@ router.get('/comprehensive', auth, async (req, res) => {
         {
           $match: {
             ...baseQuery,
-            date: { $gte: startDate, $lte: endDate }
+            markedAt: { $gte: startDate, $lte: endDate }
           }
         },
         {
@@ -624,11 +624,11 @@ router.get('/time-range', auth, async (req, res) => {
       ]),
 
       // Attendance by day
-      GymAttendance.aggregate([
+      Attendance.aggregate([
         {
           $match: {
             ...baseQuery,
-            date: { $gte: startDate, $lte: endDate }
+            markedAt: { $gte: startDate, $lte: endDate }
           }
         },
         {

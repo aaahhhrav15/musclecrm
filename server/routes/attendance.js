@@ -1,5 +1,5 @@
 const express = require('express');
-const GymAttendance = require('../models/GymAttendance');
+const Attendance = require('../models/GymAttendance');
 const Customer = require('../models/Customer');
 const { startOfDay, endOfDay, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths } = require('date-fns');
 const mongoose = require('mongoose');
@@ -49,20 +49,20 @@ router.get('/', auth, async (req, res) => {
     
     console.log('Date range:', { startDate, endDate });
     
-    const attendance = await GymAttendance.find({
+    const attendance = await Attendance.find({
       gymId,
-      timestamp: { $gte: startDate, $lt: endDate }
+      markedAt: { $gte: startDate, $lt: endDate }
     })
       .populate('userId', 'name email')
-      .sort({ timestamp: -1 });
+      .sort({ markedAt: -1 });
       
     console.log('Found attendance records:', attendance.length);
     
     // Calculate 7-day average
     const sevenDaysAgo = startOfDay(subDays(new Date(), 6));
-    const weeklyAttendance = await GymAttendance.aggregate([
-        { $match: { gymId: new mongoose.Types.ObjectId(gymId), timestamp: { $gte: sevenDaysAgo } } },
-        { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$timestamp" } }, count: { $sum: 1 } } },
+    const weeklyAttendance = await Attendance.aggregate([
+        { $match: { gymId: new mongoose.Types.ObjectId(gymId), markedAt: { $gte: sevenDaysAgo } } },
+        { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$markedAt" } }, count: { $sum: 1 } } },
         { $group: { _id: null, total: { $sum: "$count" }, days: { $sum: 1 } } }
     ]);
 
@@ -126,13 +126,13 @@ router.get('/history', auth, async (req, res) => {
     
     const skip = (parseInt(page) - 1) * parseInt(limit);
     
-    const attendance = await GymAttendance.find({ gymId })
+    const attendance = await Attendance.find({ gymId })
       .populate('userId', 'name email')
-      .sort({ timestamp: -1 })
+      .sort({ markedAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
       
-    const total = await GymAttendance.countDocuments({ gymId });
+    const total = await Attendance.countDocuments({ gymId });
     const pages = Math.ceil(total / parseInt(limit));
     
     res.json({
@@ -153,10 +153,10 @@ router.get('/history', auth, async (req, res) => {
 // Check-in a customer
 router.post('/check-in', async (req, res) => {
   try {
-    const { userId, gymId } = req.body;
+    const { userId, gymId, gymCode } = req.body;
 
-    if (!userId || !gymId) {
-      return res.status(400).json({ success: false, message: 'User ID and Gym ID are required' });
+    if (!userId || !gymId || !gymCode) {
+      return res.status(400).json({ success: false, message: 'User ID, Gym ID, and Gym Code are required' });
     }
     
     const customer = await Customer.findById(userId);
@@ -164,13 +164,18 @@ router.post('/check-in', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Customer not found' });
     }
     
-    const newAttendance = await GymAttendance.create({
+    const now = new Date();
+    const dateKey = now.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+    
+    const newAttendance = await Attendance.create({
       gymId: new mongoose.Types.ObjectId(gymId),
       userId: new mongoose.Types.ObjectId(userId),
-      timestamp: new Date()
+      gymCode,
+      markedAt: now,
+      dateKey
     });
     
-    const populatedAttendance = await GymAttendance.findById(newAttendance._id)
+    const populatedAttendance = await Attendance.findById(newAttendance._id)
       .populate('userId', 'name email');
     
     res.status(201).json({ success: true, data: populatedAttendance });

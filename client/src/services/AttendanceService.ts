@@ -3,23 +3,18 @@ import { apiClient } from './ApiService';
 
 export interface AttendanceRecord {
   _id: string;
-  memberId?: {
+  userId: {
     _id: string;
     name: string;
     email: string;
-    membershipType: string;
+    membershipType?: string;
   };
-  staffId?: {
-    _id: string;
-    name: string;
-    email: string;
-    role: string;
-  };
-  checkInTime: string;
-  checkOutTime?: string;
-  duration?: string;
-  status: 'Checked In' | 'Checked Out';
-  type: 'Member' | 'Staff';
+  gymId: string;
+  gymCode: string;
+  markedAt: string;
+  dateKey: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface AttendanceStats {
@@ -30,10 +25,9 @@ export interface AttendanceStats {
 }
 
 export interface CheckInData {
-  memberId?: string;
-  staffId?: string;
-  type: 'Member' | 'Staff';
-  checkInMethod?: 'QR' | 'Biometric' | 'Manual';
+  userId: string;
+  gymId: string;
+  gymCode: string;
 }
 
 export interface CheckOutData {

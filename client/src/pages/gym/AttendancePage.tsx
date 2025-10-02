@@ -42,7 +42,6 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useToast } from '@/hooks/use-toast';
 import { ApiService } from '@/services/ApiService';
 import { format } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
@@ -63,7 +62,12 @@ interface AttendanceRecord {
     membershipType: string;
     profileImage?: string;
   };
-  timestamp: string;
+  gymId: string;
+  gymCode: string;
+  markedAt: string;
+  dateKey: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // Define stats type
@@ -106,7 +110,6 @@ const AttendancePage: React.FC = () => {
     periodLabel: 'Today'
   });
   const [searchQuery, setSearchQuery] = useState('');
-  const { toast: useToastHook } = useToast();
   const [view, setView] = useState<'today' | 'history'>('today');
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [historyPage, setHistoryPage] = useState(1);
@@ -136,12 +139,12 @@ const AttendancePage: React.FC = () => {
   const attendanceInsights = React.useMemo(() => {
     const currentHour = new Date().getHours();
     const morningCheckIns = attendanceRecords.filter(record => {
-      const hour = new Date(record.timestamp).getHours();
+      const hour = new Date(record.markedAt).getHours();
       return hour >= 6 && hour < 12;
     }).length;
     
     const eveningCheckIns = attendanceRecords.filter(record => {
-      const hour = new Date(record.timestamp).getHours();
+      const hour = new Date(record.markedAt).getHours();
       return hour >= 17 && hour < 22;
     }).length;
 
@@ -167,15 +170,11 @@ const AttendancePage: React.FC = () => {
       }
     } catch (error) {
       console.error('Error fetching attendance:', error);
-      useToastHook({
-        title: "Failed to load attendance",
-        description: "There was a problem loading attendance records.",
-        variant: "destructive",
-      });
+      toast.error("Failed to load attendance records");
     } finally {
       setIsLoading(false);
     }
-  }, [gymId, selectedDate, useToastHook, attendanceRecords.length]);
+  }, [gymId, selectedDate, attendanceRecords.length]);
   
   // Load attendance records from backend
   useEffect(() => {
@@ -197,15 +196,11 @@ const AttendancePage: React.FC = () => {
       }
     } catch (error) {
       console.error('Error fetching history:', error);
-      useToastHook({
-        title: "Failed to load history",
-        description: "There was a problem loading attendance history.",
-        variant: "destructive",
-      });
+      toast.error("Failed to load attendance history");
     } finally {
       setIsLoadingHistory(false);
     }
-  }, [gymId, useToastHook]);
+  }, [gymId]);
 
   useEffect(() => {
     if (view === 'history') {
@@ -239,10 +234,10 @@ const AttendancePage: React.FC = () => {
     const exportData = dataToExport.map(record => ({
       "Member Name": record.userId?.name || 'Unknown',
       "Email": record.userId?.email || '',
-      "Membership Type": record.userId?.membershipType || '',
-      "Check-in Date": format(new Date(record.timestamp), 'yyyy-MM-dd'),
-      "Check-in Time": format(new Date(record.timestamp), 'HH:mm:ss'),
-      "Day of Week": format(new Date(record.timestamp), 'EEEE')
+      "Day of Week": format(new Date(record.markedAt), 'EEEE'),
+      "Check-in Date": format(new Date(record.markedAt), 'yyyy-MM-dd'),
+      "Check-in Time": format(new Date(record.markedAt), 'HH:mm:ss'),
+      "Gym Code": record.gymCode || ''
     }));
 
     const csv = Papa.unparse(exportData);
@@ -280,19 +275,15 @@ const AttendancePage: React.FC = () => {
         </div>
       </TableCell>
       <TableCell>
-        <Badge variant={
-          record.userId?.membershipType === 'vip' ? 'default' :
-          record.userId?.membershipType === 'premium' ? 'secondary' :
-          'outline'
-        }>
-          {record.userId?.membershipType?.charAt(0).toUpperCase() + record.userId?.membershipType?.slice(1) || 'Basic'}
+        <Badge variant="secondary" className="bg-blue-500/10 text-blue-700 border-blue-200">
+          {format(new Date(record.markedAt), 'EEEE')}
         </Badge>
       </TableCell>
       <TableCell className="text-muted-foreground">
-        {format(new Date(record.timestamp), 'MMM d, yyyy')}
+        {format(new Date(record.markedAt), 'MMM d, yyyy')}
       </TableCell>
       <TableCell className="font-medium">
-        {format(new Date(record.timestamp), 'h:mm a')}
+        {format(new Date(record.markedAt), 'h:mm a')}
       </TableCell>
       <TableCell>
         <Badge variant="default" className="bg-green-500/10 text-green-700">
@@ -506,7 +497,7 @@ const AttendancePage: React.FC = () => {
                 <TableHeader>
                   <TableRow className="hover:bg-muted/50">
                     <TableHead className="font-semibold">Member</TableHead>
-                    <TableHead className="font-semibold">Membership</TableHead>
+                    <TableHead className="font-semibold">Day</TableHead>
                     <TableHead className="font-semibold">Date</TableHead>
                     <TableHead className="font-semibold">Time</TableHead>
                     <TableHead className="font-semibold">Status</TableHead>
