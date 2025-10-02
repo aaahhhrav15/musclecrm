@@ -517,38 +517,87 @@ router.get('/generate-pdf', async (req, res) => {
     let logoBuffer = null;
     let logoDimensions = { width: 0, height: 0 };
 
-    // Logo processing - handle S3 URLs only
+    // Logo processing - fetch remote images and embed in PDF
     if (gym.logo && typeof gym.logo === 'string' && gym.logo.startsWith('http')) {
       try {
-        // For S3 URLs, we'll use the URL directly in the PDF
-        // Note: PDFKit doesn't support direct URL loading, so we'll skip logo in PDF for now
-        // or implement a fetch-and-convert approach if needed
-        console.log('S3 logo URL detected for PDF generation:', gym.logo);
-        hasLogo = false; // Skip logo for now with S3 URLs
+        // Lazy import axios to avoid top-level dependency if not needed elsewhere in this file
+        const axios = require('axios');
+        const response = await axios.get(gym.logo, {
+          responseType: 'arraybuffer',
+          // Some CDNs/S3 URLs require no-cache to avoid signed URL caching issues
+          headers: { 'Cache-Control': 'no-cache' },
+          timeout: 10000
+        });
+
+        const contentType = (response.headers && (response.headers['content-type'] || response.headers['Content-Type'])) || '';
+        let rawBuffer = Buffer.from(response.data);
+
+        // PDFKit reliably supports PNG and JPEG. Convert other formats to PNG if possible.
+        if (/image\/(png|jpeg|jpg)/i.test(contentType)) {
+          // Keep original buffer (no trimming/cropping) to preserve full image
+          logoBuffer = rawBuffer;
+          hasLogo = true;
+        } else {
+          try {
+            // Optional conversion using sharp, if available
+            // eslint-disable-next-line @typescript-eslint/no-var-requires
+            const sharp = require('sharp');
+            // Convert to PNG without trimming to preserve full image
+            logoBuffer = await sharp(rawBuffer).png().toBuffer();
+            hasLogo = true;
+          } catch (convErr) {
+            console.warn('Logo is not PNG/JPEG and conversion failed or sharp not installed. Skipping logo.', convErr?.message || convErr);
+            hasLogo = false;
+          }
+        }
       } catch (error) {
-        console.error('Error processing S3 logo for PDF:', error);
+        console.error('Error fetching logo for PDF:', error?.message || error);
         hasLogo = false;
       }
     }
 
     // Draw logo or clean placeholder
     if (hasLogo && logoBuffer) {
-      const logoX = (pageWidth - logoDimensions.width) / 2;
-      const logoY = currentY + (logoAreaHeight - logoDimensions.height) / 2;
-      
-      // Clean logo background - minimal shadow
-      doc.rect(logoX - 8, logoY - 8, logoDimensions.width + 16, logoDimensions.height + 16)
-         .fillColor(colors.shadow)
-         .fill();
-      
-      doc.rect(logoX - 6, logoY - 6, logoDimensions.width + 12, logoDimensions.height + 12)
-         .fillColor(colors.white)
-         .fill();
-      
-      doc.image(logoBuffer, logoX, logoY, { 
-        width: logoDimensions.width, 
-        height: logoDimensions.height
-      });
+      try {
+        const sharp = require('sharp');
+        const meta = await sharp(logoBuffer).metadata();
+        const srcW = meta.width || logoMaxWidth;
+        const srcH = meta.height || logoMaxHeight;
+
+        // Compute scaled dimensions preserving aspect ratio within max bounds (contain)
+        const scale = Math.min(logoMaxWidth / srcW, logoMaxHeight / srcH, 1);
+        const drawW = Math.round(srcW * scale);
+        const drawH = Math.round(srcH * scale);
+        const drawX = (pageWidth - drawW) / 2;
+        const drawY = currentY + (logoAreaHeight - drawH) / 2;
+
+        // Draw full image (no cropping)
+        doc.image(logoBuffer, drawX, drawY, {
+          width: drawW,
+          height: drawH
+        });
+
+        // Draw a black outline very close to the logo bounds
+        const outlinePadding = 2;
+        doc
+          .lineWidth(1.5)
+          .strokeColor('#000000')
+          .roundedRect(
+            drawX - outlinePadding,
+            drawY - outlinePadding,
+            drawW + outlinePadding * 2,
+            drawH + outlinePadding * 2,
+            8
+          )
+          .stroke();
+      } catch {
+        // Fallback: simple fit without background or outline
+        const fitWidth = logoMaxWidth;
+        const fitHeight = logoMaxHeight;
+        const imgX = (pageWidth - fitWidth) / 2;
+        const imgY = currentY + (logoAreaHeight - fitHeight) / 2;
+        doc.image(logoBuffer, imgX, imgY, { fit: [fitWidth, fitHeight] });
+      }
     } else {
       // Clean placeholder design
       const placeholderSize = 70;
