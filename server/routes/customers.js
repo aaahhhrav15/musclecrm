@@ -83,7 +83,14 @@ router.get('/', async (req, res) => {
       {
         $match: {
           gymId: gymId,
-          ...(search ? { name: { $regex: search, $options: 'i' } } : {})
+          ...(search ? { 
+            $or: [
+              { name: { $regex: search, $options: 'i' } },
+              { email: { $regex: search, $options: 'i' } },
+              { phone: { $regex: search, $options: 'i' } },
+              { notes: { $regex: search, $options: 'i' } }
+            ]
+          } : {})
         }
       },
       {

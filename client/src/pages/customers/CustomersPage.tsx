@@ -245,7 +245,8 @@ export function CustomersPage() {
       filtered = filtered.filter(customer => 
         (customer.name && customer.name.toLowerCase().includes(query)) ||
         (customer.email && customer.email.toLowerCase().includes(query)) ||
-        (customer.phone && customer.phone.toLowerCase().includes(query))
+        (customer.phone && customer.phone.toLowerCase().includes(query)) ||
+        (customer.notes && customer.notes.toLowerCase().includes(query))
       );
     }
 
@@ -489,6 +490,7 @@ export function CustomersPage() {
         "Days Until Expiry": expiryDate ? differenceInDays(expiryDate, new Date()) : '',
         "Status": isCustomerExpired(customer) ? 'Expired' : isCustomerExpiringSoon(customer, 7) ? 'Expiring Soon' : 'Active',
         "Date of Birth": customer.birthday ? format(new Date(customer.birthday), 'yyyy-MM-dd') : '',
+        "Notes": customer.notes || '',
         "Created Date": customer.createdAt ? format(new Date(customer.createdAt), 'yyyy-MM-dd') : ''
       };
     });
@@ -715,7 +717,7 @@ export function CustomersPage() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search by name, email, or phone..."
+                  placeholder="Search by name, email, phone, or notes..."
                   className="pl-10 h-11 shadow-sm border-muted-foreground/20 focus:ring-2 focus:ring-primary/20"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -819,6 +821,7 @@ export function CustomersPage() {
                       <TableHead className="font-semibold">Membership</TableHead>
                       <TableHead className="font-semibold">Status</TableHead>
                       <TableHead className="font-semibold">Expiry</TableHead>
+                      <TableHead className="font-semibold">Notes</TableHead>
                       <TableHead className="font-semibold">Total Spent</TableHead>
                       <TableHead className="font-semibold w-[120px]">Actions</TableHead>
                     </TableRow>
@@ -908,6 +911,13 @@ export function CustomersPage() {
                               <span className="text-muted-foreground">N/A</span>
                             )}
                           </TableCell>
+                          <TableCell>
+                            <div className="max-w-[200px]">
+                              <p className="text-sm text-muted-foreground truncate">
+                                {customer.notes || 'No notes'}
+                              </p>
+                            </div>
+                          </TableCell>
                           <TableCell className="font-semibold text-green-600">
                             {formatCurrency(customer.totalSpent)}
                           </TableCell>
@@ -942,7 +952,7 @@ export function CustomersPage() {
                     })}
                     {(!paginatedCustomers || paginatedCustomers.length === 0) && (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                        <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
                           <div className="flex flex-col items-center space-y-2">
                             <Users className="h-12 w-12 text-muted-foreground/50" />
                             <div className="text-lg font-medium">No customers found</div>

@@ -121,6 +121,6 @@ customerSchema.index({ gymId: 1, membershipEndDate: 1 });
 customerSchema.index({ gymId: 1, joinDate: 1 });
 
 // **OPTIMIZATION: Text index for search functionality**
-customerSchema.index({ name: 'text', email: 'text', phone: 'text' });
+customerSchema.index({ name: 'text', email: 'text', phone: 'text', notes: 'text' });
 
 module.exports = mongoose.model('Customer', customerSchema);
