@@ -231,19 +231,44 @@ const SettingsPage: React.FC = () => {
       return;
     }
 
-    // Approximate 3:1 check for UX. Server enforces true crop.
+    // Validate 3:1 aspect ratio for better user experience
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
       const ratio = img.width / img.height;
-      if (ratio < 2.7 || ratio > 3.3) {
-        toast({ title: 'Aspect Ratio', description: 'Use a wide image (~3:1). We crop on upload.' });
+      const targetRatio = 3; // 3:1 aspect ratio
+      const tolerance = 0.1; // 10% tolerance
+      
+      if (Math.abs(ratio - targetRatio) > tolerance) {
+        toast({ 
+          title: 'Invalid Aspect Ratio', 
+          description: `Banner must have a 3:1 aspect ratio (${img.width}x${img.height} = ${ratio.toFixed(2)}:1). Please crop your image to 3:1 ratio.`,
+          variant: 'destructive'
+        });
+        URL.revokeObjectURL(url);
+        return;
       }
+      
+      // Show success message for good aspect ratio
+      toast({ 
+        title: 'Good Aspect Ratio', 
+        description: `Perfect! ${img.width}x${img.height} maintains the required 3:1 ratio.`,
+        variant: 'default'
+      });
+      
       personalForm.setValue('banner', file);
       personalForm.trigger('banner');
       const reader = new FileReader();
       reader.onloadend = () => setBannerPreview(reader.result as string);
       reader.readAsDataURL(file);
+      URL.revokeObjectURL(url);
+    };
+    img.onerror = () => {
+      toast({ 
+        title: 'Invalid Image', 
+        description: 'Please select a valid image file.',
+        variant: 'destructive'
+      });
       URL.revokeObjectURL(url);
     };
     img.src = url;
@@ -455,7 +480,7 @@ const SettingsPage: React.FC = () => {
       } else if (logoRemoved || bannerRemoved) {
         // This means user explicitly removed the logo
         if (logoRemoved) requestData.removeLogo = true;
-        if (bannerRemoved) (requestData as any).removeBanner = true;
+        if (bannerRemoved) (requestData as typeof requestData & { removeBanner: boolean }).removeBanner = true;
         
         response = await axiosInstance.put('/gym/info', requestData, {
           headers: {
@@ -1256,7 +1281,7 @@ const SettingsPage: React.FC = () => {
                       </div>
                     )}
                   </div>
-                  <div className="text-[10px] text-muted-foreground">Recommended ~1800x600. We enforce 3:1 on upload.</div>
+                  <div className="text-[10px] text-muted-foreground">3:1 aspect ratio required. Any size is acceptable.</div>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">QR Code</span>

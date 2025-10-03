@@ -128,10 +128,25 @@ class S3Service {
    */
   async uploadBanner(imageBuffer, originalName) {
     try {
-      // Enforce 3:1 ratio by center-cropping and resizing to a reasonable max size
-      // e.g., 1800x600 with high quality webp
-      const targetWidth = 1800;
-      const targetHeight = 600; // 3:1
+      // Get image metadata to determine optimal dimensions
+      const metadata = await sharp(imageBuffer).metadata();
+      const originalWidth = metadata.width;
+      const originalHeight = metadata.height;
+      
+      // Calculate target dimensions maintaining 3:1 aspect ratio
+      // Use the larger dimension as reference and scale proportionally
+      let targetWidth, targetHeight;
+      
+      if (originalWidth >= originalHeight * 3) {
+        // Image is already wide enough, use height as reference
+        targetHeight = Math.min(originalHeight, 1200); // Max height of 1200px
+        targetWidth = targetHeight * 3;
+      } else {
+        // Image needs to be cropped, use width as reference
+        targetWidth = Math.min(originalWidth, 3600); // Max width of 3600px
+        targetHeight = targetWidth / 3;
+      }
+      
       const processedBuffer = await sharp(imageBuffer)
         .resize({
           width: targetWidth,
@@ -157,13 +172,23 @@ class S3Service {
           originalName,
           uploadedAt: new Date().toISOString(),
           processed: 'true',
-          aspect: '3:1'
+          aspect: '3:1',
+          originalDimensions: `${originalWidth}x${originalHeight}`,
+          processedDimensions: `${targetWidth}x${targetHeight}`
         }
       };
 
       await this.s3Client.send(new PutObjectCommand(uploadParams));
       const url = `https://${this.bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
-      return { url, key, filename, size: processedBuffer.length, format: 'webp' };
+      return { 
+        url, 
+        key, 
+        filename, 
+        size: processedBuffer.length, 
+        format: 'webp',
+        dimensions: `${targetWidth}x${targetHeight}`,
+        originalDimensions: `${originalWidth}x${originalHeight}`
+      };
     } catch (error) {
       console.error('Error uploading banner to S3:', error);
       throw new Error(`Failed to upload banner: ${error.message}`);
