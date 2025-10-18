@@ -10,6 +10,7 @@ const exerciseSchema = new mongoose.Schema({
 
 const daySchema = new mongoose.Schema({
   dayNumber: { type: Number, required: true },
+  muscleGroups: { type: String },
   exercises: [exerciseSchema],
 });
 

@@ -33,6 +33,7 @@ const exerciseSchema = z.object({
 
 const daySchema = z.object({
   dayNumber: z.number(),
+  muscleGroups: z.string().optional(),
   exercises: z.array(exerciseSchema),
 });
 
@@ -90,6 +91,7 @@ const WorkoutPlanForm: React.FC<WorkoutPlanFormProps> = ({
         days: [
           {
             dayNumber: 1,
+            muscleGroups: '',
             exercises: [],
           },
         ],
@@ -106,6 +108,7 @@ const WorkoutPlanForm: React.FC<WorkoutPlanFormProps> = ({
 
     weeks[weekIndex].days.push({
       dayNumber: newDayNumber,
+      muscleGroups: '',
       exercises: [],
     });
 
@@ -276,94 +279,109 @@ const WorkoutPlanForm: React.FC<WorkoutPlanFormProps> = ({
                         </Button>
                       </CardHeader>
                       <CardContent className="space-y-4">
+                        <FormField
+                          control={form.control}
+                          name={`weeks.${weekIndex}.days.${dayIndex}.muscleGroups`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Muscle Groups (Optional)</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  {...field} 
+                                  placeholder="e.g., Chest, Triceps" 
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
                         {day.exercises.map((exercise, exerciseIndex) => (
-                          <div
-                            key={exerciseIndex}
-                            className="grid grid-cols-5 gap-4 items-end"
-                          >
-                            <FormField
-                              control={form.control}
-                              name={`weeks.${weekIndex}.days.${dayIndex}.exercises.${exerciseIndex}.name`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Exercise</FormLabel>
-                                  <FormControl>
-                                    <Input {...field} placeholder="Exercise name" />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
-                              name={`weeks.${weekIndex}.days.${dayIndex}.exercises.${exerciseIndex}.sets`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Sets</FormLabel>
-                                  <FormControl>
-                                    <Input
-                                      type="number"
-                                      {...field}
-                                      onChange={(e) =>
-                                        field.onChange(Number(e.target.value))
-                                      }
-                                      min={1}
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
-                              name={`weeks.${weekIndex}.days.${dayIndex}.exercises.${exerciseIndex}.reps`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Reps</FormLabel>
-                                  <FormControl>
-                                    <Input
-                                      type="number"
-                                      {...field}
-                                      onChange={(e) =>
-                                        field.onChange(Number(e.target.value))
-                                      }
-                                      min={1}
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
-                              name={`weeks.${weekIndex}.days.${dayIndex}.exercises.${exerciseIndex}.restTime`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Rest (sec)</FormLabel>
-                                  <FormControl>
-                                    <Input
-                                      type="number"
-                                      {...field}
-                                      onChange={(e) =>
-                                        field.onChange(Number(e.target.value))
-                                      }
-                                      min={0}
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() =>
-                                removeExercise(weekIndex, dayIndex, exerciseIndex)
-                              }
-                            >
-                              <Trash2 className="h-4 w-4 text-red-500" />
-                            </Button>
+                          <div key={exerciseIndex} className="space-y-4 p-4 border rounded-lg">
+                            <div className="grid grid-cols-5 gap-4 items-end">
+                              <FormField
+                                control={form.control}
+                                name={`weeks.${weekIndex}.days.${dayIndex}.exercises.${exerciseIndex}.name`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Exercise</FormLabel>
+                                    <FormControl>
+                                      <Input {...field} placeholder="Exercise name" />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name={`weeks.${weekIndex}.days.${dayIndex}.exercises.${exerciseIndex}.sets`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Sets</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        type="number"
+                                        {...field}
+                                        onChange={(e) =>
+                                          field.onChange(Number(e.target.value))
+                                        }
+                                        min={1}
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name={`weeks.${weekIndex}.days.${dayIndex}.exercises.${exerciseIndex}.reps`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Reps</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        type="number"
+                                        {...field}
+                                        onChange={(e) =>
+                                          field.onChange(Number(e.target.value))
+                                        }
+                                        min={1}
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name={`weeks.${weekIndex}.days.${dayIndex}.exercises.${exerciseIndex}.restTime`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Rest (sec)</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        type="number"
+                                        {...field}
+                                        onChange={(e) =>
+                                          field.onChange(Number(e.target.value))
+                                        }
+                                        min={0}
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() =>
+                                  removeExercise(weekIndex, dayIndex, exerciseIndex)
+                                }
+                              >
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                              </Button>
+                            </div>
                           </div>
                         ))}
                         <Button

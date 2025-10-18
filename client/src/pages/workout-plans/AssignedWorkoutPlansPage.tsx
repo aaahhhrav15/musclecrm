@@ -58,6 +58,7 @@ interface Exercise {
 
 interface Day {
   dayNumber: number;
+  muscleGroups?: string;
   exercises: Exercise[];
 }
 
@@ -582,6 +583,11 @@ const AssignedWorkoutPlansPage: React.FC = () => {
                               <h4 className="font-semibold mb-3 flex items-center gap-2">
                                 <Calendar className="h-4 w-4" />
                                 Day {day.dayNumber}
+                                {day.muscleGroups && day.muscleGroups.trim() && (
+                                  <span className="text-sm font-normal text-muted-foreground ml-2">
+                                    - {day.muscleGroups}
+                                  </span>
+                                )}
                               </h4>
                               <div className="space-y-3">
                                 {day.exercises.map((exercise, exerciseIndex) => (

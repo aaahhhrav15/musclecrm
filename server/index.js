@@ -9,6 +9,8 @@ const morgan = require('morgan');
 
 // Import routes
 const authRoutes = require('./routes/auth');
+const adminAuthRoutes = require('./routes/adminAuth');
+const adminDashboardRoutes = require('./routes/adminDashboard');
 // const membersRoutes = require('./routes/members');
 const staffRoutes = require('./routes/staff');
 const attendanceRoutes = require('./routes/attendance');
@@ -165,13 +167,18 @@ app.get('/uploads/logos/:filename', (req, res) => {
 // Register contact route BEFORE global auth/subscription middleware
 app.use('/api/contact', contactRoutes);
 
-// Global authentication middleware for all /api routes except auth and subscription
+// Admin routes (separate authentication)
+app.use('/api/admin/auth', adminAuthRoutes);
+app.use('/api/admin/dashboard', adminDashboardRoutes);
+
+// Global authentication middleware for all /api routes except auth, subscription, and admin
 app.use((req, res, next) => {
   const excluded = [
     '/api/auth',
     '/api/subscription-plans',
     '/api/subscriptions',
     '/api/contact',
+    '/api/admin', // Exclude admin routes from regular auth
   ];
   if (excluded.some(path => req.path.startsWith(path))) {
     return next();
@@ -192,6 +199,7 @@ app.use((req, res, next) => {
     '/api/gym/info',           // If you have a gym info endpoint
     '/api/dashboard/settings', // If you have a dashboard settings endpoint
     '/api/contact',            // Allow contact endpoint
+    '/api/admin',              // Exclude admin routes from subscription check
   ];
   if (excluded.some(path => req.path.startsWith(path))) {
     return next();

@@ -39,6 +39,7 @@ interface Exercise {
 
 interface Day {
   dayNumber: number;
+  muscleGroups?: string;
   exercises: Exercise[];
 }
 
@@ -343,7 +344,14 @@ const ViewWorkoutPlanPage: React.FC = () => {
                           <div className="h-6 w-6 rounded bg-primary/20 flex items-center justify-center">
                             <span className="text-xs font-bold text-primary">{day.dayNumber}</span>
                           </div>
-                          <h3 className="font-semibold text-lg">Day {day.dayNumber}</h3>
+                          <h3 className="font-semibold text-lg">
+                            Day {day.dayNumber}
+                            {day.muscleGroups && day.muscleGroups.trim() && (
+                              <span className="text-sm font-normal text-muted-foreground ml-2">
+                                - {day.muscleGroups}
+                              </span>
+                            )}
+                          </h3>
                           <Badge variant="outline" className="ml-auto text-xs">
                             {day.exercises.length} exercises
                           </Badge>

@@ -311,7 +311,7 @@ const BookingsPage: React.FC = () => {
         "Date": format(new Date(booking.startTime), 'yyyy-MM-dd'),
         "Time": format(new Date(booking.startTime), 'HH:mm'),
         "Price": booking.price || 0,
-        "Currency": booking.currency || 'USD',
+        "Currency": booking.currency || 'INR',
         "Status": booking.status,
         "Duration": booking.duration || 'N/A',
         "Notes": booking.notes || ''

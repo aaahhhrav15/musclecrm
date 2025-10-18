@@ -29,6 +29,7 @@ const assignedWorkoutPlanSchema = new mongoose.Schema({
       weekNumber: { type: Number, required: true },
       days: [{
         dayNumber: { type: Number, required: true },
+        muscleGroups: { type: String },
         exercises: [{
           name: { type: String, required: true },
           sets: { type: Number, required: true },

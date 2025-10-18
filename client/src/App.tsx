@@ -5,6 +5,7 @@ import { TooltipProvider } from "./components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
+import { AdminAuthProvider } from "./context/AdminAuthContext";
 import { IndustryProvider } from "./context/IndustryContext";
 import { GymProvider } from './context/GymContext';
 import { ToastProvider } from './context/ToastContext';
@@ -86,8 +87,12 @@ const ProtectedRoute = ({ element }: { element: React.ReactNode }) => {
 };
 
 import ProtectedSubscriptionRoute from './components/ProtectedSubscriptionRoute';
+import ProtectedAdminRoute from './components/ProtectedAdminRoute';
 import ViewWorkoutPlanPage from '@/pages/workout-plans/ViewWorkoutPlanPage';
 import ViewBookingPage from "./pages/bookings/ViewBookingPage";
+import AdminLogin from './pages/AdminLogin';
+import AdminDashboard from './pages/AdminDashboard';
+import GymDetailPage from './pages/GymDetailPage';
 
 const App = () => (
   <LocalizationProvider dateAdapter={AdapterDateFns}>
@@ -96,8 +101,9 @@ const App = () => (
         <BrowserRouter>
           <IndustryProvider>
             <AuthProvider>
-              <ToastProvider>
-                <GymProvider>
+              <AdminAuthProvider>
+                <ToastProvider>
+                  <GymProvider>
                   <Toaster />
                   <Sonner />
                   <ScrollToTop />
@@ -112,6 +118,11 @@ const App = () => (
                     <Route path="/terms" element={<TermsAndConditions />} />
                     <Route path="/blogs" element={<BlogsPage />} />
                     <Route path="/about" element={<AboutPage />} />
+                    
+                    {/* Admin routes */}
+                    <Route path="/admin/login" element={<AdminLogin />} />
+                    <Route path="/admin/dashboard" element={<ProtectedAdminRoute><AdminDashboard /></ProtectedAdminRoute>} />
+                    <Route path="/admin/gym/:gymId" element={<ProtectedAdminRoute><GymDetailPage /></ProtectedAdminRoute>} />
                     
                     {/* Protected routes */}
                     <Route path="/setup" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><SetupPage /></ProtectedSubscriptionRoute>} />} />
@@ -162,8 +173,9 @@ const App = () => (
                     {/* Catch-all route */}
                     <Route path="*" element={<NotFound />} />
                   </Routes>
-                </GymProvider>
-              </ToastProvider>
+                  </GymProvider>
+                </ToastProvider>
+              </AdminAuthProvider>
             </AuthProvider>
           </IndustryProvider>
         </BrowserRouter>
