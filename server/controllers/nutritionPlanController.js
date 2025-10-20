@@ -91,6 +91,7 @@ exports.generateNutritionPlan = async (req, res) => {
       "carbs_target": number,
       "fat_target": number,
       "created_date": "YYYY-MM-DD",
+      "additional_notes": "string with important notes, tips, or recommendations for this nutrition plan",
       "meals": [
         {
           "meal_type": string,

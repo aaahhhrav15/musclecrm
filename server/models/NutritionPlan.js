@@ -48,6 +48,10 @@ const nutritionPlanSchema = new mongoose.Schema({
     default: Date.now
   },
   meals: [mealSchema],
+  additional_notes: {
+    type: String,
+    default: ''
+  },
   gymId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Gym',

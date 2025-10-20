@@ -74,6 +74,7 @@ export interface NutritionPlan {
   protein_target: number;
   carbs_target: number;
   fat_target: number;
+  additional_notes?: string;
   createdAt: string;
   meals: Meal[];
 }
@@ -98,6 +99,7 @@ const NutritionPlansPage: React.FC = () => {
     protein_target: '',
     carbs_target: '',
     fat_target: '',
+    additional_notes: '',
     meals: [
       {
         meal_type: 'Breakfast',
@@ -350,6 +352,7 @@ const NutritionPlansPage: React.FC = () => {
       protein_target: plan.protein_target.toString(),
       carbs_target: plan.carbs_target.toString(),
       fat_target: plan.fat_target.toString(),
+      additional_notes: plan.additional_notes || '',
       meals: plan.meals.map(meal => ({
         meal_type: meal.meal_type,
         time: meal.time,
@@ -503,6 +506,7 @@ const NutritionPlansPage: React.FC = () => {
       protein_target: '',
       carbs_target: '',
       fat_target: '',
+      additional_notes: '',
       meals: [
         {
           meal_type: 'Breakfast',
@@ -987,6 +991,16 @@ const NutritionPlansPage: React.FC = () => {
                   </div>
                 </div>
 
+                <div className="grid gap-2">
+                  <label className="text-sm font-medium">Additional Notes</label>
+                  <textarea
+                    value={formData.additional_notes}
+                    onChange={(e) => setFormData(prev => ({ ...prev, additional_notes: e.target.value }))}
+                    placeholder="Enter any additional notes, tips, or recommendations for this nutrition plan..."
+                    className="min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                </div>
+
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <h3 className="text-lg font-medium">Meals</h3>
@@ -1232,6 +1246,24 @@ const NutritionPlansPage: React.FC = () => {
                     <div className="text-xs text-muted-foreground">grams</div>
                   </div>
                 </div>
+
+                {selectedPlan.additional_notes && (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <Activity className="h-5 w-5" />
+                      Additional Notes
+                    </h3>
+                    <Card className="border shadow-sm">
+                      <CardContent className="pt-6">
+                        <div className="prose prose-sm max-w-none">
+                          <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                            {selectedPlan.additional_notes}
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
 
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold flex items-center gap-2">
