@@ -322,6 +322,133 @@ class S3Service {
       return null;
     }
   }
+
+  /**
+   * Upload a document (PDF, DOC, DOCX) to S3
+   * @param {Buffer} documentBuffer - The document buffer
+   * @param {string} originalName - Original filename
+   * @param {string} folder - Folder path in S3 (e.g., 'resumes', 'documents')
+   * @returns {Promise<{ url: string, key: string, filename: string, size: number }>}
+   */
+  async uploadDocument(documentBuffer, originalName, folder = 'documents') {
+    try {
+      const timestamp = Date.now();
+      const random = Math.floor(Math.random() * 1000000);
+      const extension = (originalName?.split('.')?.pop() || 'pdf').toLowerCase();
+      const safeExt = ['pdf', 'doc', 'docx'].includes(extension) ? extension : 'pdf';
+      const sanitizedFilename = originalName.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const filename = `${folder}-${timestamp}-${random}-${sanitizedFilename}`;
+      const key = `${folder}/${filename}`;
+
+      // Determine content type based on extension
+      const contentTypeMap = {
+        'pdf': 'application/pdf',
+        'doc': 'application/msword',
+        'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      };
+      const contentType = contentTypeMap[safeExt] || 'application/pdf';
+
+      const uploadParams = {
+        Bucket: this.bucketName,
+        Key: key,
+        Body: documentBuffer,
+        ContentType: contentType,
+        CacheControl: 'private, max-age=3600', // Private cache for documents
+        Metadata: {
+          originalName: originalName || filename,
+          uploadedAt: new Date().toISOString(),
+          type: 'document'
+        }
+      };
+
+      await this.s3Client.send(new PutObjectCommand(uploadParams));
+
+      const url = `https://${this.bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+      
+      console.log('Document uploaded to S3 successfully:');
+      console.log('  - Bucket:', this.bucketName);
+      console.log('  - Key:', key);
+      console.log('  - URL:', url);
+      console.log('  - Size:', documentBuffer.length);
+
+      return {
+        url,
+        key,
+        filename,
+        size: documentBuffer.length,
+        contentType
+      };
+    } catch (error) {
+      console.error('Error uploading document to S3:', error);
+      throw new Error(`Failed to upload document: ${error.message}`);
+    }
+  }
+
+  /**
+   * Download a document from S3 as a buffer
+   * @param {string} key - The S3 key
+   * @returns {Promise<Buffer>} - Document buffer
+   */
+  async downloadDocument(key) {
+    try {
+      // Extract key from URL if full URL is passed
+      if (key.startsWith('http')) {
+        const urlParts = key.split('.com/');
+        if (urlParts.length > 1) {
+          key = urlParts[1];
+        }
+      }
+
+      const command = new GetObjectCommand({
+        Bucket: this.bucketName,
+        Key: key
+      });
+
+      const response = await this.s3Client.send(command);
+      
+      // Convert stream to buffer
+      const chunks = [];
+      for await (const chunk of response.Body) {
+        chunks.push(chunk);
+      }
+      const buffer = Buffer.concat(chunks);
+
+      return buffer;
+    } catch (error) {
+      console.error('Error downloading document from S3:', error);
+      throw new Error(`Failed to download document: ${error.message}`);
+    }
+  }
+
+  /**
+   * Delete a document from S3
+   * @param {string} key - The S3 key to delete
+   * @returns {Promise<boolean>} - Success status
+   */
+  async deleteDocument(key) {
+    try {
+      if (!key) return true; // Nothing to delete
+
+      // Extract key from URL if full URL is passed
+      if (key.startsWith('http')) {
+        const urlParts = key.split('.com/');
+        if (urlParts.length > 1) {
+          key = urlParts[1];
+        }
+      }
+
+      await this.s3Client.send(new DeleteObjectCommand({
+        Bucket: this.bucketName,
+        Key: key
+      }));
+
+      console.log('Document deleted from S3 successfully:', key);
+      return true;
+    } catch (error) {
+      console.error('Error deleting document from S3:', error);
+      return false;
+    }
+  }
 }
 
 module.exports = new S3Service();

@@ -7,6 +7,9 @@ const path = require('path');
 const fs = require('fs');
 const morgan = require('morgan');
 
+// Import scheduled tasks
+const { scheduleBillingFinalization } = require('./scheduledTasks');
+
 // Import routes
 const authRoutes = require('./routes/auth');
 const adminAuthRoutes = require('./routes/adminAuth');
@@ -37,11 +40,19 @@ const leadsRouter = require('./routes/leads');
 const personalTrainingRoutes = require('./routes/personalTraining');
 const paymentRoutes = require('./routes/payment');
 const subscriptionPlansRoutes = require('./routes/subscriptionPlans');
+const subscriptionsRoutes = require('./routes/subscriptions');
 const contactRoutes = require('./routes/contact');
 const productsRoutes = require('./routes/products');
 const accountabilitiesRoutes = require('./routes/accountabilities');
 const resultsRoutes = require('./routes/results');
 const reelsRoutes = require('./routes/reels');
+const gymBillingRoutes = require('./routes/gymBilling');
+const crmSubscriptionPaymentsRoutes = require('./routes/crmSubscriptionPayments');
+
+// MeeraAI routes
+const meeraAIBlogsRoutes = require('./routes/meeraai/blogs');
+const meeraAIPositionsRoutes = require('./routes/meeraai/positions');
+const meeraAICareersRoutes = require('./routes/meeraai/careers');
 
 const auth = require('./middleware/auth');
 const checkSubscription = require('./middleware/checkSubscription');
@@ -167,11 +178,17 @@ app.get('/uploads/logos/:filename', (req, res) => {
 // Register contact route BEFORE global auth/subscription middleware
 app.use('/api/contact', contactRoutes);
 
+// Register MeeraAI routes BEFORE global auth/subscription middleware
+app.use('/api/meeraai/blogs', meeraAIBlogsRoutes);
+app.use('/api/meeraai/positions', meeraAIPositionsRoutes);
+app.use('/api/meeraai/careers', meeraAICareersRoutes);
+
 // Admin routes (separate authentication)
 app.use('/api/admin/auth', adminAuthRoutes);
 app.use('/api/admin/dashboard', adminDashboardRoutes);
+app.use('/api/admin/billing', gymBillingRoutes);
 
-// Global authentication middleware for all /api routes except auth, subscription, and admin
+// Global authentication middleware for all /api routes except auth, subscription, admin, and meeraai
 app.use((req, res, next) => {
   const excluded = [
     '/api/auth',
@@ -179,6 +196,7 @@ app.use((req, res, next) => {
     '/api/subscriptions',
     '/api/contact',
     '/api/admin', // Exclude admin routes from regular auth
+    '/api/meeraai', // Exclude MeeraAI routes from auth
   ];
   if (excluded.some(path => req.path.startsWith(path))) {
     return next();
@@ -200,6 +218,7 @@ app.use((req, res, next) => {
     '/api/dashboard/settings', // If you have a dashboard settings endpoint
     '/api/contact',            // Allow contact endpoint
     '/api/admin',              // Exclude admin routes from subscription check
+    '/api/meeraai',            // Exclude MeeraAI routes from subscription check
   ];
   if (excluded.some(path => req.path.startsWith(path))) {
     return next();
@@ -235,7 +254,10 @@ app.use('/api/leads', leadsRouter);
 app.use('/api/personal-training', personalTrainingRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/subscription-plans', subscriptionPlansRoutes);
+app.use('/api/subscriptions', subscriptionsRoutes);
+app.use('/api/gym/billing', gymBillingRoutes);
 app.use('/api/gym/products', productsRoutes);
+app.use('/api/crm-subscription-payments', crmSubscriptionPaymentsRoutes);
 app.use('/api/gym/accountabilities', accountabilitiesRoutes);
 app.use('/api/gym/results', resultsRoutes);
 app.use('/api/reels', reelsRoutes);
@@ -268,4 +290,7 @@ const PORT = process.env.PORT || 5001;
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  
+  // Initialize scheduled tasks
+  scheduleBillingFinalization();
 });
