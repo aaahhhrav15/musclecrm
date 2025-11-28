@@ -24,7 +24,9 @@ import {
   Mail,
   Calendar,
   ImageIcon,
-  QrCode
+  QrCode,
+  Receipt,
+  ArrowRight
 } from 'lucide-react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -1390,6 +1392,63 @@ const SettingsPage: React.FC = () => {
             </Card>
           </motion.div>
         )}
+
+        {/* Payment History Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.2 }}
+        >
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-200">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2">
+                <Receipt className="h-5 w-5 text-blue-600" />
+                Payment History
+              </CardTitle>
+              <CardDescription>
+                View all your subscription payments and transaction details
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                    <CreditCard className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold">Subscription Payments</h4>
+                    <p className="text-sm text-muted-foreground">
+                      View detailed payment history for all your CRM subscriptions
+                    </p>
+                  </div>
+                </div>
+                <Button 
+                  onClick={() => window.location.href = '/payment-history'}
+                  className="shadow-sm"
+                >
+                  <Receipt className="h-4 w-4 mr-2" />
+                  View Payment History
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="text-center p-4 bg-green-50 rounded-lg">
+                  <div className="text-2xl font-bold text-green-600">₹999</div>
+                  <div className="text-sm text-green-600">Monthly Plan</div>
+                </div>
+                <div className="text-center p-4 bg-blue-50 rounded-lg">
+                  <div className="text-2xl font-bold text-blue-600">₹9999</div>
+                  <div className="text-sm text-blue-600">Yearly Plan</div>
+                </div>
+                <div className="text-center p-4 bg-purple-50 rounded-lg">
+                  <div className="text-2xl font-bold text-purple-600">16.6%</div>
+                  <div className="text-sm text-purple-600">Yearly Savings</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
       </AnimatePresence>
     </DashboardLayout>
   );

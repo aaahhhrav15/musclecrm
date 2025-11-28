@@ -41,19 +41,78 @@ const getGymBillingForMonth = async (req, res) => {
 const getGymAllBilling = async (req, res) => {
   try {
     const { gymId } = req.params;
+    const { includeDetails } = req.query; // Optional query param to include full details
     
     if (!mongoose.Types.ObjectId.isValid(gymId)) {
       return res.status(400).json({ success: false, message: 'Invalid gym ID' });
     }
     
-    const billing = await GymBilling.find({ gymId })
-      .sort({ billingYear: -1, billingMonth: -1 })
-      .select('billingId billingMonth billingYear totalBillAmount totalPaidAmount totalPendingAmount billingStatus dueDate paymentDeadline createdAt');
-    
-    res.json({
-      success: true,
-      data: billing
-    });
+    // If includeDetails is true, return full billing details in one query (avoids N+1 problem)
+    if (includeDetails === 'true') {
+      const billing = await GymBilling.find({ gymId })
+        .sort({ billingYear: -1, billingMonth: -1 })
+        .populate('memberBills.memberId', 'name email phone')
+        .lean();
+      
+      // Transform the data to match the expected format
+      const transformedBilling = billing.map(b => ({
+        billingId: b.billingId,
+        billingMonth: b.billingMonth,
+        billingYear: b.billingYear,
+        monthName: new Date(b.billingYear, b.billingMonth - 1).toLocaleDateString('en-US', { month: 'long' }),
+        totalBillAmount: b.totalBillAmount,
+        totalPaidAmount: b.totalPaidAmount,
+        totalPendingAmount: b.totalPendingAmount,
+        totalOverdueAmount: b.totalOverdueAmount,
+        billingStatus: b.billingStatus,
+        memberCount: b.memberBills?.length || 0,
+        dueDate: b.dueDate,
+        paymentDeadline: b.paymentDeadline,
+        memberBills: b.memberBills?.map(bill => {
+          const memberIdObj = bill.memberId;
+          const memberId = typeof memberIdObj === 'object' && memberIdObj ? memberIdObj._id.toString() : (memberIdObj?.toString() || bill.memberId?.toString());
+          const memberName = (typeof memberIdObj === 'object' && memberIdObj ? memberIdObj.name : null) || bill.memberName || 'Unknown Member';
+          const memberEmail = (typeof memberIdObj === 'object' && memberIdObj ? memberIdObj.email : null) || bill.memberEmail || '';
+          const memberPhone = (typeof memberIdObj === 'object' && memberIdObj ? memberIdObj.phone : null) || bill.memberPhone || '';
+          
+          return {
+            memberId,
+            memberName,
+            memberEmail,
+            memberPhone,
+            membershipType: bill.membershipType || 'basic',
+            membershipStartDate: bill.membershipStartDate || null,
+            membershipEndDate: bill.membershipEndDate || null,
+            daysActive: bill.daysActive || 0,
+            daysInMonth: bill.daysInMonth || 30,
+            fixedMonthlyFee: bill.originalMonthlyFee || bill.fixedMonthlyFee || 41.67,
+            proRatedAmount: bill.monthlyFee || 0,
+            isActive: bill.isActive !== undefined ? bill.isActive : true,
+            originalMonthlyFee: bill.originalMonthlyFee || bill.fixedMonthlyFee || 41.67
+          };
+        }) || [],
+        billingBreakdown: b.billingBreakdown,
+        paymentHistory: b.paymentHistory || [],
+        isFinalized: b.isFinalized || false,
+        finalizedAt: b.finalizedAt
+      }));
+      
+      res.json({
+        success: true,
+        data: transformedBilling
+      });
+    } else {
+      // Return basic billing info only (original behavior)
+      const billing = await GymBilling.find({ gymId })
+        .sort({ billingYear: -1, billingMonth: -1 })
+        .select('billingId billingMonth billingYear totalBillAmount totalPaidAmount totalPendingAmount billingStatus dueDate paymentDeadline createdAt')
+        .lean();
+      
+      res.json({
+        success: true,
+        data: billing
+      });
+    }
   } catch (error) {
     console.error('Error fetching gym billing history:', error);
     res.status(500).json({ 
@@ -98,51 +157,36 @@ const getBillingDetails = async (req, res) => {
 const createMonthlyBilling = async (req, res) => {
   try {
     const { gymId, billingMonth, billingYear, dueDate, paymentDeadline } = req.body;
-    
+
     if (!mongoose.Types.ObjectId.isValid(gymId)) {
       return res.status(400).json({ success: false, message: 'Invalid gym ID' });
     }
-    
-    // Check if billing already exists for this month
+
+    // Ensure billing month is unique per gym/year/month combination
     const existingBilling = await GymBilling.getGymBillingForMonth(gymId, billingYear, billingMonth);
     if (existingBilling) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Billing already exists for this month' 
+      return res.status(400).json({
+        success: false,
+        message: 'Billing already exists for this month'
       });
     }
-    
+
     // Get gym information
     const gym = await Gym.findById(gymId);
     if (!gym) {
       return res.status(404).json({ success: false, message: 'Gym not found' });
     }
-    
-    // Get all active members for this gym
-    const members = await Customer.find({ 
-      gymId: gymId,
-      status: 'active'
-    }).select('name email phone membershipType monthlyFee');
-    
-    if (members.length === 0) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'No active members found for this gym' 
+
+    // Collect active members and their pro-rated billing details
+    const { memberBills, totalBillAmount } = await calculateRealTimeBilling(gymId);
+
+    if (!memberBills.length) {
+      return res.status(400).json({
+        success: false,
+        message: 'No billable members found for this gym'
       });
     }
-    
-    // Create member bills
-    const memberBills = members.map(member => ({
-      memberId: member._id,
-      memberName: member.name,
-      memberEmail: member.email,
-      memberPhone: member.phone,
-      membershipType: member.membershipType || 'basic',
-      monthlyFee: member.monthlyFee || 0,
-      billingStatus: 'pending'
-    }));
-    
-    // Create billing record
+
     const billing = new GymBilling({
       gymId,
       gymName: gym.name,
@@ -150,25 +194,32 @@ const createMonthlyBilling = async (req, res) => {
       billingYear,
       dueDate: new Date(dueDate),
       paymentDeadline: new Date(paymentDeadline),
-      memberBills
+      memberBills,
+      totalBillAmount
     });
-    
-    // Calculate totals
+
+    // Calculate totals & persist
     billing.calculateTotals();
-    
     await billing.save();
-    
+
     res.json({
       success: true,
       message: 'Monthly billing created successfully',
       data: billing.getBillingSummary()
     });
   } catch (error) {
+    if (error.code === 11000 && error.keyPattern && error.keyPattern.gymId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Billing already exists for this month'
+      });
+    }
+
     console.error('Error creating monthly billing:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Error creating monthly billing', 
-      error: error.message 
+    res.status(500).json({
+      success: false,
+      message: 'Error creating monthly billing',
+      error: error.message
     });
   }
 };

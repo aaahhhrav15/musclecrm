@@ -23,6 +23,8 @@ import Signup from "./pages/Signup";
 import NotFound from "./pages/NotFound";
 import ContactPage from "./pages/ContactPage";
 import SubscriptionsPage from "./pages/SubscriptionsPage";
+import SubscriptionManagementPage from "./pages/SubscriptionManagementPage";
+import PaymentHistoryPage from "./pages/PaymentHistoryPage";
 import BlogsPage from "./pages/Blogs";
 import AboutPage from "./pages/About";
 import TermsAndConditions from "./pages/TermsAndConditions";
@@ -94,6 +96,17 @@ import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
 import GymDetailPage from './pages/GymDetailPage';
 
+// Admin routes wrapper with AdminAuthProvider
+const AdminRoutes = () => (
+  <AdminAuthProvider>
+    <Routes>
+      <Route path="login" element={<AdminLogin />} />
+      <Route path="dashboard" element={<ProtectedAdminRoute><AdminDashboard /></ProtectedAdminRoute>} />
+      <Route path="gym/:gymId" element={<ProtectedAdminRoute><GymDetailPage /></ProtectedAdminRoute>} />
+    </Routes>
+  </AdminAuthProvider>
+);
+
 const App = () => (
   <LocalizationProvider dateAdapter={AdapterDateFns}>
     <QueryClientProvider client={queryClient}>
@@ -101,9 +114,8 @@ const App = () => (
         <BrowserRouter>
           <IndustryProvider>
             <AuthProvider>
-              <AdminAuthProvider>
-                <ToastProvider>
-                  <GymProvider>
+              <ToastProvider>
+                <GymProvider>
                   <Toaster />
                   <Sonner />
                   <ScrollToTop />
@@ -115,14 +127,13 @@ const App = () => (
                     <Route path="/signup" element={<Signup />} />
                     <Route path="/contact" element={<ContactPage />} />
                     <Route path="/subscriptions" element={<SubscriptionsPage />} />
+                    <Route path="/subscription-management" element={<SubscriptionManagementPage />} />
                     <Route path="/terms" element={<TermsAndConditions />} />
                     <Route path="/blogs" element={<BlogsPage />} />
                     <Route path="/about" element={<AboutPage />} />
                     
                     {/* Admin routes */}
-                    <Route path="/admin/login" element={<AdminLogin />} />
-                    <Route path="/admin/dashboard" element={<ProtectedAdminRoute><AdminDashboard /></ProtectedAdminRoute>} />
-                    <Route path="/admin/gym/:gymId" element={<ProtectedAdminRoute><GymDetailPage /></ProtectedAdminRoute>} />
+                    <Route path="/admin/*" element={<AdminRoutes />} />
                     
                     {/* Protected routes */}
                     <Route path="/setup" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><SetupPage /></ProtectedSubscriptionRoute>} />} />
@@ -133,6 +144,7 @@ const App = () => (
                     <Route path="/dashboard/notifications" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><NotificationsPage /></ProtectedSubscriptionRoute>} />} />
                     <Route path="/dashboard/analytics" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><AnalyticsPage /></ProtectedSubscriptionRoute>} />} />
                     <Route path="/dashboard/settings" element={<ProtectedRoute element={<SettingsPage />} />} />
+                    <Route path="/payment-history" element={<ProtectedRoute element={<PaymentHistoryPage />} />} />
                     
                     {/* Gym Module Routes */}
                     <Route path="/dashboard/gym/staff" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><GymStaffPage /></ProtectedSubscriptionRoute>} />} />
@@ -175,7 +187,6 @@ const App = () => (
                   </Routes>
                   </GymProvider>
                 </ToastProvider>
-              </AdminAuthProvider>
             </AuthProvider>
           </IndustryProvider>
         </BrowserRouter>

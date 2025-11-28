@@ -4,19 +4,19 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
 export function useRequireAuth(redirectTo = '/login') {
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { isAuthenticated, loading, user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [initialLoad, setInitialLoad] = useState(true);
 
   useEffect(() => {
-    if (!isLoading) {
+    if (!loading) {
       setInitialLoad(false);
     }
-  }, [isLoading]);
+  }, [loading]);
 
   useEffect(() => {
-    if (!initialLoad && !isLoading && !isAuthenticated) {
+    if (!initialLoad && !loading && !isAuthenticated) {
       // Only redirect if not on a protected page (e.g., not on /dashboard, /customers, etc.)
       const protectedPaths = ['/dashboard', '/customers', '/membership-plans', '/trainers', '/class-schedules', '/nutrition-plans', '/events-workshops', '/waiver-forms', '/member-communications', '/health-assessments'];
       const isProtectedPage = protectedPaths.some(path => window.location.pathname.includes(path));
@@ -29,7 +29,7 @@ export function useRequireAuth(redirectTo = '/login') {
         navigate(redirectTo);
       }
     }
-  }, [isAuthenticated, isLoading, navigate, redirectTo, toast, initialLoad]);
+  }, [isAuthenticated, loading, navigate, redirectTo, toast, initialLoad]);
 
-  return { isLoading, user, isAuthenticated };
+  return { isLoading: loading, user, isAuthenticated };
 }

@@ -11,14 +11,21 @@ const axiosInstance = axios.create({
   },
 });
 
-// Add request interceptor to include admin token for admin routes
+// Add request interceptor to include the appropriate auth token
 axiosInstance.interceptors.request.use(
   (config) => {
-    // Check if this is an admin route
-    if (config.url?.includes('/admin/')) {
+    const isAdminRoute = config.url?.includes('/admin/');
+
+    if (isAdminRoute) {
       const adminToken = localStorage.getItem('adminToken');
       if (adminToken) {
         config.headers.Authorization = `Bearer ${adminToken}`;
+      }
+    } else {
+      // Attach the regular user token for all non-admin authenticated routes
+      const token = localStorage.getItem('token');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
       }
     }
     return config;
@@ -47,9 +54,11 @@ axiosInstance.interceptors.response.use(
     // Handle 401 errors (unauthorized)
     if (error.response?.status === 401) {
       const currentPath = window.location.pathname;
-      
-      // Handle admin routes
-      if (currentPath.includes('/admin/')) {
+      const requestUrl = error.config?.url || '';
+      const isAdminRequest = requestUrl.includes('/admin/');
+
+      if (isAdminRequest) {
+        // Handle admin-specific 401s only when the failing request was for an admin endpoint
         localStorage.removeItem('adminToken');
         if (!currentPath.includes('/admin/login')) {
           window.location.href = '/admin/login';

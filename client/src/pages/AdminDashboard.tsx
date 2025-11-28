@@ -64,6 +64,7 @@ interface Gym {
   subscriptionEndDate?: string;
   subscriptionStatus: 'registered' | 'active' | 'expired';
   memberCount: number;
+  pendingMonths?: number;
 }
 
 interface IndustryStats {
@@ -89,6 +90,7 @@ const AdminDashboard: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [memberCountFilter, setMemberCountFilter] = useState<string>('all');
   const [dateRangeFilter, setDateRangeFilter] = useState<string>('all');
+  const [pendingMonthsFilter, setPendingMonthsFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [showFilters, setShowFilters] = useState(false);
@@ -245,6 +247,20 @@ const AdminDashboard: React.FC = () => {
       filtered = filtered.filter(gym => ranges[dateRangeFilter as keyof typeof ranges](gym.createdAt));
     }
 
+    // Pending months filter
+    if (pendingMonthsFilter !== 'all') {
+      const ranges: Record<string, (count: number) => boolean> = {
+        '0': (count) => count === 0,
+        '1-2': (count) => count >= 1 && count <= 2,
+        '3-5': (count) => count >= 3 && count <= 5,
+        '5+': (count) => count >= 5
+      };
+      const predicate = ranges[pendingMonthsFilter];
+      if (predicate) {
+        filtered = filtered.filter(gym => predicate(gym.pendingMonths || 0));
+      }
+    }
+
     // Sort
     filtered.sort((a, b) => {
       let aValue, bValue;
@@ -279,7 +295,7 @@ const AdminDashboard: React.FC = () => {
     });
 
     setFilteredGyms(filtered);
-  }, [gyms, searchTerm, statusFilter, memberCountFilter, dateRangeFilter, sortBy, sortOrder]);
+  }, [gyms, searchTerm, statusFilter, memberCountFilter, dateRangeFilter, pendingMonthsFilter, sortBy, sortOrder]);
 
   // Clear all filters
   const clearFilters = () => {
@@ -287,6 +303,7 @@ const AdminDashboard: React.FC = () => {
     setStatusFilter('all');
     setMemberCountFilter('all');
     setDateRangeFilter('all');
+    setPendingMonthsFilter('all');
     setSortBy('name');
     setSortOrder('asc');
   };
@@ -298,6 +315,7 @@ const AdminDashboard: React.FC = () => {
     if (statusFilter !== 'all') count++;
     if (memberCountFilter !== 'all') count++;
     if (dateRangeFilter !== 'all') count++;
+    if (pendingMonthsFilter !== 'all') count++;
     return count;
   };
 
@@ -738,6 +756,23 @@ const AdminDashboard: React.FC = () => {
                           </Select>
                         </div>
 
+                        {/* Pending Bills Filter */}
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Pending Bills</label>
+                          <Select value={pendingMonthsFilter} onValueChange={setPendingMonthsFilter}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Any Pending" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">Any Pending</SelectItem>
+                              <SelectItem value="0">No Pending Bills</SelectItem>
+                              <SelectItem value="1-2">1 - 2 Months Pending</SelectItem>
+                              <SelectItem value="3-5">3 - 5 Months Pending</SelectItem>
+                              <SelectItem value="5+">5+ Months Pending</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
                         {/* Sort Options */}
                         <div className="space-y-2">
                           <label className="text-sm font-medium">Sort By</label>
@@ -797,6 +832,7 @@ const AdminDashboard: React.FC = () => {
                           <TableHead>Code</TableHead>
                           <TableHead>Members</TableHead>
                           <TableHead>Status</TableHead>
+                          <TableHead>Pending Bills</TableHead>
                           <TableHead>Created</TableHead>
                           <TableHead>Actions</TableHead>
                         </TableRow>
@@ -824,6 +860,13 @@ const AdminDashboard: React.FC = () => {
                                 {gym.subscriptionStatus === 'registered' && 'Registered'}
                                 {gym.subscriptionStatus === 'active' && 'Active'}
                                 {gym.subscriptionStatus === 'expired' && 'Expired'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={(gym.pendingMonths || 0) > 0 ? 'destructive' : 'secondary'}
+                              >
+                                {(gym.pendingMonths || 0)} {(gym.pendingMonths || 0) === 1 ? 'month' : 'months'}
                               </Badge>
                             </TableCell>
                             <TableCell>{formatDate(gym.createdAt)}</TableCell>

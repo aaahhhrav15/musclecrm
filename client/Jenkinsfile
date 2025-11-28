@@ -1,0 +1,70 @@
+pipeline {
+  agent any
+
+  tools {
+    nodejs 'Node18'
+  }
+
+  environment {
+    CI = "true"
+    PATH = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
+  }
+
+  stages {
+    stage('Checkout Code') {
+      steps {
+        echo "🔁 Cloning GitHub repo..."
+        git credentialsId: 'github-creds', url: 'https://github.com/aaahhhrav15/musclecrm.git', branch: 'main'
+      }
+    }
+
+    stage('Install Dependencies') {
+      steps {
+        dir('client') {
+          echo "📦 Installing frontend dependencies..."
+          sh '/bin/bash -c "node -v && npm -v && npm install"'
+        }
+      }
+    }
+
+    stage('Build React App') {
+        steps {
+            dir('client') {
+            echo "⚙️ Building frontend..."
+            withCredentials([file(credentialsId: 'frontend-dev', variable: 'ENV_FILE')]) {
+            sh '''
+            rm -f .env
+            cp $ENV_FILE .env
+            npm run build
+            '''
+            }
+        }
+        }
+    }
+
+    stage('Deploy to S3 and Invalidate') {
+      steps {
+        withCredentials([
+          usernamePassword(credentialsId: 'aws-creds', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')
+        ]) {
+          dir('client') {
+            echo "🚀 Deploying to S3 and invalidating CloudFront cache..."
+            sh '''
+              /opt/homebrew/bin/aws s3 sync dist/ s3://musclecrm-frontend --delete
+              /opt/homebrew/bin/aws cloudfront create-invalidation --distribution-id E21O8U7YKLATRS --paths "/*"
+            '''
+          }
+        }
+      }
+    }
+  }
+
+  post {
+    success {
+      echo '✅ Frontend deployed successfully!'
+    }
+    failure {
+      echo '❌ Deployment failed.'
+    }
+  }
+}

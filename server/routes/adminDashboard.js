@@ -16,6 +16,7 @@ const AssignedWorkoutPlan = require('../models/AssignedWorkoutPlan');
 const Trainer = require('../models/Trainer');
 const GymAttendance = require('../models/GymAttendance');
 const Transaction = require('../models/Transaction');
+const GymBilling = require('../models/GymBilling');
 const mongoose = require('mongoose');
 
 // Apply admin authentication middleware to all routes
@@ -126,6 +127,42 @@ router.get('/gyms', async (req, res) => {
         }
       },
       {
+        $lookup: {
+          from: 'gymbillings',
+          let: { gymId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$gymId', '$$gymId'] },
+                    { $gt: ['$totalPendingAmount', 0] },
+                    { $gt: ['$totalBillAmount', 0] }
+                  ]
+                }
+              }
+            },
+            {
+              $group: {
+                _id: null,
+                pendingCount: { $sum: 1 }
+              }
+            }
+          ],
+          as: 'pendingBillingInfo'
+        }
+      },
+      {
+        $addFields: {
+          pendingMonths: {
+            $ifNull: [
+              { $arrayElemAt: ['$pendingBillingInfo.pendingCount', 0] },
+              0
+            ]
+          }
+        }
+      },
+      {
         $project: {
           _id: 1,
           name: 1,
@@ -137,9 +174,11 @@ router.get('/gyms', async (req, res) => {
           subscriptionStartDate: 1,
           subscriptionEndDate: 1,
           memberCount: 1,
-          subscriptionStatus: 1
+          subscriptionStatus: 1,
+          pendingMonths: 1
         }
       },
+      { $unset: 'pendingBillingInfo' },
       { $sort: { createdAt: -1 } }
     ]);
 
@@ -515,6 +554,134 @@ router.get('/gym/:gymId', async (req, res) => {
       }
     }
 
+    // Calculate billing statistics - combine all billing queries in parallel
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    
+    // Calculate current month billing in real-time for member details
+    const FIXED_MONTHLY_FEE = 41.67; // ₹500/12 = ₹41.67 per month per customer
+    const monthStart = new Date(currentYear, currentMonth - 1, 1);
+    const monthEnd = new Date(currentYear, currentMonth, 0);
+    const today = new Date();
+    monthStart.setHours(0, 0, 0, 0);
+    monthEnd.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+    const calculationEndDate = (currentYear === today.getFullYear() && currentMonth === today.getMonth() + 1) 
+      ? today 
+      : monthEnd;
+    
+    // Combine all billing-related queries in parallel
+    const [
+      currentBilling,
+      activeCustomers,
+      totalPaidResult,
+      billingHistory,
+      billingStats
+    ] = await Promise.all([
+      // Get current month billing (real-time calculation)
+      GymBilling.getGymBillingForMonth(gymId, currentYear, currentMonth),
+      
+      // Get active customers for current month
+      Customer.find({
+        gymId: new mongoose.Types.ObjectId(gymId),
+        membershipStartDate: { $exists: true, $ne: null },
+        $or: [
+          { membershipStartDate: { $lte: monthEnd }, membershipEndDate: { $gte: monthStart } },
+          { membershipStartDate: { $gte: monthStart, $lte: monthEnd } },
+          { membershipStartDate: { $lte: monthEnd }, membershipEndDate: { $exists: false } }
+        ]
+      }).lean(),
+      
+      // Get total paid till now (sum of all paid bills) - combined with billing history
+      GymBilling.aggregate([
+        { $match: { gymId: new mongoose.Types.ObjectId(gymId) } },
+        { $group: { _id: null, totalPaid: { $sum: '$totalPaidAmount' } } }
+      ]),
+      
+      // Get billing history with pending/overdue info
+      GymBilling.find({ gymId: new mongoose.Types.ObjectId(gymId) })
+        .sort({ billingYear: -1, billingMonth: -1 })
+        .select('billingMonth billingYear totalBillAmount totalPaidAmount totalPendingAmount totalOverdueAmount billingStatus')
+        .lean(),
+      
+      // Get pending bills count and total pending amount (accurate calculation: billAmount - paidAmount)
+      GymBilling.aggregate([
+        { $match: { gymId: new mongoose.Types.ObjectId(gymId) } },
+        {
+          $facet: {
+            pendingBills: [
+              { $match: { billingStatus: { $in: ['sent', 'partial_paid', 'overdue', 'pending', 'draft'] } } },
+              { 
+                $group: { 
+                  _id: null, 
+                  count: { $sum: 1 }, 
+                  totalPending: { 
+                    $sum: { 
+                      $subtract: ['$totalBillAmount', '$totalPaidAmount'] 
+                    } 
+                  } 
+                } 
+              }
+            ],
+            fullyPaidBills: [
+              { $match: { billingStatus: 'fully_paid' } },
+              { $group: { _id: null, count: { $sum: 1 } } }
+            ]
+          }
+        }
+      ])
+    ]);
+    
+    // Calculate member billing details
+    const memberBillingDetails = activeCustomers.map(customer => {
+      const customerStartInMonth = new Date(Math.max(customer.membershipStartDate, monthStart));
+      const customerEndInMonth = new Date(Math.min(
+        customer.membershipEndDate || calculationEndDate,
+        calculationEndDate
+      ));
+      customerStartInMonth.setHours(0, 0, 0, 0);
+      customerEndInMonth.setHours(0, 0, 0, 0);
+      
+      const timeDiff = customerEndInMonth.getTime() - customerStartInMonth.getTime();
+      const daysActive = Math.max(1, Math.floor(timeDiff / (1000 * 60 * 60 * 24)) + 1);
+      const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+      const finalDaysActive = Math.min(daysActive, daysInMonth);
+      const proRatedAmount = (FIXED_MONTHLY_FEE * finalDaysActive) / daysInMonth;
+      
+      return {
+        memberId: customer._id.toString(),
+        memberName: customer.name || 'Unknown',
+        memberEmail: customer.email || '',
+        memberPhone: customer.phone || '',
+        membershipStartDate: customer.membershipStartDate ? customer.membershipStartDate.toISOString() : null,
+        membershipEndDate: customer.membershipEndDate ? customer.membershipEndDate.toISOString() : null,
+        daysActive: finalDaysActive,
+        daysInMonth: daysInMonth,
+        fixedMonthlyFee: FIXED_MONTHLY_FEE,
+        proRatedAmount: Math.round(proRatedAmount * 100) / 100,
+        isActive: !customer.membershipEndDate || customer.membershipEndDate >= today
+      };
+    });
+    
+    // Calculate current month totals
+    const currentMonthTotalBill = memberBillingDetails.reduce((sum, member) => sum + member.proRatedAmount, 0);
+    const currentMonthTotalPaid = currentBilling ? currentBilling.totalPaidAmount : 0;
+    const currentMonthTotalPending = Math.max(currentMonthTotalBill - currentMonthTotalPaid, 0);
+    const currentMonthBillingStatus = currentBilling ? currentBilling.billingStatus : 'pending';
+    const totalPaidTillNow = totalPaidResult[0]?.totalPaid || 0;
+    
+    // Extract billing statistics
+    const pendingBillsData = billingStats[0]?.pendingBills[0] || { count: 0, totalPending: 0 };
+    const fullyPaidBillsData = billingStats[0]?.fullyPaidBills[0] || { count: 0 };
+    
+    const totalPendingBills = pendingBillsData.count;
+    // Calculate accurate pending amount: sum of (billAmount - paidAmount) for all unpaid bills
+    const totalPendingAmount = pendingBillsData.totalPending || 0;
+    const totalFullyPaidBills = fullyPaidBillsData.count;
+    
+    // Calculate total billed amount across all months
+    const totalBilledAmount = billingHistory.reduce((sum, bill) => sum + (bill.totalBillAmount || 0), 0);
+
     const result = {
       success: true,
       data: {
@@ -579,6 +746,29 @@ router.get('/gym/:gymId', async (req, res) => {
             totalSales: retailData.totalRetailSales[0]?.total || 0,
             thisMonthSales: retailData.thisMonthRetailSales[0]?.total || 0,
             todaySales: retailData.todayRetailSales[0]?.total || 0
+          },
+          billing: {
+            currentMonth: {
+              totalBill: currentMonthTotalBill,
+              totalPaid: currentMonthTotalPaid,
+              totalPending: currentMonthTotalPending,
+              billingStatus: currentMonthBillingStatus
+            },
+            totalPaidTillNow: totalPaidTillNow,
+            totalBilledAmount: totalBilledAmount,
+            totalPendingBills: totalPendingBills,
+            totalPendingAmount: totalPendingAmount,
+            totalFullyPaidBills: totalFullyPaidBills,
+            billingHistory: billingHistory.map(billing => ({
+              billingMonth: billing.billingMonth,
+              billingYear: billing.billingYear,
+              totalBillAmount: billing.totalBillAmount,
+              totalPaidAmount: billing.totalPaidAmount,
+              totalPendingAmount: billing.totalPendingAmount,
+              totalOverdueAmount: billing.totalOverdueAmount,
+              billingStatus: billing.billingStatus
+            })),
+            memberBillingDetails: memberBillingDetails
           }
         }
       }
