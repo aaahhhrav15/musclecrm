@@ -26,26 +26,17 @@ const upload = multer({
   }
 });
 
-// Configure nodemailer with SMTP
+// Configure nodemailer with SMTP (reuse CRM contact env vars, with MeeraAI overrides if set)
 const transporter = nodemailer.createTransport({
   host: process.env.MEERAAI_SMTP_HOST || process.env.SMTP_HOST,
   port: process.env.MEERAAI_SMTP_PORT || process.env.SMTP_PORT,
-  secure: process.env.MEERAAI_SMTP_PORT === '465' || process.env.SMTP_PORT === '465', // true for 465, false for other ports
+  secure: (process.env.MEERAAI_SMTP_SECURE || process.env.SMTP_SECURE) === 'true',
   auth: {
     user: process.env.MEERAAI_SMTP_USER || process.env.SMTP_USER,
-    pass: process.env.MEERAAI_SMTP_PASSWORD || process.env.SMTP_PASSWORD
+    pass: process.env.MEERAAI_SMTP_PASS || process.env.SMTP_PASS
   },
   tls: {
     rejectUnauthorized: false // Accept self-signed certificates
-  }
-});
-
-// Verify SMTP connection on startup
-transporter.verify(function(error, success) {
-  if (error) {
-    console.error('MeeraAI SMTP Connection Error:', error);
-  } else {
-    console.log('MeeraAI SMTP Server is ready to take our messages');
   }
 });
 
@@ -69,7 +60,7 @@ router.post('/apply', upload.single('resume'), async (req, res, next) => {
       return res.status(400).json({ error: 'Resume file is required' });
     }
 
-    const contactEmail = process.env.MEERAAI_CONTACT_EMAIL || process.env.CONTACT_EMAIL;
+    const contactEmail = process.env.MEERAAI_CONTACT_EMAIL || process.env.CONTACT_RECEIVER;
     const smtpUser = process.env.MEERAAI_SMTP_USER || process.env.SMTP_USER;
 
     if (!contactEmail || !smtpUser) {

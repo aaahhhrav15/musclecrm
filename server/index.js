@@ -37,6 +37,10 @@ const expensesRoutes = require('./routes/expenses');
 const leadsRouter = require('./routes/leads');
 const personalTrainingRoutes = require('./routes/personalTraining');
 const paymentRoutes = require('./routes/payment');
+// MeeraAI routes
+const meeraaiPositionsRoutes = require('./routes/meeraai/positions');
+const meeraaiCareersRoutes = require('./routes/meeraai/careers');
+const meeraaiBlogsRoutes = require('./routes/meeraai/blogs');
 const subscriptionPlansRoutes = require('./routes/subscriptionPlans');
 const subscriptionsRoutes = require('./routes/subscriptions');
 const gymBillingRoutes = require('./routes/gymBilling');
@@ -249,6 +253,10 @@ app.use('/api/gym/products', productsRoutes);
 app.use('/api/gym/accountabilities', accountabilitiesRoutes);
 app.use('/api/gym/results', resultsRoutes);
 app.use('/api/reels', reelsRoutes);
+// MeeraAI routes
+app.use('/api/meeraai/positions', meeraaiPositionsRoutes);
+app.use('/api/meeraai/careers', meeraaiCareersRoutes);
+app.use('/api/meeraai/blogs', meeraaiBlogsRoutes);
 
 
 // Root route
