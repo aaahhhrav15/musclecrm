@@ -67,6 +67,7 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cors({
   origin: function (origin, callback) {
     const allowedOrigins = [
+      'https://meeraaitech.com',
       'http://localhost:5173', 
       'https://www.musclecrm.com',
       'https://musclecrm.com',
