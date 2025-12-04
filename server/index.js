@@ -190,6 +190,7 @@ app.use((req, res, next) => {
     '/api/subscriptions',
     '/api/contact',
     '/api/admin', // Exclude admin routes from regular auth
+    '/api/meeraai', // Public MeeraAI routes (blogs, careers, etc.)
   ];
   if (excluded.some(path => req.path.startsWith(path))) {
     return next();
@@ -211,6 +212,7 @@ app.use((req, res, next) => {
     '/api/dashboard/settings', // If you have a dashboard settings endpoint
     '/api/contact',            // Allow contact endpoint
     '/api/admin',              // Exclude admin routes from subscription check
+    '/api/meeraai',            // Public MeeraAI routes (no subscription required)
   ];
   if (excluded.some(path => req.path.startsWith(path))) {
     return next();
