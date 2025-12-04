@@ -576,10 +576,12 @@ const PaymentHistoryPage: React.FC = () => {
 
     monthlyBilling.forEach(bill => {
       if (bill.billingBreakdown) {
-        Object.keys(membershipAnalytics).forEach(type => {
-          const breakdown = bill.billingBreakdown![type as keyof BillingBreakdown];
-          membershipAnalytics[type as keyof typeof membershipAnalytics].count += breakdown.count;
-          membershipAnalytics[type as keyof typeof membershipAnalytics].revenue += breakdown.totalAmount;
+        (Object.keys(membershipAnalytics) as (keyof typeof membershipAnalytics)[]).forEach(type => {
+          const breakdown = bill.billingBreakdown?.[type as keyof BillingBreakdown];
+          if (!breakdown) return;
+          
+          membershipAnalytics[type].count += breakdown.count || 0;
+          membershipAnalytics[type].revenue += breakdown.totalAmount || 0;
         });
       }
     });

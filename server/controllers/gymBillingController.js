@@ -1294,73 +1294,104 @@ const getMasterMonthlyBilling = async (req, res) => {
   }
 };
 
-// Finalize billing for previous month (called on 1st of each month)
-const finalizePreviousMonthBilling = async (req, res) => {
-  try {
-    const now = new Date();
-    const previousMonth = now.getMonth() === 0 ? 12 : now.getMonth(); // Handle January
-    const previousYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
-    
-    console.log(`\n=== FINALIZING BILLING FOR ${previousYear}-${previousMonth} ===`);
-    
-    // Get all gyms
-    const gyms = await Gym.find();
-    let finalizedCount = 0;
-    let errorCount = 0;
-    
-    for (const gym of gyms) {
-      try {
-        // Check if gym was created before the month being finalized
-        const gymCreatedAt = new Date(gym.createdAt);
-        const gymCreatedYear = gymCreatedAt.getFullYear();
-        const gymCreatedMonth = gymCreatedAt.getMonth() + 1;
-        
-        // Skip gyms that were created after the month being finalized
-        if (previousYear < gymCreatedYear || (previousYear === gymCreatedYear && previousMonth < gymCreatedMonth)) {
-          console.log(`Skipping gym ${gym.name} - created after ${previousYear}-${previousMonth}`);
-          continue;
-        }
-        
-        // Check if billing exists for this gym and month
-        const existingBilling = await GymBilling.findOne({
-          gymId: gym._id,
-          billingYear: previousYear,
-          billingMonth: previousMonth,
-          isFinalized: false
-        });
-        
-        if (existingBilling) {
-          // Finalize the billing
-          await GymBilling.finalizeBillingForMonth(gym._id, previousYear, previousMonth);
-          console.log(`✅ Finalized billing for gym: ${gym.name} (${previousYear}-${previousMonth})`);
+// Core job that finalizes billing for the previous month (idempotent, reusable)
+async function runFinalizePreviousMonthBillingJob(targetDate) {
+  const now = targetDate instanceof Date ? targetDate : new Date();
+  const previousMonth = now.getMonth() === 0 ? 12 : now.getMonth(); // Handle January
+  const previousYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+
+  console.log(`\n=== FINALIZING BILLING JOB FOR ${previousYear}-${previousMonth} ===`);
+
+  const gyms = await Gym.find();
+  let finalizedCount = 0;
+  let alreadyFinalizedCount = 0;
+  let createdAndFinalizedCount = 0;
+  let skippedNewGymsCount = 0;
+  let errorCount = 0;
+
+  for (const gym of gyms) {
+    try {
+      // Check if gym was created before the month being finalized
+      const gymCreatedAt = new Date(gym.createdAt);
+      const gymCreatedYear = gymCreatedAt.getFullYear();
+      const gymCreatedMonth = gymCreatedAt.getMonth() + 1;
+
+      if (previousYear < gymCreatedYear || (previousYear === gymCreatedYear && previousMonth < gymCreatedMonth)) {
+        console.log(`Skipping gym ${gym.name} - created after ${previousYear}-${previousMonth}`);
+        skippedNewGymsCount++;
+        continue;
+      }
+
+      // Check if billing exists for this gym and month (any state)
+      const existingAny = await GymBilling.findOne({
+        gymId: gym._id,
+        billingYear: previousYear,
+        billingMonth: previousMonth
+      });
+
+      // If already finalized, treat as idempotent no-op
+      if (existingAny && existingAny.isFinalized) {
+        console.log(`Already finalized billing for gym: ${gym.name} (${previousYear}-${previousMonth})`);
+        alreadyFinalizedCount++;
+        continue;
+      }
+
+      // If there is a non-finalized billing, just finalize it
+      if (existingAny && !existingAny.isFinalized) {
+        const finalized = await GymBilling.finalizeBillingForMonth(gym._id, previousYear, previousMonth);
+        if (finalized) {
+          console.log(`✅ Finalized existing billing for gym: ${gym.name} (${previousYear}-${previousMonth})`);
           finalizedCount++;
         } else {
-          // Create billing for this gym if it doesn't exist
-          console.log(`📝 Creating billing for gym: ${gym.name} (${previousYear}-${previousMonth})`);
-          await createMonthlyBillingHelper(gym._id, previousYear, previousMonth);
-          
-          // Then finalize it
-          await GymBilling.finalizeBillingForMonth(gym._id, previousYear, previousMonth);
-          console.log(`✅ Created and finalized billing for gym: ${gym.name} (${previousYear}-${previousMonth})`);
-          finalizedCount++;
+          console.log(`No updatable billing found during finalize for gym: ${gym.name} (${previousYear}-${previousMonth})`);
         }
-      } catch (error) {
-        console.error(`❌ Error finalizing billing for gym ${gym.name}:`, error.message);
-        errorCount++;
+        continue;
       }
+
+      // No billing at all: create and then finalize
+      console.log(`📝 Creating billing for gym: ${gym.name} (${previousYear}-${previousMonth})`);
+      await createMonthlyBillingHelper(gym._id, previousYear, previousMonth);
+      const finalizedNew = await GymBilling.finalizeBillingForMonth(gym._id, previousYear, previousMonth);
+
+      if (finalizedNew) {
+        console.log(`✅ Created and finalized billing for gym: ${gym.name} (${previousYear}-${previousMonth})`);
+        createdAndFinalizedCount++;
+      } else {
+        console.warn(`Billing created but not finalized for gym: ${gym.name} (${previousYear}-${previousMonth})`);
+      }
+    } catch (error) {
+      console.error(`❌ Error finalizing billing for gym ${gym.name}:`, error.message);
+      errorCount++;
     }
-    
+  }
+
+  const summary = {
+    targetYear: previousYear,
+    targetMonth: previousMonth,
+    totalGyms: gyms.length,
+    finalizedCount,
+    alreadyFinalizedCount,
+    createdAndFinalizedCount,
+    skippedNewGymsCount,
+    errorCount,
+    finalizedAt: new Date()
+  };
+
+  console.log('=== FINALIZING BILLING JOB SUMMARY ===');
+  console.log(summary);
+
+  return summary;
+}
+
+// HTTP controller wrapper for month-finalization job
+const finalizePreviousMonthBilling = async (req, res) => {
+  try {
+    const summary = await runFinalizePreviousMonthBillingJob();
+
     res.json({
       success: true,
-      message: `Billing finalization completed for ${previousYear}-${previousMonth}`,
-      data: {
-        previousYear,
-        previousMonth,
-        totalGyms: gyms.length,
-        finalizedCount,
-        errorCount,
-        finalizedAt: new Date()
-      }
+      message: `Billing finalization completed for ${summary.targetYear}-${summary.targetMonth}`,
+      data: summary
     });
   } catch (error) {
     console.error('Error finalizing previous month billing:', error);
@@ -1368,6 +1399,105 @@ const finalizePreviousMonthBilling = async (req, res) => {
       success: false, 
       message: 'Error finalizing previous month billing', 
       error: error.message 
+    });
+  }
+};
+
+// Helper to backfill billing for a specific month (admin/job use)
+async function backfillBillingForMonth(year, month) {
+  console.log(`\n=== BACKFILLING BILLING FOR ${year}-${month} ===`);
+
+  const gyms = await Gym.find();
+  let createdAndFinalizedCount = 0;
+  let alreadyExistsFinalizedCount = 0;
+  let skippedNewGymsCount = 0;
+  let errorCount = 0;
+
+  for (const gym of gyms) {
+    try {
+      const gymCreatedAt = new Date(gym.createdAt);
+      const gymCreatedYear = gymCreatedAt.getFullYear();
+      const gymCreatedMonth = gymCreatedAt.getMonth() + 1;
+
+      if (year < gymCreatedYear || (year === gymCreatedYear && month < gymCreatedMonth)) {
+        console.log(`Skipping gym ${gym.name} - created after ${year}-${month}`);
+        skippedNewGymsCount++;
+        continue;
+      }
+
+      const existingAny = await GymBilling.findOne({
+        gymId: gym._id,
+        billingYear: year,
+        billingMonth: month
+      });
+
+      if (existingAny && existingAny.isFinalized) {
+        console.log(`Backfill: already finalized for gym ${gym.name} (${year}-${month})`);
+        alreadyExistsFinalizedCount++;
+        continue;
+      }
+
+      if (!existingAny) {
+        console.log(`Backfill: creating billing for gym ${gym.name} (${year}-${month})`);
+        await createMonthlyBillingHelper(gym._id, year, month);
+      }
+
+      const finalized = await GymBilling.finalizeBillingForMonth(gym._id, year, month);
+      if (finalized) {
+        console.log(`Backfill: ✅ finalized billing for gym ${gym.name} (${year}-${month})`);
+        createdAndFinalizedCount++;
+      } else {
+        console.warn(`Backfill: billing could not be finalized for gym ${gym.name} (${year}-${month})`);
+      }
+    } catch (error) {
+      console.error(`Backfill: ❌ error for gym ${gym.name}:`, error.message);
+      errorCount++;
+    }
+  }
+
+  const summary = {
+    targetYear: year,
+    targetMonth: month,
+    totalGyms: gyms.length,
+    createdAndFinalizedCount,
+    alreadyExistsFinalizedCount,
+    skippedNewGymsCount,
+    errorCount,
+    finalizedAt: new Date()
+  };
+
+  console.log('=== BACKFILL BILLING SUMMARY ===');
+  console.log(summary);
+
+  return summary;
+}
+
+// HTTP controller for manual/admin-triggered backfill
+const backfillBillingForMonthController = async (req, res) => {
+  try {
+    const year = parseInt(req.params.year, 10);
+    const month = parseInt(req.params.month, 10);
+
+    if (Number.isNaN(year) || Number.isNaN(month) || month < 1 || month > 12) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid year or month provided for backfill'
+      });
+    }
+
+    const summary = await backfillBillingForMonth(year, month);
+
+    res.json({
+      success: true,
+      message: `Backfill completed for ${summary.targetYear}-${summary.targetMonth}`,
+      data: summary
+    });
+  } catch (error) {
+    console.error('Error running backfill billing:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error running backfill billing',
+      error: error.message
     });
   }
 };
@@ -1388,6 +1518,9 @@ module.exports = {
   addGymPayment,
   getMasterMonthlyBilling,
   finalizePreviousMonthBilling,
+  runFinalizePreviousMonthBillingJob,
+  backfillBillingForMonth,
+  backfillBillingForMonthController,
   createRazorpayOrderForBilling,
   verifyRazorpayPaymentForBilling
 };

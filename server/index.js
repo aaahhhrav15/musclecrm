@@ -6,6 +6,7 @@ const cookieParser = require('cookie-parser');
 const path = require('path');
 const fs = require('fs');
 const morgan = require('morgan');
+const cron = require('node-cron');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -40,6 +41,7 @@ const subscriptionPlansRoutes = require('./routes/subscriptionPlans');
 const subscriptionsRoutes = require('./routes/subscriptions');
 const gymBillingRoutes = require('./routes/gymBilling');
 const crmSubscriptionPaymentsRoutes = require('./routes/crmSubscriptionPayments');
+const adminCrmSubscriptionPaymentsRoutes = require('./routes/adminCrmSubscriptionPayments');
 const contactRoutes = require('./routes/contact');
 const productsRoutes = require('./routes/products');
 const accountabilitiesRoutes = require('./routes/accountabilities');
@@ -174,6 +176,7 @@ app.use('/api/contact', contactRoutes);
 app.use('/api/admin/auth', adminAuthRoutes);
 app.use('/api/admin/dashboard', adminDashboardRoutes);
 app.use('/api/admin/billing', gymBillingRoutes);
+app.use('/api/admin/crm-subscription-payments', adminCrmSubscriptionPaymentsRoutes);
 
 // Global authentication middleware for all /api routes except auth, subscription, and admin
 app.use((req, res, next) => {
@@ -273,6 +276,35 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5001;
 
+// Start HTTP server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
+// Monthly billing finalization scheduler (runs only when enabled via env flag)
+if (process.env.ENABLE_BILLING_CRON === 'true') {
+  try {
+    // Lazy-require controller to avoid circular deps at top of file
+    // eslint-disable-next-line global-require
+    const gymBillingController = require('./controllers/gymBillingController');
+
+    console.log('Billing cron is ENABLED. Scheduling monthly finalization job...');
+
+    // Run at 02:15 on the 1st day of every month, server local time
+    cron.schedule('15 2 1 * *', async () => {
+      try {
+        console.log('\n[CRON] Starting scheduled finalize-previous-month billing job...');
+        const summary = await gymBillingController.runFinalizePreviousMonthBillingJob();
+        console.log('[CRON] Finalize-previous-month billing job completed:', summary);
+
+        if (summary.errorCount && summary.errorCount > 0) {
+          console.warn('[CRON] Finalize billing job completed with errors. Please check logs.');
+        }
+      } catch (err) {
+        console.error('[CRON] Unhandled error in finalize-previous-month billing job:', err);
+      }
+    });
+  } catch (err) {
+    console.error('Failed to initialize billing cron job:', err);
+  }
+}

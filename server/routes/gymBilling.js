@@ -12,6 +12,7 @@ router.get('/statistics/:gymId', adminAuth, gymBillingController.getBillingStati
 router.get('/pending', adminAuth, gymBillingController.getPendingBills);
 router.get('/master/current-month', adminAuth, gymBillingController.getMasterMonthlyBilling);
 router.post('/finalize-previous-month', adminAuth, gymBillingController.finalizePreviousMonthBilling);
+router.post('/backfill/:year/:month', adminAuth, gymBillingController.backfillBillingForMonthController);
 router.post('/create', adminAuth, gymBillingController.createMonthlyBilling);
 
 // Gym-specific routes (for gym users)

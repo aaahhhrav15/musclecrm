@@ -3,6 +3,36 @@ const Gym = require('../models/Gym');
 const SubscriptionPlan = require('../models/SubscriptionPlan');
 const mongoose = require('mongoose');
 
+const buildAdminPaymentQuery = ({ status, subscriptionType, gymId, search }) => {
+  const query = {};
+
+  if (status) {
+    query.status = status;
+  }
+
+  if (subscriptionType) {
+    query.subscriptionType = subscriptionType;
+  }
+
+  if (gymId && mongoose.Types.ObjectId.isValid(gymId)) {
+    query.gymId = gymId;
+  }
+
+  if (search) {
+    const regex = new RegExp(search, 'i');
+    query.$or = [
+      { gymName: regex },
+      { customerName: regex },
+      { customerEmail: regex },
+      { customerPhone: regex },
+      { razorpay_order_id: regex },
+      { razorpay_payment_id: regex }
+    ];
+  }
+
+  return query;
+};
+
 // Create a new CRM subscription payment record
 const createCrmSubscriptionPayment = async (req, res) => {
   try {
@@ -242,10 +272,91 @@ const getCurrentActiveSubscription = async (req, res) => {
   }
 };
 
+// Admin: Get CRM subscription payments across all gyms
+const getAllCrmSubscriptionPaymentsAdmin = async (req, res) => {
+  try {
+    const { page = 1, limit = 20, status, subscriptionType, gymId, search } = req.query;
+
+    const query = buildAdminPaymentQuery({ status, subscriptionType, gymId, search });
+
+    const payments = await CrmSubscriptionPayment.find(query)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit, 10));
+
+    const total = await CrmSubscriptionPayment.countDocuments(query);
+
+    res.json({
+      success: true,
+      data: payments,
+      pagination: {
+        current: parseInt(page, 10),
+        pages: Math.ceil(total / limit),
+        total
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching CRM subscription payments (admin):', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching CRM subscription payments',
+      error: error.message
+    });
+  }
+};
+
+// Admin: Get CRM subscription payments for a specific gym
+const getCrmSubscriptionPaymentsForGymAdmin = async (req, res) => {
+  try {
+    const { gymId } = req.params;
+    const { page = 1, limit = 20, status, subscriptionType, search } = req.query;
+
+    if (!mongoose.Types.ObjectId.isValid(gymId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid gym ID'
+      });
+    }
+
+    const query = buildAdminPaymentQuery({
+      status,
+      subscriptionType,
+      gymId,
+      search
+    });
+
+    const payments = await CrmSubscriptionPayment.find(query)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit, 10));
+
+    const total = await CrmSubscriptionPayment.countDocuments(query);
+
+    res.json({
+      success: true,
+      data: payments,
+      pagination: {
+        current: parseInt(page, 10),
+        pages: Math.ceil(total / limit),
+        total
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching CRM subscription payments for gym (admin):', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching CRM subscription payments for gym',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createCrmSubscriptionPayment,
   getCrmSubscriptionPayments,
   getCrmSubscriptionPaymentById,
   getCrmSubscriptionPaymentStats,
-  getCurrentActiveSubscription
+  getCurrentActiveSubscription,
+  getAllCrmSubscriptionPaymentsAdmin,
+  getCrmSubscriptionPaymentsForGymAdmin
 };

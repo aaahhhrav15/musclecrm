@@ -103,6 +103,21 @@ interface MonthlyBillingDetail {
   finalizedAt?: string;
 }
 
+interface CrmSubscriptionPayment {
+  _id: string;
+  amount: number;
+  currency: string;
+  status: string;
+  subscriptionType: string;
+  subscriptionDuration: string;
+  subscriptionStartDate: string;
+  subscriptionEndDate: string;
+  createdAt: string;
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  notes: string;
+}
+
 interface GymDetailData {
   gym: {
     _id: string;
@@ -231,6 +246,9 @@ const GymDetailPage: React.FC = () => {
   const [sortBy, setSortBy] = useState('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [expandedBillingSection, setExpandedBillingSection] = useState<string | null>(null);
+  const [crmPayments, setCrmPayments] = useState<CrmSubscriptionPayment[]>([]);
+  const [crmPaymentsLoading, setCrmPaymentsLoading] = useState(false);
+  const [financialView, setFinancialView] = useState<'crm' | 'billing'>('crm');
 
   const handlePayBill = async (billingId: string) => {
     const loaded = await loadRazorpayScript();
@@ -498,6 +516,23 @@ const GymDetailPage: React.FC = () => {
     }
   }, [gymId, gymData, toast]);
 
+  const fetchGymCrmSubscriptions = useCallback(async () => {
+    if (!gymId) return;
+    try {
+      setCrmPaymentsLoading(true);
+      const response = await axiosInstance.get(`/admin/crm-subscription-payments/gym/${gymId}`, {
+        params: { limit: 50 }
+      });
+      if (response.data.success) {
+        setCrmPayments(response.data.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching CRM subscription payments for gym:', error);
+    } finally {
+      setCrmPaymentsLoading(false);
+    }
+  }, [gymId]);
+
   useEffect(() => {
     fetchGymData();
     // Reset billing fetched flag when gym changes
@@ -520,6 +555,10 @@ const GymDetailPage: React.FC = () => {
       fetchDetailedBilling();
     }
   }, [activeTab, gymData, billingFetched, billingLoading, fetchDetailedBilling]);
+
+  useEffect(() => {
+    fetchGymCrmSubscriptions();
+  }, [fetchGymCrmSubscriptions]);
 
   const handleBackNavigation = () => {
     const returnTab = location.state?.returnTab || 'overview';
@@ -1265,34 +1304,148 @@ const GymDetailPage: React.FC = () => {
                 </Card>
               </div>
 
-              {/* Monthly Billing Records */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>
-                    Monthly Billing Records ({billingLoading ? '...' : detailedBilling.length})
-                  </CardTitle>
-                  <CardDescription>
-                    Complete billing history with detailed member breakdown
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {billingLoading ? (
-                    <div className="text-center py-12">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                      <p className="text-muted-foreground">Loading detailed billing information...</p>
-                    </div>
-                  ) : detailedBilling.length === 0 ? (
-                    <div className="text-center py-12">
-                      <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <Calendar className="h-10 w-10 text-white" />
+              {/* Financial Details Toggle */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold">Financial Details</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Switch between CRM subscription payments and monthly billing history
+                  </p>
+                </div>
+                <div className="inline-flex items-center rounded-full border bg-muted p-1 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setFinancialView('crm')}
+                    className={`px-3 py-1 rounded-full transition ${
+                      financialView === 'crm'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground'
+                    }`}
+                  >
+                    CRM Payments
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFinancialView('billing')}
+                    className={`px-3 py-1 rounded-full transition ${
+                      financialView === 'billing'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground'
+                    }`}
+                  >
+                    Monthly Billing
+                  </button>
+                </div>
+              </div>
+
+              {financialView === 'crm' ? (
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="flex items-center space-x-2">
+                          <CreditCard className="h-5 w-5" />
+                          <span>CRM Subscription Payments</span>
+                        </CardTitle>
+                        <CardDescription>Plan purchases and renewals for this gym</CardDescription>
                       </div>
-                      <h3 className="text-2xl font-semibold mb-3">No billing history yet</h3>
-                      <p className="text-muted-foreground">
-                        Billing records will appear here once they are generated.
-                      </p>
+                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                        {crmPayments.length} records
+                      </Badge>
                     </div>
-                  ) : (
-                    <div className="space-y-4">
+                  </CardHeader>
+                  <CardContent>
+                    {crmPaymentsLoading ? (
+                      <div className="text-center py-12">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                        <p className="text-muted-foreground">Loading CRM subscription payments...</p>
+                      </div>
+                    ) : crmPayments.length === 0 ? (
+                      <div className="text-center py-10">
+                        <div className="w-16 h-16 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-4">
+                          <CreditCard className="h-7 w-7" />
+                        </div>
+                        <h3 className="text-lg font-semibold">No CRM subscription payments found</h3>
+                        <p className="text-sm text-muted-foreground">Payments will appear here once the gym purchases a CRM plan.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {crmPayments.slice(0, 6).map(payment => (
+                          <div
+                            key={payment._id}
+                            className="border border-border rounded-lg p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4"
+                          >
+                            <div>
+                              <div className="flex items-center space-x-2">
+                                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                                  {payment.subscriptionType}
+                                </Badge>
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    payment.status === 'paid'
+                                      ? 'bg-green-50 text-green-700 border-green-200'
+                                      : payment.status === 'failed'
+                                      ? 'bg-red-50 text-red-700 border-red-200'
+                                      : 'bg-yellow-50 text-yellow-700 border-yellow-200'
+                                  }
+                                >
+                                  {payment.status.toUpperCase()}
+                                </Badge>
+                              </div>
+                              <div className="text-lg font-semibold mt-2">{payment.subscriptionDuration}</div>
+                              <div className="text-sm text-muted-foreground">
+                                {formatDate(payment.subscriptionStartDate)} - {formatDate(payment.subscriptionEndDate)}
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-1">
+                                Order: {payment.razorpay_order_id} • Payment: {payment.razorpay_payment_id}
+                              </div>
+                            </div>
+                            <div className="text-right space-y-1">
+                              <div className="text-2xl font-bold text-green-600">{formatCurrency(payment.amount)}</div>
+                              <div className="text-sm text-muted-foreground">
+                                Paid on {formatDate(payment.createdAt)}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        {crmPayments.length > 6 && (
+                          <p className="text-xs text-muted-foreground text-right">
+                            Showing latest 6 of {crmPayments.length} payments
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>
+                      Monthly Billing Records ({billingLoading ? '...' : detailedBilling.length})
+                    </CardTitle>
+                    <CardDescription>
+                      Complete billing history with detailed member breakdown
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {billingLoading ? (
+                      <div className="text-center py-12">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                        <p className="text-muted-foreground">Loading detailed billing information...</p>
+                      </div>
+                    ) : detailedBilling.length === 0 ? (
+                      <div className="text-center py-12">
+                        <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                          <Calendar className="h-10 w-10 text-white" />
+                        </div>
+                        <h3 className="text-2xl font-semibold mb-3">No billing history yet</h3>
+                        <p className="text-muted-foreground">
+                          Billing records will appear here once they are generated.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
                       {detailedBilling.map((billing) => {
                         const isCurrentMonth = new Date().getMonth() + 1 === billing.billingMonth && 
                                               new Date().getFullYear() === billing.billingYear;
@@ -1727,10 +1880,11 @@ const GymDetailPage: React.FC = () => {
                           </motion.div>
                         );
                       })}
-                  </div>
-                  )}
-                </CardContent>
-              </Card>
+                    </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
 
             </TabsContent>
           </Tabs>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import * as React from 'react';
 import { motion } from 'framer-motion';
 import { 
   CreditCard, 
@@ -84,28 +84,52 @@ interface Analytics {
   expiringSoon: number;
 }
 
+interface CrmSubscriptionPayment {
+  _id: string;
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  amount: number;
+  currency: string;
+  status: string;
+  subscriptionType: string;
+  subscriptionDuration: string;
+  subscriptionStartDate: string;
+  subscriptionEndDate: string;
+  createdAt: string;
+  gymName: string;
+  customerName: string;
+  customerPhone: string;
+  customerEmail: string;
+  notes: string;
+}
+
 const SubscriptionManagementPage: React.FC = () => {
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [analytics, setAnalytics] = useState<Analytics | null>(null);
-  const [monthlyBilling, setMonthlyBilling] = useState<{
+  const [subscriptions, setSubscriptions] = React.useState<Subscription[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [analytics, setAnalytics] = React.useState<Analytics | null>(null);
+  const [monthlyBilling, setMonthlyBilling] = React.useState<{
     totalRevenue?: number;
     totalGyms?: number;
     totalMembers?: number;
     monthName?: string;
   } | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [sortBy, setSortBy] = useState('createdAt');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [selectedSubscription, setSelectedSubscription] = useState<Subscription | null>(null);
-  const [showAddDialog, setShowAddDialog] = useState(false);
-  const [showEditDialog, setShowEditDialog] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [showViewDialog, setShowViewDialog] = useState(false);
+  const [searchTerm, setSearchTerm] = React.useState('');
+  const [statusFilter, setStatusFilter] = React.useState('all');
+  const [sortBy, setSortBy] = React.useState('createdAt');
+  const [sortOrder, setSortOrder] = React.useState<'asc' | 'desc'>('desc');
+  const [selectedSubscription, setSelectedSubscription] = React.useState<Subscription | null>(null);
+  const [showAddDialog, setShowAddDialog] = React.useState(false);
+  const [showEditDialog, setShowEditDialog] = React.useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = React.useState(false);
+  const [showViewDialog, setShowViewDialog] = React.useState(false);
+  const [crmPayments, setCrmPayments] = React.useState<CrmSubscriptionPayment[]>([]);
+  const [crmPaymentsLoading, setCrmPaymentsLoading] = React.useState(false);
+  const [crmSearchTerm, setCrmSearchTerm] = React.useState('');
+  const [crmStatusFilter, setCrmStatusFilter] = React.useState('all');
+  const [crmSubscriptionFilter, setCrmSubscriptionFilter] = React.useState('all');
 
   // This page is ONLY for Master CRM users (Admin)
-  useEffect(() => {
+  React.useEffect(() => {
     const adminToken = localStorage.getItem('adminToken');
     if (!adminToken) {
       // Redirect to login if not admin
@@ -116,18 +140,16 @@ const SubscriptionManagementPage: React.FC = () => {
 
   const fetchData = async () => {
     setLoading(true);
+    setCrmPaymentsLoading(true);
     try {
-      // Only admin endpoints - this page is for Master CRM only
-      console.log('Fetching data as Master CRM admin...');
-      const [subscriptionsResponse, analyticsResponse, billingResponse] = await Promise.all([
+      const [subscriptionsResponse, analyticsResponse, billingResponse, crmSubscriptionsResponse] = await Promise.all([
         axiosInstance.get('/admin/dashboard/subscriptions'),
         axiosInstance.get('/subscriptions/master/analytics'),
-        axiosInstance.get('/gym/billing/master/current-month')
+        axiosInstance.get('/gym/billing/master/current-month'),
+        axiosInstance.get('/admin/crm-subscription-payments', {
+          params: { limit: 100 }
+        })
       ]);
-
-      console.log('Subscriptions response:', subscriptionsResponse.data);
-      console.log('Analytics response:', analyticsResponse.data);
-      console.log('Billing response:', billingResponse.data);
 
       if (subscriptionsResponse.data.success) {
         setSubscriptions(subscriptionsResponse.data.data || subscriptionsResponse.data.subscriptions);
@@ -140,18 +162,46 @@ const SubscriptionManagementPage: React.FC = () => {
       if (billingResponse.data.success) {
         setMonthlyBilling(billingResponse.data.billing || billingResponse.data.masterBilling);
       }
+
+      if (crmSubscriptionsResponse.data.success) {
+        setCrmPayments(crmSubscriptionsResponse.data.data || []);
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
       console.error('Error details:', error.response?.data);
       toast.error('Failed to fetch subscription data');
     } finally {
       setLoading(false);
+      setCrmPaymentsLoading(false);
     }
   };
 
-  useEffect(() => {
+  React.useEffect(() => {
     fetchData();
   }, []);
+
+  const filteredCrmPayments = React.useMemo(() => {
+    return crmPayments.filter(payment => {
+      const search = crmSearchTerm.toLowerCase();
+      const matchesSearch =
+        payment.gymName.toLowerCase().includes(search) ||
+        payment.customerName.toLowerCase().includes(search) ||
+        payment.customerEmail.toLowerCase().includes(search) ||
+        payment.customerPhone.toLowerCase().includes(search) ||
+        payment.razorpay_order_id.toLowerCase().includes(search) ||
+        payment.razorpay_payment_id.toLowerCase().includes(search);
+
+      const matchesStatus = crmStatusFilter === 'all' || payment.status === crmStatusFilter;
+      const matchesType = crmSubscriptionFilter === 'all' || payment.subscriptionType === crmSubscriptionFilter;
+
+      return matchesSearch && matchesStatus && matchesType;
+    });
+  }, [crmPayments, crmSearchTerm, crmStatusFilter, crmSubscriptionFilter]);
+
+  const latestCrmPayments = React.useMemo(
+    () => filteredCrmPayments.slice(0, 10),
+    [filteredCrmPayments]
+  );
 
   const handleEdit = (subscription: Subscription) => {
     setSelectedSubscription(subscription);
@@ -463,6 +513,23 @@ const SubscriptionManagementPage: React.FC = () => {
               <div className="h-8 w-1 bg-gradient-to-b from-green-500 to-green-600 rounded-full" />
               <h2 className="text-2xl font-bold">Master Monthly Billing - {monthlyBilling.monthName || 'Current Month'}</h2>
             </div>
+
+            {/* Warning if there is no stored billing for the previous month (likely missed finalization) */}
+            {!monthlyBilling.totalGyms && (
+              <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5" />
+                <div>
+                  <p className="font-medium text-amber-800">
+                    Previous month billing records are missing.
+                  </p>
+                  <p className="text-sm text-amber-700 mt-1">
+                    We could not find finalized billing data for the last completed month. Please ensure the month-end
+                    billing job has run, or trigger a backfill from the admin tools so that all gyms have their bills
+                    registered in the database.
+                  </p>
+                </div>
+              </div>
+            )}
             
             {/* Master billing view for all gyms */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -524,6 +591,142 @@ const SubscriptionManagementPage: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* CRM Subscription Payments */}
+        <Card className="mb-8">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>CRM Subscription Payments</CardTitle>
+                <CardDescription>Recent CRM subscription transactions across all gyms</CardDescription>
+              </div>
+              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                {filteredCrmPayments.length} records
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col lg:flex-row gap-4 mb-6">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by gym, customer, email, phone, or Razorpay ID..."
+                  value={crmSearchTerm}
+                  onChange={(e) => setCrmSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Select value={crmStatusFilter} onValueChange={setCrmStatusFilter}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="paid">Paid</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="failed">Failed</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={crmSubscriptionFilter} onValueChange={setCrmSubscriptionFilter}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue placeholder="Plan Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Plans</SelectItem>
+                    <SelectItem value="Monthly">Monthly</SelectItem>
+                    <SelectItem value="Yearly">Yearly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {crmPaymentsLoading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-muted-foreground">Loading CRM subscription payments...</p>
+              </div>
+            ) : latestCrmPayments.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <CreditCard className="h-10 w-10 text-white" />
+                </div>
+                <h3 className="text-2xl font-semibold mb-3">No CRM subscription payments found</h3>
+                <p className="text-muted-foreground">
+                  CRM subscription payments will appear here once gyms complete their plan purchases.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {latestCrmPayments.map(payment => (
+                  <Card key={payment._id} className="border border-border hover:shadow-md transition-shadow">
+                    <CardContent className="py-4">
+                      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                              {payment.subscriptionType}
+                            </Badge>
+                            <Badge
+                              variant="outline"
+                              className={
+                                payment.status === 'paid'
+                                  ? 'bg-green-50 text-green-700 border-green-200'
+                                  : payment.status === 'failed'
+                                  ? 'bg-red-50 text-red-700 border-red-200'
+                                  : 'bg-yellow-50 text-yellow-700 border-yellow-200'
+                              }
+                            >
+                              {payment.status.toUpperCase()}
+                            </Badge>
+                          </div>
+                          <div className="text-lg font-semibold">{payment.gymName}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {payment.customerName} • {payment.customerEmail} • {payment.customerPhone}
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {new Date(payment.subscriptionStartDate).toLocaleDateString('en-IN', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric'
+                            })}{' '}
+                            -{' '}
+                            {new Date(payment.subscriptionEndDate).toLocaleDateString('en-IN', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric'
+                            })}
+                          </div>
+                        </div>
+                        <div className="text-right space-y-1 min-w-[160px]">
+                          <div className="text-2xl font-bold text-green-600">
+                            ₹{payment.amount.toLocaleString()}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            Paid on{' '}
+                            {new Date(payment.createdAt).toLocaleDateString('en-IN', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric'
+                            })}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Order: {payment.razorpay_order_id}
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+                {filteredCrmPayments.length > 10 && (
+                  <p className="text-xs text-muted-foreground text-right">
+                    Showing latest {latestCrmPayments.length} of {filteredCrmPayments.length} payments
+                  </p>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Filters */}
         <Card className="mb-6">
