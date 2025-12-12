@@ -5,6 +5,10 @@ export const customerFormSchema = z.object({
   email: z.string().email('Invalid email address').optional(),
   phone: z.string().optional(),
   address: z.string().optional(),
+  gender: z.string().min(1, 'Please select a gender').refine(
+    (val) => ['male', 'female', 'other'].includes(val),
+    { message: 'Please select a valid gender option' }
+  ),
   source: z.enum(['website', 'referral', 'walk-in', 'social_media', 'other']),
   membershipType: z.enum(['none', 'basic', 'premium', 'vip']),
   membershipFees: z.number().min(0, 'Membership fees must be a positive number'),

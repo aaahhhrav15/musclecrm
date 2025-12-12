@@ -272,6 +272,11 @@ router.get('/:id', async (req, res) => {
 // **OPTIMIZED: Create a new customer with automatic end date calculation**
 router.post('/', async (req, res) => {
   try {
+    const allowedGenders = ['male', 'female', 'other'];
+    if (!req.body.gender || !allowedGenders.includes(req.body.gender)) {
+      return res.status(400).json({ success: false, message: 'Gender is required and must be one of male, female, or other' });
+    }
+
     // Clear cache for this gym
     clearCustomerCache(req.gymId);
 
@@ -410,7 +415,7 @@ router.put('/:id', async (req, res) => {
     const {
       name, email, phone, address, source, membershipType, membershipFees,
       membershipDuration, joinDate, membershipStartDate, membershipEndDate,
-      transactionDate, paymentMode, notes, birthday, height, weight
+      transactionDate, paymentMode, notes, birthday, height, weight, gender
     } = req.body;
 
     // Clear cache for this gym and specific customer
@@ -454,12 +459,22 @@ router.put('/:id', async (req, res) => {
       });
     }
 
+    // Validate gender if provided
+    const allowedGenders = ['male', 'female', 'other'];
+    if (gender !== undefined && !allowedGenders.includes(gender)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Gender must be one of male, female, or other'
+      });
+    }
+
     // Update customer fields efficiently
     const updates = {
       ...(name && { name }),
       ...(email !== undefined && { email }),
       ...(phone !== undefined && { phone }),
       ...(address !== undefined && { address }),
+      ...(gender !== undefined && { gender }),
       ...(source && { source }),
       ...(membershipType && { membershipType }),
       ...(membershipFees !== undefined && { membershipFees }),

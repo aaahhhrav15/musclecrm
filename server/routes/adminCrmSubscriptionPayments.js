@@ -11,3 +11,6 @@ router.get('/gym/:gymId', adminAuth, crmSubscriptionPaymentController.getCrmSubs
 
 module.exports = router;
 
+
+
+

@@ -185,6 +185,10 @@ const formSchema = z.object({
   phone: z.string()
     .regex(/^[0-9]{10}$/, 'Phone number must be exactly 10 digits'),
   address: z.string().optional(),
+  gender: z.string().min(1, 'Please select a gender').refine(
+    (val) => ['male', 'female', 'other'].includes(val),
+    { message: 'Please select a valid gender option' }
+  ),
   source: z.enum(['website', 'referral', 'walk-in', 'social_media', 'other']),
   membershipType: z.enum(['none', 'basic', 'premium', 'vip']),
   membershipFees: z.string().refine((val) => {
@@ -242,6 +246,7 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
       email: '',
       phone: '',
       address: '',
+      gender: '',
       source: 'other',
       membershipType: 'none',
       membershipFees: '',
@@ -292,6 +297,7 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
       const response = await CustomerService.createCustomer({
         name: values.name,
         email: values.email,
+        gender: values.gender,
         phone: values.phone || '',
         address: values.address || '',
         source: values.source,
@@ -387,6 +393,32 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                     <FormControl>
                       <Input {...field} type="email" />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="gender"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Gender</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select gender" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="male">Male</SelectItem>
+                        <SelectItem value="female">Female</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

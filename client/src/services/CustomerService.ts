@@ -4,6 +4,7 @@ export interface Customer {
   id: string;
   name: string;
   email: string;
+  gender: 'male' | 'female' | 'other';
   phone?: string;
   address?: string;
   source?: string;
@@ -140,6 +141,7 @@ interface ApiCustomerResponse extends ApiResponse {
 export interface CustomerFormData {
   name: string;
   email?: string;
+  gender: 'male' | 'female' | 'other';
   phone?: string;
   address?: string;
   source: 'website' | 'referral' | 'walk-in' | 'social_media' | 'other';
@@ -162,6 +164,7 @@ export interface CustomerFormData {
 export interface CustomerApiUpdateData {
   name?: string;
   email?: string;
+  gender?: 'male' | 'female' | 'other';
   phone?: string;
   address?: string;
   source?: 'website' | 'referral' | 'walk-in' | 'social_media' | 'other';
@@ -196,6 +199,7 @@ interface ApiCustomerData {
   _id: string;
   name: string;
   email: string;
+  gender: 'male' | 'female' | 'other';
   phone?: string;
   address?: string;
   source?: string;
@@ -222,6 +226,7 @@ const mapCustomerFromApi = (apiCustomer: ApiCustomerData): Customer => ({
   id: apiCustomer._id,
   name: apiCustomer.name,
   email: apiCustomer.email,
+  gender: apiCustomer.gender,
   phone: apiCustomer.phone,
   address: apiCustomer.address,
   source: apiCustomer.source,

@@ -174,6 +174,10 @@ const formSchema = z.object({
   email: z.string().email('Invalid email address').optional().or(z.literal('')),
   phone: z.string().optional(),
   address: z.string().optional(),
+  gender: z.string().min(1, 'Please select a gender').refine(
+    (val) => ['male', 'female', 'other'].includes(val),
+    { message: 'Please select a valid gender option' }
+  ),
   source: z.enum(['website', 'referral', 'walk-in', 'social_media', 'other']),
   membershipType: z.enum(['none', 'basic', 'premium', 'vip']),
   membershipFees: z.string().refine((val) => {
@@ -237,6 +241,7 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
     defaultValues: {
       name: customer.name,
       email: customer.email,
+      gender: (customer.gender as 'male' | 'female' | 'other') || '',
       phone: customer.phone || '',
       address: customer.address || '',
       source: (customer.source as 'website' | 'referral' | 'walk-in' | 'social_media' | 'other') || 'other',
@@ -262,6 +267,7 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
     form.reset({
       name: customer.name,
       email: customer.email,
+      gender: (customer.gender as 'male' | 'female' | 'other') || '',
       phone: customer.phone || '',
       address: customer.address || '',
       source: (customer.source as 'website' | 'referral' | 'walk-in' | 'social_media' | 'other') || 'other',
@@ -331,6 +337,7 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
       const formattedData: Partial<CustomerApiUpdateData> = {
         name: values.name,
         email: values.email,
+        gender: values.gender,
         phone: values.phone || '',
         address: values.address || '',
         source: values.source,
@@ -364,6 +371,7 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
             id: response.customer._id,
             name: response.customer.name,
             email: response.customer.email,
+            gender: response.customer.gender,
             phone: response.customer.phone,
             address: response.customer.address,
             source: response.customer.source,
@@ -440,6 +448,34 @@ export const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
                     <FormControl>
                       <Input placeholder="Enter email" type="email" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="gender"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Gender</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select gender" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="male">Male</SelectItem>
+                        <SelectItem value="female">Female</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

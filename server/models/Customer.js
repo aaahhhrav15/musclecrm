@@ -29,6 +29,11 @@ const customerSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  gender: {
+    type: String,
+    enum: ['male', 'female', 'other'],
+    required: true
+  },
   source: {
     type: String,
     enum: ['website', 'referral', 'walk-in', 'social_media', 'other'],
