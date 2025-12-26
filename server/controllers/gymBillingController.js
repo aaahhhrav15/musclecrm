@@ -688,6 +688,62 @@ const getBillingAnalytics = async (req, res) => {
   }
 };
 
+// Get total unpaid billing (excluding current month) for a gym (gym user view)
+const getUnpaidSummaryForGym = async (req, res) => {
+  try {
+    const gymId = req.gymId;
+
+    if (!mongoose.Types.ObjectId.isValid(gymId)) {
+      return res.status(400).json({ success: false, message: 'Invalid gym ID' });
+    }
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+
+    // Aggregate all months before current month where billing is not fully paid
+    const result = await GymBilling.aggregate([
+      {
+        $match: {
+          gymId: new mongoose.Types.ObjectId(gymId),
+          billingStatus: { $in: ['sent', 'partial_paid', 'overdue'] },
+          $or: [
+            { billingYear: { $lt: currentYear } },
+            {
+              billingYear: currentYear,
+              billingMonth: { $lt: currentMonth }
+            }
+          ]
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalUnpaidAmount: { $sum: '$totalPendingAmount' },
+          unpaidMonths: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const summary = result[0] || { totalUnpaidAmount: 0, unpaidMonths: 0 };
+
+    return res.json({
+      success: true,
+      data: {
+        totalUnpaidAmount: summary.totalUnpaidAmount || 0,
+        unpaidMonths: summary.unpaidMonths || 0
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching unpaid billing summary for gym:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error fetching unpaid billing summary',
+      error: error.message
+    });
+  }
+};
+
 // Mark gym billing as PAID (for gym users - full amount only)
 const addGymPayment = async (req, res) => {
   try {
@@ -968,9 +1024,17 @@ async function updateMonthlyBilling(billing, year, month) {
 async function getActiveCustomersForMonth(gymId, year, month) {
   const monthStart = new Date(year, month - 1, 1);
   const monthEnd = new Date(year, month, 0); // Last day of the month
+  const today = new Date();
+
+  // From the current month onward, only include customers explicitly marked as registered.
+  // For earlier months, keep existing behavior.
+  const isHasRegisteredEnforced =
+    year > today.getFullYear() ||
+    (year === today.getFullYear() && month >= today.getMonth() + 1);
   
   const customers = await Customer.find({
     gymId: gymId,
+    ...(isHasRegisteredEnforced ? { hasRegistered: true } : {}),
     membershipStartDate: { $exists: true, $ne: null },
     $or: [
       // Customer started before or during this month and ends after this month
@@ -1015,8 +1079,17 @@ async function getActiveCustomersForMonthWithProRatedBilling(gymId, year, month)
   
   console.log(`Calculation End Date: ${calculationEndDate}`);
   
+  // From the current month onward, only include customers explicitly marked as registered.
+  // For earlier months, keep existing behavior.
+  const isHasRegisteredEnforced =
+    year > today.getFullYear() ||
+    (year === today.getFullYear() && month >= today.getMonth() + 1);
+  
   // First, let's see all customers for this gym
-  const allCustomers = await Customer.find({ gymId: gymId });
+  const allCustomers = await Customer.find({
+    gymId: gymId,
+    ...(isHasRegisteredEnforced ? { hasRegistered: true } : {})
+  });
   console.log(`Total customers found for gym: ${allCustomers.length}`);
   
   // Check customer details
@@ -1034,6 +1107,7 @@ async function getActiveCustomersForMonthWithProRatedBilling(gymId, year, month)
   // Updated query to focus only on subscription dates (ignore fees)
   const customers = await Customer.find({
     gymId: gymId,
+    ...(isHasRegisteredEnforced ? { hasRegistered: true } : {}),
     membershipStartDate: { $exists: true, $ne: null },
     $or: [
       // Customer started before or during this month and ends after this month
@@ -1056,7 +1130,10 @@ async function getActiveCustomersForMonthWithProRatedBilling(gymId, year, month)
   console.log(`Customers matching billing criteria: ${customers.length}`);
   
   // Let's try a more flexible approach - get all customers and filter manually
-  const allCustomersForGym = await Customer.find({ gymId: gymId });
+  const allCustomersForGym = await Customer.find({
+    gymId: gymId,
+    ...(isHasRegisteredEnforced ? { hasRegistered: true } : {})
+  });
   console.log(`All customers for gym: ${allCustomersForGym.length}`);
   
   // Filter customers based only on subscription dates (ignore fees)
@@ -1522,5 +1599,6 @@ module.exports = {
   backfillBillingForMonth,
   backfillBillingForMonthController,
   createRazorpayOrderForBilling,
-  verifyRazorpayPaymentForBilling
+  verifyRazorpayPaymentForBilling,
+  getUnpaidSummaryForGym
 };

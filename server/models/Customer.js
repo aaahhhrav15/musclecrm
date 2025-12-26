@@ -84,6 +84,11 @@ const customerSchema = new mongoose.Schema({
     type: Object,
     required: false
   },
+  // Indicates if this customer is fully registered and should be billed
+  hasRegistered: {
+    type: Boolean,
+    default: false
+  },
   notes: {
     type: String,
     trim: true
@@ -124,6 +129,7 @@ customerSchema.index({ gymId: 1, birthday: 1 });
 customerSchema.index({ gymId: 1, totalSpent: 1 });
 customerSchema.index({ gymId: 1, membershipEndDate: 1 });
 customerSchema.index({ gymId: 1, joinDate: 1 });
+customerSchema.index({ gymId: 1, hasRegistered: 1 });
 
 // **OPTIMIZATION: Text index for search functionality**
 customerSchema.index({ name: 'text', email: 'text', phone: 'text', notes: 'text' });

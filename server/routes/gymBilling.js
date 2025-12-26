@@ -20,6 +20,7 @@ router.get('/current-month', gymAuth, gymBillingController.getCurrentMonthBillin
 router.get('/month/:year/:month', gymAuth, gymBillingController.getMonthlyBilling);
 router.get('/history', gymAuth, gymBillingController.getBillingHistory);
 router.get('/analytics', gymAuth, gymBillingController.getBillingAnalytics);
+router.get('/unpaid-summary', gymAuth, gymBillingController.getUnpaidSummaryForGym);
 
 // Payment routes (both admin and gym)
 router.post('/:billingId/payment', adminAuth, gymBillingController.addPayment);

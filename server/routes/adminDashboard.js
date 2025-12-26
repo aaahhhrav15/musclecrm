@@ -581,9 +581,10 @@ router.get('/gym/:gymId', async (req, res) => {
       // Get current month billing (real-time calculation)
       GymBilling.getGymBillingForMonth(gymId, currentYear, currentMonth),
       
-      // Get active customers for current month
+      // Get active customers for current month (only those explicitly registered)
       Customer.find({
         gymId: new mongoose.Types.ObjectId(gymId),
+        hasRegistered: true,
         membershipStartDate: { $exists: true, $ne: null },
         $or: [
           { membershipStartDate: { $lte: monthEnd }, membershipEndDate: { $gte: monthStart } },

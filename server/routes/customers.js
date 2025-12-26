@@ -299,13 +299,20 @@ router.post('/', async (req, res) => {
       );
     }
     
+    // Ensure hasRegistered cannot be set from the CRM payload
+    if ('hasRegistered' in req.body) {
+      delete req.body.hasRegistered;
+    }
+
     const customer = new Customer({
       ...req.body,
       membershipDuration: months,
       membershipDays: days,
       gymId: req.gymId,
       gymCode,
-      membershipEndDate, // Store calculated end date in database
+      membershipEndDate // Store calculated end date in database
+      // NOTE: hasRegistered will use the schema default (false) and
+      // can only be flipped by backend processes outside the CRM.
     });
     
     await customer.save();
