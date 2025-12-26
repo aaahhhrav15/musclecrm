@@ -259,7 +259,35 @@ const PaymentHistoryPage: React.FC = () => {
         console.log('Processed currentMonth:', currentMonth);
         billingData.push(currentMonth);
       } else if (currentMonthResponse.data.success && !currentMonthResponse.data.billing) {
-        console.log('Current month billing not available yet:', currentMonthResponse.data.message);
+        // No bill stored / no active registered members, but we still want a current-month row
+        const now = new Date();
+        const month = now.getMonth() + 1;
+        const year = now.getFullYear();
+        const monthName = now.toLocaleString('default', { month: 'long' });
+
+        console.log('Current month billing not available yet. Creating empty current month entry.');
+
+        const emptyCurrentMonth: MonthlyBilling = {
+          billingId: `CURRENT-${year}${String(month).padStart(2, '0')}`,
+          billingMonth: month,
+          billingYear: year,
+          monthName,
+          totalBillAmount: 0,
+          totalPaidAmount: 0,
+          totalPendingAmount: 0,
+          totalOverdueAmount: 0,
+          billingStatus: 'no_billing',
+          memberCount: 0,
+          dueDate: new Date(year, month, 0).toISOString(),
+          paymentDeadline: new Date(year, month, 0).toISOString(),
+          memberBills: [],
+          billingBreakdown: undefined,
+          paymentHistory: [],
+          isFinalized: false,
+          finalizedAt: undefined
+        };
+
+        billingData.push(emptyCurrentMonth);
       }
       
       // Fetch history for additional months
@@ -815,7 +843,7 @@ const PaymentHistoryPage: React.FC = () => {
         )}
 
         {/* Billing Analytics */}
-        {activeTab === 'billing' && monthlyBilling.length > 0 && (
+        {activeTab === 'billing' && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -824,7 +852,12 @@ const PaymentHistoryPage: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {(() => {
+              {monthlyBilling.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <TrendingUp className="h-8 w-8 mx-auto mb-3" />
+                  <p>No billing data yet for analytics. Once your first monthly bill is generated, analytics will appear here.</p>
+                </div>
+              ) : (() => {
                 const analytics = calculateBillingAnalytics();
                 if (!analytics) return null;
 

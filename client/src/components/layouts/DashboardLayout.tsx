@@ -19,6 +19,8 @@ import { useRequireAuth } from '@/hooks/useRequireAuth';
 import DashboardSidebar from './DashboardSidebar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import axiosInstance from '@/lib/axios';
+import { formatCurrency } from '@/lib/utils';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -30,9 +32,35 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const { gym } = useGym();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [unpaidSummary, setUnpaidSummary] = useState<{ totalUnpaidAmount: number; unpaidMonths: number } | null>(null);
+  const [loadingUnpaid, setLoadingUnpaid] = useState(false);
   
   // Use the auth hook to check authentication
   const { isLoading } = useRequireAuth();
+
+  useEffect(() => {
+    const fetchUnpaidSummary = async () => {
+      try {
+        setLoadingUnpaid(true);
+        const res = await axiosInstance.get('/gym/billing/unpaid-summary');
+        if (res.data?.success) {
+          setUnpaidSummary(res.data.data);
+        } else {
+          setUnpaidSummary(null);
+        }
+      } catch (error) {
+        console.error('Error fetching unpaid billing summary for gym:', error);
+        setUnpaidSummary(null);
+      } finally {
+        setLoadingUnpaid(false);
+      }
+    };
+
+    // Only fetch once the user is authenticated (token set) and a gym context exists
+    if (!isLoading && gym) {
+      fetchUnpaidSummary();
+    }
+  }, [isLoading, gym]);
 
   const handleLogout = () => {
     logout();
@@ -95,6 +123,24 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
           </div>
 
           <div className="flex items-center gap-4">
+            {/* Pending CRM billing indicator (for this gym only) */}
+            {unpaidSummary && unpaidSummary.totalUnpaidAmount > 0 && (
+              <div className="hidden sm:flex flex-col items-end mr-2">
+                <span className="text-xs text-muted-foreground">
+                  Pending CRM Bills
+                </span>
+                <div className="flex items-center gap-2">
+                  <Badge variant="destructive" className="text-xs px-2 py-1">
+                    {formatCurrency(unpaidSummary.totalUnpaidAmount)}
+                  </Badge>
+                  {unpaidSummary.unpaidMonths > 0 && (
+                    <span className="text-[11px] text-muted-foreground">
+                      ({unpaidSummary.unpaidMonths} month{unpaidSummary.unpaidMonths > 1 ? 's' : ''})
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 rounded-full" asChild>

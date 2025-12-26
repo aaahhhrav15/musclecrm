@@ -1431,21 +1431,6 @@ const SettingsPage: React.FC = () => {
                   <ArrowRight className="h-4 w-4 ml-2" />
                 </Button>
               </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="text-center p-4 bg-green-50 rounded-lg">
-                  <div className="text-2xl font-bold text-green-600">₹999</div>
-                  <div className="text-sm text-green-600">Monthly Plan</div>
-                </div>
-                <div className="text-center p-4 bg-blue-50 rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600">₹9999</div>
-                  <div className="text-sm text-blue-600">Yearly Plan</div>
-                </div>
-                <div className="text-center p-4 bg-purple-50 rounded-lg">
-                  <div className="text-2xl font-bold text-purple-600">16.6%</div>
-                  <div className="text-sm text-purple-600">Yearly Savings</div>
-                </div>
-              </div>
             </CardContent>
           </Card>
         </motion.div>
