@@ -132,44 +132,44 @@ const Home = () => {
   }, []);
 
   // Real CRM statistics and metrics
-  const stats = [
-    { 
-      number: '500+', 
-      label: 'Active Gyms', 
-      icon: Users, 
-      color: 'from-blue-600 to-indigo-600',
-      bgColor: 'bg-blue-50 dark:bg-blue-950/20',
-      delay: 0,
-      description: 'Managing fitness journeys'
-    },
-    { 
-      number: '100,000+', 
-      label: 'Members Added', 
-      icon: DollarSign, 
-      color: 'from-green-600 to-emerald-600',
-      bgColor: 'bg-green-50 dark:bg-green-950/20',
-      delay: 0.1,
-      description: 'For gym partners'
-    },
-    { 
-      number: '95%', 
-      label: 'Member Retention', 
-      icon: TrendingUp, 
-      color: 'from-purple-600 to-pink-600',
-      bgColor: 'bg-purple-50 dark:bg-purple-950/20',
-      delay: 0.2,
-      description: 'Average retention rate'
-    },
-    { 
-      number: '10,000+', 
-      label: 'Invoices Generated', 
-      icon: Calendar, 
-      color: 'from-orange-600 to-red-600',
-      bgColor: 'bg-orange-50 dark:bg-orange-950/20',
-      delay: 0.3,
-      description: 'Monthly across gyms'
-    }
-  ];
+  // const stats = [
+  //   { 
+  //     number: '500+', 
+  //     label: 'Active Gyms', 
+  //     icon: Users, 
+  //     color: 'from-blue-600 to-indigo-600',
+  //     bgColor: 'bg-blue-50 dark:bg-blue-950/20',
+  //     delay: 0,
+  //     description: 'Managing fitness journeys'
+  //   },
+  //   { 
+  //     number: '100,000+', 
+  //     label: 'Members Added', 
+  //     icon: DollarSign, 
+  //     color: 'from-green-600 to-emerald-600',
+  //     bgColor: 'bg-green-50 dark:bg-green-950/20',
+  //     delay: 0.1,
+  //     description: 'For gym partners'
+  //   },
+  //   { 
+  //     number: '95%', 
+  //     label: 'Member Retention', 
+  //     icon: TrendingUp, 
+  //     color: 'from-purple-600 to-pink-600',
+  //     bgColor: 'bg-purple-50 dark:bg-purple-950/20',
+  //     delay: 0.2,
+  //     description: 'Average retention rate'
+  //   },
+  //   { 
+  //     number: '10,000+', 
+  //     label: 'Invoices Generated', 
+  //     icon: Calendar, 
+  //     color: 'from-orange-600 to-red-600',
+  //     bgColor: 'bg-orange-50 dark:bg-orange-950/20',
+  //     delay: 0.3,
+  //     description: 'Monthly across gyms'
+  //   }
+  // ];
 
   // Real CRM features and capabilities
   const features = [
@@ -340,7 +340,7 @@ const Home = () => {
               {/* Left column - Content */}
               <div className="space-y-8">
                 {/* Professional badge */}
-                <motion.div
+                {/* <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.6 }}
@@ -350,7 +350,7 @@ const Home = () => {
                   <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                     Trusted by 500+ Fitness Businesses
                   </span>
-                </motion.div>
+                </motion.div> */}
 
                 {/* Main headline */}
                 <motion.div
@@ -476,7 +476,7 @@ const Home = () => {
                       </div>
                       
                       {/* Stats Grid */}
-                      <div className="grid grid-cols-2 gap-4">
+                      {/* <div className="grid grid-cols-2 gap-4">
                         <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/50 dark:to-indigo-950/50 rounded-xl p-4 border border-blue-100 dark:border-blue-800">
                           <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">500+</div>
                           <div className="text-sm text-slate-600 dark:text-slate-400 font-medium">Active Gyms</div>
@@ -493,7 +493,7 @@ const Home = () => {
                           <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">10K+</div>
                           <div className="text-sm text-slate-600 dark:text-slate-400 font-medium">Invoices Generated</div>
                         </div>
-                      </div>
+                      </div> */}
 
                       {/* Quick Actions */}
                       <div className="flex gap-3">
@@ -594,7 +594,7 @@ const Home = () => {
       </section>
 
       {/* Modern Stats Section with Card Layout */}
-      <section className="py-24 bg-white dark:bg-slate-900">
+      {/* <section className="py-24 bg-white dark:bg-slate-900">
         <div className="container px-6 mx-auto">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-16">
@@ -632,7 +632,7 @@ const Home = () => {
             </div>
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* Industry Focus Section with Split Layout */}
       <section className="py-24 bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-950">
@@ -728,7 +728,7 @@ const Home = () => {
                       <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-4">
+                    {/* <div className="grid grid-cols-2 gap-4">
                       <div className="bg-white/10 backdrop-blur-xl rounded-xl p-4">
                         <div className="text-2xl font-bold text-white">500+</div>
                         <div className="text-white/70 text-sm">Total Gyms</div>
@@ -737,7 +737,7 @@ const Home = () => {
                         <div className="text-2xl font-bold text-white">95%</div>
                         <div className="text-white/70 text-sm">Retention</div>
                       </div>
-                    </div>
+                    </div> */}
                     
                     <div className="space-y-3">
                       <div className="flex justify-between text-white/70 text-sm">
