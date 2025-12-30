@@ -447,9 +447,10 @@ router.put('/:id', async (req, res) => {
     const results = await Promise.all(operations);
     const customer = results[0];
     
-    // IMPORTANT: Capture the ORIGINAL dates from the database BEFORE any updates
+    // IMPORTANT: Capture the ORIGINAL values from the database BEFORE any updates
     const originalEndDateForInvoice = customer.membershipEndDate ? new Date(customer.membershipEndDate) : null;
     const originalStartDateForInvoice = customer.membershipStartDate ? new Date(customer.membershipStartDate) : null;
+    const originalMembershipFees = customer.membershipFees || 0;
     const existingCustomer = (email && email.trim() !== '') ? results[1] : null;
 
     if (!customer) {
@@ -536,12 +537,56 @@ router.put('/:id', async (req, res) => {
       Transaction.find({ userId: id }).lean()
     ]);
 
-    // Update totalSpent
-    if (transactions) {
-      const totalSpent = transactions.reduce((sum, transaction) => sum + (transaction.amount || 0), 0);
+    // Create modification transaction if membershipFees changed (and it's not a renewal)
+    if (!req.body.isRenewal && membershipFees !== undefined && membershipFees !== originalMembershipFees) {
+      const feeDifference = membershipFees - originalMembershipFees;
+      if (feeDifference !== 0) {
+        try {
+          const membershipTypeToUse = membershipType || updatedCustomer.membershipType || 'none';
+          const membershipDurationToUse = membershipDuration !== undefined ? membershipDuration : updatedCustomer.membershipDuration || 0;
+          const membershipDaysToUse = req.body.membershipDays !== undefined ? parseInt(req.body.membershipDays) : (updatedCustomer.membershipDays || 0);
+          
+          let durationDescription = '';
+          if (membershipDurationToUse > 0 && membershipDaysToUse > 0) {
+            durationDescription = `${membershipDurationToUse} month(s) and ${membershipDaysToUse} day(s)`;
+          } else if (membershipDurationToUse > 0) {
+            durationDescription = `${membershipDurationToUse} month(s)`;
+          } else if (membershipDaysToUse > 0) {
+            durationDescription = `${membershipDaysToUse} day(s)`;
+          }
+          
+          const description = `Membership fees modified from ₹${originalMembershipFees} to ₹${membershipFees} for ${membershipTypeToUse.toUpperCase()}${durationDescription ? ` (${durationDescription})` : ''}`;
+          
+          const modificationTransaction = new Transaction({
+            userId: id,
+            gymId: req.gymId,
+            transactionType: 'MEMBERSHIP_MODIFICATION',
+            transactionDate: transactionDate ? new Date(transactionDate) : new Date(),
+            amount: feeDifference,
+            membershipType: membershipTypeToUse,
+            paymentMode: paymentMode || updatedCustomer.paymentMode || 'cash',
+            description: description,
+            status: 'SUCCESS'
+          });
+          
+          await modificationTransaction.save();
+          console.log(`Created membership modification transaction: ${description}, difference: ₹${feeDifference}`);
+        } catch (error) {
+          console.error('Error creating membership modification transaction:', error);
+          // Don't fail the update if transaction creation fails
+        }
+      }
+    }
+
+    // Update totalSpent by recalculating from all transactions
+    try {
+      const allTransactions = await Transaction.find({ userId: id }).lean();
+      const totalSpent = allTransactions.reduce((sum, transaction) => sum + (transaction.amount || 0), 0);
       updatedCustomer.totalSpent = totalSpent;
       await updatedCustomer.save();
       console.log(`Updated totalSpent for customer ${updatedCustomer.name}: ${totalSpent}`);
+    } catch (error) {
+      console.error('Error updating totalSpent:', error);
     }
 
     let invoice = null;

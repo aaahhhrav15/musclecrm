@@ -153,10 +153,18 @@ exports.createAssignment = async (req, res) => {
     });
     await transaction.save();
 
-    // Update customer's totalSpent
-    await Customer.findByIdAndUpdate(customerId, {
-      $inc: { totalSpent: fees }
-    });
+    // Update customer's totalSpent by recalculating from all transactions
+    try {
+      const transactions = await Transaction.find({ userId: customerId });
+      const totalSpent = transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
+      await Customer.findByIdAndUpdate(customerId, {
+        totalSpent: totalSpent
+      });
+      console.log(`Updated totalSpent for customer ${customer.name}: ${totalSpent}`);
+    } catch (error) {
+      console.error('Error updating customer totalSpent:', error);
+      // Don't fail the assignment creation if totalSpent update fails
+    }
 
     res.status(201).json({
       assignment: populatedAssignment,
@@ -178,6 +186,13 @@ exports.updateAssignment = async (req, res) => {
     if (!customerId || !trainerId || !gymId || !startDate || !fees) {
       return res.status(400).json({ error: 'All fields are required.' });
     }
+
+    // Capture original assignment to get old fees
+    const originalAssignment = await PersonalTrainingAssignment.findById(id);
+    if (!originalAssignment) {
+      return res.status(404).json({ error: 'Assignment not found.' });
+    }
+    const originalFees = originalAssignment.fees || 0;
 
     // Handle duration - support both old format (duration) and new format (durationMonths + durationDays)
     let months = 0;
@@ -268,29 +283,56 @@ exports.updateAssignment = async (req, res) => {
       await invoice.save();
     }
 
-    // Update the most recent related transaction (if any)
-    const transaction = await Transaction.findOne({
-      userId: customerId,
-      gymId,
-      transactionType: 'PERSONAL_TRAINING'
-    }).sort({ createdAt: -1 });
-    if (transaction) {
-      // Create duration description
-      let durationDescription = '';
-      if (months > 0 && days > 0) {
-        durationDescription = `${months} month(s) and ${days} day(s)`;
-      } else if (months > 0) {
-        durationDescription = `${months} month(s)`;
-      } else if (days > 0) {
-        durationDescription = `${days} day(s)`;
-      } else {
-        durationDescription = '1 day';
+    // Create modification transaction if fees changed
+    if (fees !== originalFees) {
+      const feeDifference = fees - originalFees;
+      if (feeDifference !== 0) {
+        try {
+          // Create duration description
+          let durationDescription = '';
+          if (months > 0 && days > 0) {
+            durationDescription = `${months} month(s) and ${days} day(s)`;
+          } else if (months > 0) {
+            durationDescription = `${months} month(s)`;
+          } else if (days > 0) {
+            durationDescription = `${days} day(s)`;
+          } else {
+            durationDescription = '1 day';
+          }
+          
+          const description = `Personal training fees modified from ₹${originalFees} to ₹${fees} for ${durationDescription}`;
+          
+          const modificationTransaction = new Transaction({
+            userId: customerId,
+            gymId,
+            transactionType: 'PERSONAL_TRAINING_MODIFICATION',
+            transactionDate: new Date(),
+            amount: feeDifference,
+            paymentMode: 'cash', // Default payment mode
+            description: description,
+            status: 'SUCCESS'
+          });
+          
+          await modificationTransaction.save();
+          console.log(`Created personal training modification transaction: ${description}, difference: ₹${feeDifference}`);
+        } catch (error) {
+          console.error('Error creating personal training modification transaction:', error);
+          // Don't fail the update if transaction creation fails
+        }
       }
-      
-      transaction.amount = fees;
-      transaction.description = `Personal training fees for ${durationDescription}`;
-      transaction.transactionDate = new Date();
-      await transaction.save();
+    }
+
+    // Update customer's totalSpent by recalculating from all transactions
+    try {
+      const transactions = await Transaction.find({ userId: customerId });
+      const totalSpent = transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
+      await Customer.findByIdAndUpdate(customerId, {
+        totalSpent: totalSpent
+      });
+      console.log(`Updated totalSpent for customer ${customerId}: ${totalSpent}`);
+    } catch (error) {
+      console.error('Error updating customer totalSpent:', error);
+      // Don't fail the update if totalSpent update fails
     }
 
     res.json(assignment);
@@ -507,10 +549,19 @@ exports.renewAssignment = async (req, res) => {
     });
     await txn.save();
 
-    // Update customer's totalSpent
-    await Customer.findByIdAndUpdate(assignment.customerId._id || assignment.customerId, {
-      $inc: { totalSpent: fees }
-    });
+    // Update customer's totalSpent by recalculating from all transactions
+    const customerId = assignment.customerId._id || assignment.customerId;
+    try {
+      const transactions = await Transaction.find({ userId: customerId });
+      const totalSpent = transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
+      await Customer.findByIdAndUpdate(customerId, {
+        totalSpent: totalSpent
+      });
+      console.log(`Updated totalSpent for customer ${customerId}: ${totalSpent}`);
+    } catch (error) {
+      console.error('Error updating customer totalSpent:', error);
+      // Don't fail the renewal if totalSpent update fails
+    }
 
     // Fetch the latest updated assignment to ensure frontend gets the correct endDate
     const latestAssignment = await PersonalTrainingAssignment.findById(id)

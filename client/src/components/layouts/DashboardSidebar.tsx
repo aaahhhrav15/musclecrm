@@ -337,8 +337,6 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ isOpen, setIsOpen }
       { icon: <CreditCard className="w-5 h-5" />, label: 'Payments', href: '/dashboard/gym/payments' },
       { icon: <Film className="w-5 h-5" />, label: 'Reels', href: '/dashboard/gym/reels' },
       { icon: <CalendarIcon className="w-5 h-5" />, label: 'Events & Workshops', href: '/dashboard/gym/events-workshops' },
-      { icon: <DollarSign className="w-5 h-5" />, label: 'Retail Sales', href: '/dashboard/gym/retail-sales' },
-      { icon: <DollarSign className="w-5 h-5" />, label: 'Expenses', href: '/dashboard/gym/expenses' },
       { icon: <FileText className="w-5 h-5" />, label: 'Waiver Forms', href: '/dashboard/gym/waiver-forms' }
     ];
   };

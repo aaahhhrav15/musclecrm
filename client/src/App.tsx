@@ -62,7 +62,6 @@ import EventsWorkshopsPage from './pages/gym/EventsWorkshopsPage';
 import WaiverFormsPage from './pages/gym/WaiverFormsPage';
 import MemberCommunicationsPage from './pages/gym/MemberCommunicationsPage';
 import HealthAssessmentsPage from '@/pages/gym/HealthAssessmentsPage';
-import RetailSalesPage from './pages/gym/RetailSalesPage';
 import ExpensesPage from './pages/gym/ExpensesPage';
 import PersonalTrainingPage from './pages/gym/PersonalTrainingPage';
 import ProductsPage from './pages/gym/ProductsPage';
@@ -177,7 +176,6 @@ const App = () => (
                     <Route path="/dashboard/gym/workout-plans/:id/edit" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><EditWorkoutPlanPage /></ProtectedSubscriptionRoute>} />} />
                     <Route path="/dashboard/gym/workout-plans/:id/assign" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><AssignWorkoutPlanPage /></ProtectedSubscriptionRoute>} />} />
                     <Route path="/dashboard/gym/workout-plans/:id" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><ViewWorkoutPlanPage /></ProtectedSubscriptionRoute>} />} />
-                    <Route path="/dashboard/gym/retail-sales" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><RetailSalesPage /></ProtectedSubscriptionRoute>} />} />
                     <Route path="/dashboard/gym/leads" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><GymLeadsPage /></ProtectedSubscriptionRoute>} />} />
                     {/* Booking Routes */}
                     <Route path="/dashboard/bookings/:id" element={<ProtectedRoute element={<ProtectedSubscriptionRoute><ViewBookingPage /></ProtectedSubscriptionRoute>} />} />
