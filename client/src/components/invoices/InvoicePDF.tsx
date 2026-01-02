@@ -117,6 +117,7 @@ const InvoicePDF: React.FC<InvoicePDFProps> = ({ invoice }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [logoLoaded, setLogoLoaded] = useState(false);
   const [logoError, setLogoError] = useState(false);
+  const [logoBase64, setLogoBase64] = useState<string | null>(null);
 
   const gym = invoice.gym || {};
   const customer = invoice.customerId || {};
@@ -145,17 +146,100 @@ const InvoicePDF: React.FC<InvoicePDFProps> = ({ invoice }) => {
     return parts.join('  |  ');
   };
 
-  // Handle logo loading
+  // Handle logo loading and convert to base64 for PDF generation
   useEffect(() => {
-    if (gym.logo && !gym.logo.startsWith('data:image/')) {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => setLogoLoaded(true);
-      img.onerror = () => setLogoError(true);
-      img.src = gym.logo;
-    } else if (gym.logo) {
-      setLogoLoaded(true);
-    }
+    const loadLogo = async () => {
+      if (!gym.logo) {
+        setLogoError(true);
+        return;
+      }
+
+      // If already base64, use it directly
+      if (gym.logo.startsWith('data:image/')) {
+        setLogoBase64(gym.logo);
+        setLogoLoaded(true);
+        return;
+      }
+
+      // For S3/AWS URLs, try server endpoint first (bypasses CORS)
+      if (gym.logo.includes('s3') || gym.logo.includes('amazonaws.com')) {
+        try {
+          const axiosInstance = (await import('@/lib/axios')).default;
+          const response = await axiosInstance.get('/gym/logo-base64');
+          if (response.data.success && response.data.logo) {
+            setLogoBase64(response.data.logo);
+            setLogoLoaded(true);
+            setLogoError(false);
+            return;
+          }
+        } catch (serverError) {
+          console.warn('Server endpoint failed, trying direct fetch:', serverError);
+          // Fall through to direct fetch
+        }
+      }
+
+      try {
+        // Try to fetch and convert to base64 directly
+        const response = await fetch(gym.logo, {
+          mode: 'cors',
+          credentials: 'omit'
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch logo');
+        }
+
+        const blob = await response.blob();
+        const reader = new FileReader();
+        
+        reader.onloadend = () => {
+          const base64 = reader.result as string;
+          setLogoBase64(base64);
+          setLogoLoaded(true);
+          setLogoError(false);
+        };
+        
+        reader.onerror = () => {
+          console.error('Error converting logo to base64');
+          setLogoError(true);
+        };
+        
+        reader.readAsDataURL(blob);
+      } catch (error) {
+        console.error('Error loading logo:', error);
+        // Fallback: try to load as regular image and convert via canvas
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          // Try to convert loaded image to base64 using canvas
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(img, 0, 0);
+              const base64 = canvas.toDataURL('image/png');
+              setLogoBase64(base64);
+              setLogoLoaded(true);
+              setLogoError(false);
+            } else {
+              setLogoError(true);
+            }
+          } catch (canvasError) {
+            console.error('Error converting image to base64 via canvas:', canvasError);
+            setLogoError(true);
+          }
+        };
+        img.onerror = () => {
+          console.error('Error loading logo image');
+          setLogoError(true);
+        };
+        img.src = gym.logo;
+      }
+    };
+
+    loadLogo();
   }, [gym.logo]);
 
   const generatePDF = async () => {
@@ -163,8 +247,18 @@ const InvoicePDF: React.FC<InvoicePDFProps> = ({ invoice }) => {
 
     setIsGenerating(true);
     try {
+      // Wait for logo to load if it exists
+      if (gym.logo && !logoLoaded && !logoError) {
+        // Wait up to 5 seconds for logo to load
+        let attempts = 0;
+        while (!logoLoaded && !logoError && attempts < 50) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          attempts++;
+        }
+      }
+      
       // Wait a bit for any images to fully load and layout to stabilize
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       const canvas = await html2canvas(pdfRef.current, {
         scale: 1.5, // Increased scale for better quality
@@ -372,13 +466,23 @@ const InvoicePDF: React.FC<InvoicePDFProps> = ({ invoice }) => {
                 <div className="flex justify-between items-start">
                   {/* Company Info Section */}
                   <div className="flex items-start space-x-6">
-                    <div className="w-20 h-20 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center border border-white/20 shadow-xl">
-                      {gym.logo && logoLoaded && !logoError ? (
+                    <div className="w-20 h-20 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center border border-white/20 shadow-xl overflow-hidden">
+                      {gym.logo && !logoError ? (
                         <img 
-                          src={gym.logo} 
+                          src={logoBase64 || gym.logo} 
                           alt="Logo" 
-                          className="w-14 h-14 rounded-xl object-contain"
+                          className="w-full h-full object-cover"
+                          style={{ minWidth: '100%', minHeight: '100%' }}
                           crossOrigin="anonymous"
+                          onLoad={() => {
+                            if (!logoLoaded) {
+                              setLogoLoaded(true);
+                            }
+                          }}
+                          onError={() => {
+                            console.error('Logo image failed to load');
+                            setLogoError(true);
+                          }}
                         />
                       ) : (
                         <span className="text-3xl font-bold text-white">

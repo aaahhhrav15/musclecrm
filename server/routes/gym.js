@@ -15,17 +15,34 @@ const s3Service = require('../services/s3Service');
 const gymCache = new Map();
 const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes for gym data
 
+// **OPTIMIZATION: Cache for logo base64 data**
+const logoBase64Cache = new Map();
+const LOGO_CACHE_DURATION = 60 * 60 * 1000; // 1 hour for logo base64 (logos change infrequently)
+
 // Helper function to get cache key
 const getGymCacheKey = (gymId) => `gym_${gymId}`;
+const getLogoCacheKey = (gymId, logoUrl) => `logo_${gymId}_${logoUrl}`;
 
 // Helper function to check if cache is valid
 const isCacheValid = (cacheEntry) => {
   return cacheEntry && (Date.now() - cacheEntry.timestamp) < CACHE_DURATION;
 };
 
+const isLogoCacheValid = (cacheEntry) => {
+  return cacheEntry && (Date.now() - cacheEntry.timestamp) < LOGO_CACHE_DURATION;
+};
+
 // Clear cache when gym is modified
 const clearGymCache = (gymId) => {
   gymCache.delete(getGymCacheKey(gymId));
+  // Also clear logo cache when gym is updated (logo might have changed)
+  const keysToDelete = [];
+  logoBase64Cache.forEach((value, key) => {
+    if (key.startsWith(`logo_${gymId}_`)) {
+      keysToDelete.push(key);
+    }
+  });
+  keysToDelete.forEach(key => logoBase64Cache.delete(key));
 };
 
 // Ensure uploads directory exists with proper permissions
@@ -192,6 +209,57 @@ router.post('/start-free-trial', async (req, res) => {
 
 // **OPTIMIZED: Get gym information with caching**
 // Get gym information without caching
+// Get logo as base64 (for PDF generation)
+// **OPTIMIZED: Cached for performance**
+router.get('/logo-base64', async (req, res) => {
+  try {
+    const gymId = req.gymId;
+    const gym = await Gym.findById(gymId).lean();
+    
+    if (!gym || !gym.logo) {
+      return res.status(404).json({ success: false, message: 'Logo not found' });
+    }
+
+    // Check cache first
+    const cacheKey = getLogoCacheKey(gymId, gym.logo);
+    const cached = logoBase64Cache.get(cacheKey);
+    if (cached && isLogoCacheValid(cached)) {
+      return res.json({ success: true, logo: cached.data });
+    }
+
+    try {
+      // Fetch logo from S3
+      const axios = require('axios');
+      const response = await axios.get(gym.logo, {
+        responseType: 'arraybuffer',
+        timeout: 10000,
+        maxContentLength: 5 * 1024 * 1024, // 5MB max (safety limit)
+        maxBodyLength: 5 * 1024 * 1024
+      });
+
+      // Convert to base64
+      const buffer = Buffer.from(response.data);
+      const base64 = buffer.toString('base64');
+      const contentType = response.headers['content-type'] || response.headers['Content-Type'] || 'image/png';
+      const dataUrl = `data:${contentType};base64,${base64}`;
+
+      // Cache the result
+      logoBase64Cache.set(cacheKey, {
+        data: dataUrl,
+        timestamp: Date.now()
+      });
+
+      res.json({ success: true, logo: dataUrl });
+    } catch (error) {
+      console.error('Error fetching logo from S3:', error);
+      res.status(500).json({ success: false, message: 'Failed to fetch logo' });
+    }
+  } catch (error) {
+    console.error('Error getting logo base64:', error);
+    res.status(500).json({ success: false, message: 'Error processing request' });
+  }
+});
+
 router.get('/info', async (req, res) => {
   try {
     const gymId = req.gymId;
