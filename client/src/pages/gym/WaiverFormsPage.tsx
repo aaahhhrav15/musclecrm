@@ -4,16 +4,14 @@ import { Download } from 'lucide-react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import axios from 'axios';
+import axiosInstance from '@/lib/axios';
 import { toast } from 'react-hot-toast';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 const WaiverFormsPage: React.FC = () => {
   const handleDownload = async () => {
     try {
       // Fetch the PDF file as a blob
-      const response = await axios.get(`${API_BASE_URL}/api/waiver-forms/download`, {
+      const response = await axiosInstance.get('/waiver-forms/download', {
         responseType: 'blob',
         headers: {
           'Accept': 'application/pdf'
