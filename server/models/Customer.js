@@ -89,6 +89,10 @@ const customerSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  // Timestamp when customer first registered in the app
+  registerTime: {
+    type: Date
+  },
   notes: {
     type: String,
     trim: true

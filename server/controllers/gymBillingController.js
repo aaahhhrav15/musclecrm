@@ -1034,7 +1034,10 @@ async function getActiveCustomersForMonth(gymId, year, month) {
   
   const customers = await Customer.find({
     gymId: gymId,
-    ...(isHasRegisteredEnforced ? { hasRegistered: true } : {}),
+    ...(isHasRegisteredEnforced ? { 
+      hasRegistered: true, 
+      registerTime: { $exists: true, $ne: null } 
+    } : {}),
     membershipStartDate: { $exists: true, $ne: null },
     $or: [
       // Customer started before or during this month and ends after this month
@@ -1088,7 +1091,7 @@ async function getActiveCustomersForMonthWithProRatedBilling(gymId, year, month)
   // First, let's see all customers for this gym
   const allCustomers = await Customer.find({
     gymId: gymId,
-    ...(isHasRegisteredEnforced ? { hasRegistered: true } : {})
+    ...(isHasRegisteredEnforced ? { hasRegistered: true, registerTime: { $exists: true, $ne: null } } : {})
   });
   console.log(`Total customers found for gym: ${allCustomers.length}`);
   
@@ -1100,14 +1103,20 @@ async function getActiveCustomersForMonthWithProRatedBilling(gymId, year, month)
       membershipFees: customer.membershipFees,
       membershipStartDate: customer.membershipStartDate,
       membershipEndDate: customer.membershipEndDate,
-      joinDate: customer.joinDate
+      joinDate: customer.joinDate,
+      hasRegistered: customer.hasRegistered,
+      registerTime: customer.registerTime
     });
   });
   
   // Updated query to focus only on subscription dates (ignore fees)
+  // For current/future months: require hasRegistered=true AND registerTime to be set
   const customers = await Customer.find({
     gymId: gymId,
-    ...(isHasRegisteredEnforced ? { hasRegistered: true } : {}),
+    ...(isHasRegisteredEnforced ? { 
+      hasRegistered: true, 
+      registerTime: { $exists: true, $ne: null } 
+    } : {}),
     membershipStartDate: { $exists: true, $ne: null },
     $or: [
       // Customer started before or during this month and ends after this month
@@ -1132,7 +1141,10 @@ async function getActiveCustomersForMonthWithProRatedBilling(gymId, year, month)
   // Let's try a more flexible approach - get all customers and filter manually
   const allCustomersForGym = await Customer.find({
     gymId: gymId,
-    ...(isHasRegisteredEnforced ? { hasRegistered: true } : {})
+    ...(isHasRegisteredEnforced ? { 
+      hasRegistered: true, 
+      registerTime: { $exists: true, $ne: null } 
+    } : {})
   });
   console.log(`All customers for gym: ${allCustomersForGym.length}`);
   
@@ -1193,8 +1205,48 @@ async function getActiveCustomersForMonthWithProRatedBilling(gymId, year, month)
   
   // Calculate pro-rated billing for each customer
   const customersWithProRatedBilling = finalCustomers.map(customer => {
+    // Determine the billing start date: use registerTime if customer has registered, otherwise use membershipStartDate
+    // Billing should only start from registerTime if customer has registered in the app
+    let billingStartDate = customer.membershipStartDate;
+    
+    if (customer.hasRegistered && customer.registerTime) {
+      const registerTimeDate = new Date(customer.registerTime);
+      registerTimeDate.setHours(0, 0, 0, 0);
+      
+      // If registerTime is after the month end, customer shouldn't be charged for this month
+      if (registerTimeDate > monthEnd) {
+        console.log(`Customer ${customer.name} registered after month end (registerTime: ${registerTimeDate.toDateString()}, monthEnd: ${monthEnd.toDateString()}) - skipping billing`);
+        return {
+          ...customer.toObject(),
+          daysActive: 0,
+          daysInMonth: new Date(year, month, 0).getDate(),
+          proRatedAmount: 0,
+          fixedMonthlyFee: FIXED_MONTHLY_FEE
+        };
+      }
+      
+      // If customer has registered, billing starts from registerTime (or membershipStartDate, whichever is later)
+      // This ensures we only charge from when they actually registered in the app
+      billingStartDate = new Date(Math.max(
+        registerTimeDate.getTime(),
+        new Date(customer.membershipStartDate).getTime()
+      ));
+    } else if (customer.hasRegistered === false || !customer.registerTime) {
+      // If customer hasn't registered yet, they shouldn't be charged
+      // This should have been filtered out earlier, but handle it here as a safety check
+      console.log(`Customer ${customer.name} has not registered yet (hasRegistered: ${customer.hasRegistered}, registerTime: ${customer.registerTime}) - skipping billing`);
+      return {
+        ...customer.toObject(),
+        daysActive: 0,
+        daysInMonth: new Date(year, month, 0).getDate(),
+        proRatedAmount: 0,
+        fixedMonthlyFee: FIXED_MONTHLY_FEE
+      };
+    }
+    
     // Calculate the actual period the customer was active in this month
-    const customerStartInMonth = new Date(Math.max(customer.membershipStartDate, monthStart));
+    // Billing starts from registerTime (or membershipStartDate if registerTime is earlier)
+    const customerStartInMonth = new Date(Math.max(billingStartDate, monthStart));
     const customerEndInMonth = new Date(Math.min(
       customer.membershipEndDate || calculationEndDate, 
       calculationEndDate
@@ -1231,7 +1283,10 @@ async function getActiveCustomersForMonthWithProRatedBilling(gymId, year, month)
     const proRatedAmount = (FIXED_MONTHLY_FEE * finalDaysActive) / daysInMonth;
     
     console.log(`Customer ${customer.name} billing calculation:`, {
+      hasRegistered: customer.hasRegistered,
+      registerTime: customer.registerTime,
       membershipStartDate: customer.membershipStartDate,
+      billingStartDate: billingStartDate,
       membershipEndDate: customer.membershipEndDate,
       customerStartInMonth: customerStartInMonth.toDateString(),
       customerEndInMonth: customerEndInMonth.toDateString(),
