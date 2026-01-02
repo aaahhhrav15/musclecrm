@@ -40,7 +40,10 @@ interface Gym {
 interface Invoice {
   _id: string;
   invoiceNumber: string;
-  customerId: Customer;
+  customerId: Customer | string;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
   items: InvoiceItem[];
   amount: number;
   createdAt: string;
@@ -120,7 +123,14 @@ const InvoicePDF: React.FC<InvoicePDFProps> = ({ invoice }) => {
   const [logoBase64, setLogoBase64] = useState<string | null>(null);
 
   const gym = invoice.gym || {};
-  const customer = invoice.customerId || {};
+  // Use stored customer fields if available, otherwise fall back to populated customerId
+  const customerFromId = typeof invoice.customerId === 'object' ? invoice.customerId : {};
+  const customer = {
+    name: invoice.customerName || customerFromId?.name || 'Customer Name',
+    email: invoice.customerEmail || customerFromId?.email || '',
+    phone: invoice.customerPhone || customerFromId?.phone || '',
+    address: customerFromId?.address || ''
+  };
   const items = invoice.items || [];
   const totalAmount = invoice.amount || items.reduce((sum, item) => sum + (item.amount || 0), 0);
 

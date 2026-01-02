@@ -124,11 +124,23 @@ router.post('/', async (req, res) => {
     console.log('Created booking object:', booking);
     await booking.save();
 
+    // Fetch customer details to store in invoice
+    const customer = await Customer.findById(booking.customerId);
+    if (!customer) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Customer not found' 
+      });
+    }
+
     // Create a corresponding invoice
     const invoice = new Invoice({
       userId: req.user._id,
       gymId: req.gymId,
       customerId: booking.customerId,
+      customerName: customer.name || '',
+      customerEmail: customer.email || '',
+      customerPhone: customer.phone || '',
       amount: booking.price,
       dueDate: new Date(),
       status: 'paid', // Assuming booking payment is made upfront

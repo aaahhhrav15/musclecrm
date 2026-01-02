@@ -771,7 +771,7 @@ const InvoicesPage: React.FC = () => {
                     {filteredInvoices?.map((invoice, index) => (
                       <TableRow key={invoice._id} className="hover:bg-muted/50">
                         <TableCell className="font-medium">
-                          {typeof invoice.customerId === 'object' ? invoice.customerId?.name : 'N/A'}
+                          {invoice.customerName || (typeof invoice.customerId === 'object' ? invoice.customerId?.name : 'N/A')}
                         </TableCell>
                         <TableCell className="font-mono text-sm">
                           {invoice.invoiceNumber}

@@ -1224,9 +1224,9 @@ const FinancePage: React.FC = () => {
                           {invoice.invoiceNumber}
                         </TableCell>
                         <TableCell className="font-medium">
-                          {typeof invoice.customerId === 'string'
+                          {invoice.customerName || (typeof invoice.customerId === 'string'
                             ? (customers.find((c) => c.id === invoice.customerId)?.name || 'N/A')
-                            : invoice.customerId?.name || 'N/A'}
+                            : invoice.customerId?.name || 'N/A')}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
                           {format(new Date(invoice.createdAt), 'MMM d, yyyy')}

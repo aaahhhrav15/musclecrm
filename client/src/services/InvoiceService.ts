@@ -12,6 +12,9 @@ export interface Invoice {
   _id: string;
   invoiceNumber: string;
   customerId: string | { _id: string; name: string; email: string };
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
   bookingId?: string | { _id: string; type: string; startTime: string; endTime: string };
   amount: number;
   currency: string;

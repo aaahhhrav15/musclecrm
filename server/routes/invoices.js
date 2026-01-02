@@ -65,10 +65,19 @@ router.post('/', auth, async (req, res) => {
     const invoiceCounter = gym.invoiceCounter || 1;
     const invoiceNumber = `${gymCode}${String(invoiceCounter).padStart(6, '0')}`;
 
+    // Fetch customer details to store in invoice
+    const customer = await Customer.findById(customerId);
+    if (!customer) {
+      return res.status(400).json({ success: false, message: 'Customer not found' });
+    }
+
     const invoice = new Invoice({
       userId,
       gymId,
       customerId,
+      customerName: customer.name || '',
+      customerEmail: customer.email || '',
+      customerPhone: customer.phone || '',
       invoiceNumber,
       items,
       amount,

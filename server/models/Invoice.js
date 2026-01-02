@@ -43,6 +43,22 @@ const invoiceSchema = new mongoose.Schema({
     ref: 'Customer',
     required: true
   },
+  customerName: {
+    type: String,
+    required: false,
+    trim: true
+  },
+  customerEmail: {
+    type: String,
+    required: false,
+    trim: true,
+    lowercase: true
+  },
+  customerPhone: {
+    type: String,
+    required: false,
+    trim: true
+  },
   invoiceNumber: {
     type: String,
     required: true,
