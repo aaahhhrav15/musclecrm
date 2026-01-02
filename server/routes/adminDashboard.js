@@ -18,6 +18,7 @@ const GymAttendance = require('../models/GymAttendance');
 const Transaction = require('../models/Transaction');
 const GymBilling = require('../models/GymBilling');
 const mongoose = require('mongoose');
+const { capitalizeName } = require('../lib/nameUtils');
 
 // Apply admin authentication middleware to all routes
 router.use(adminAuth);
@@ -651,7 +652,7 @@ router.get('/gym/:gymId', async (req, res) => {
       
       return {
         memberId: customer._id.toString(),
-        memberName: customer.name || 'Unknown',
+        memberName: capitalizeName(customer.name || 'Unknown'),
         memberEmail: customer.email || '',
         memberPhone: customer.phone || '',
         membershipStartDate: customer.membershipStartDate ? customer.membershipStartDate.toISOString() : null,

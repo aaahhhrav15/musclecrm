@@ -7,6 +7,7 @@ const Invoice = require('../models/Invoice');
 const Transaction = require('../models/Transaction');
 const PersonalTrainingAssignment = require('../models/PersonalTrainingAssignment');
 const Trainer = require('../models/Trainer');
+const { capitalizeCustomerNames, capitalizeCustomerName } = require('../lib/nameUtils');
 
 const router = express.Router();
 
@@ -143,12 +144,14 @@ router.get('/', async (req, res) => {
     const [result] = await Customer.aggregate(pipeline);
     
     const customers = result.customers || [];
+    // Capitalize customer names
+    const capitalizedCustomers = capitalizeCustomerNames(customers);
     const total = result.totalCount[0]?.count || 0;
     const stats = result.stats[0] || {};
 
     const responseData = {
       success: true,
-      customers,
+      customers: capitalizedCustomers,
       total,
       stats: {
         totalCustomers: stats.totalCustomers || 0,
@@ -224,6 +227,9 @@ router.get('/:id', async (req, res) => {
     if (!customer) {
       return res.status(404).json({ success: false, message: 'Customer not found' });
     }
+
+    // Capitalize customer name
+    capitalizeCustomerName(customer);
 
     // If customer has a personalTrainer assignment, populate trainer details
     let personalTrainerAssignment = null;
@@ -375,7 +381,7 @@ router.post('/', async (req, res) => {
           userId: req.user._id,
           gymId: req.gymId,
           customerId: customer._id,
-          customerName: customer.name || '',
+          customerName: capitalizeName(customer.name || ''),
           customerEmail: customer.email || '',
           customerPhone: customer.phone || '',
           invoiceNumber,
@@ -768,7 +774,7 @@ router.put('/:id', async (req, res) => {
             userId: req.user._id,
             gymId: req.gymId,
             customerId: updatedCustomer._id,
-            customerName: updatedCustomer.name || '',
+            customerName: capitalizeName(updatedCustomer.name || ''),
             customerEmail: updatedCustomer.email || '',
             customerPhone: updatedCustomer.phone || '',
             invoiceNumber,

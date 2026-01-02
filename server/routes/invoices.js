@@ -10,6 +10,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { gymAuth } = require('../middleware/gymAuth');
 const Gym = require('../models/Gym');
+const { capitalizeName } = require('../lib/nameUtils');
 
 const router = express.Router();
 
@@ -23,6 +24,17 @@ router.get('/', async (req, res) => {
     const invoices = await Invoice.find({ gymId: req.gymId })
       .populate('customerId', 'name email phone')
       .sort({ createdAt: -1 });
+    
+    // Capitalize customer names in invoices
+    invoices.forEach(invoice => {
+      if (invoice.customerId && invoice.customerId.name) {
+        invoice.customerId.name = capitalizeName(invoice.customerId.name);
+      }
+      if (invoice.customerName) {
+        invoice.customerName = capitalizeName(invoice.customerName);
+      }
+    });
+    
     res.json({ success: true, invoices });
   } catch (error) {
     console.error('Error fetching invoices:', error);
@@ -40,6 +52,14 @@ router.get('/:id', async (req, res) => {
     
     if (!invoice) {
       return res.status(404).json({ success: false, message: 'Invoice not found' });
+    }
+    
+    // Capitalize customer name
+    if (invoice.customerId && invoice.customerId.name) {
+      invoice.customerId.name = capitalizeName(invoice.customerId.name);
+    }
+    if (invoice.customerName) {
+      invoice.customerName = capitalizeName(invoice.customerName);
     }
     
     res.json({ success: true, invoice });
@@ -75,7 +95,7 @@ router.post('/', auth, async (req, res) => {
       userId,
       gymId,
       customerId,
-      customerName: customer.name || '',
+      customerName: capitalizeName(customer.name || ''),
       customerEmail: customer.email || '',
       customerPhone: customer.phone || '',
       invoiceNumber,

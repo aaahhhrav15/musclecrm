@@ -6,6 +6,7 @@ const db = mongoose.connection;
 const auth = require('../middleware/auth');
 const { gymAuth } = require('../middleware/gymAuth');
 const Customer = require('../models/Customer');
+const { capitalizeName } = require('../lib/nameUtils');
 
 // Get all accountabilities for a gym (with pagination)
 router.get('/', auth, gymAuth, async (req, res) => {
@@ -47,7 +48,7 @@ router.get('/', auth, gymAuth, async (req, res) => {
             ...accountability,
             user: customer ? {
               _id: customer._id,
-              name: customer.name,
+              name: capitalizeName(customer.name || ''),
               email: customer.email,
               phone: customer.phone
             } : null
@@ -189,7 +190,7 @@ router.get('/user/:userId', auth, gymAuth, async (req, res) => {
             ...accountability,
             user: customer ? {
               _id: customer._id,
-              name: customer.name,
+              name: capitalizeName(customer.name || ''),
               email: customer.email,
               phone: customer.phone
             } : null

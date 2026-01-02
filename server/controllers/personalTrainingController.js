@@ -4,6 +4,7 @@ const Trainer = require('../models/Trainer');
 const Invoice = require('../models/Invoice');
 const Transaction = require('../models/Transaction');
 const Gym = require('../models/Gym'); // Add at top if not present
+const { capitalizeName } = require('../lib/nameUtils');
 
 function formatDate(date) {
   if (!date) return '';
@@ -122,7 +123,7 @@ exports.createAssignment = async (req, res) => {
       userId: req.user._id, // User ID from auth middleware
       gymId,
       customerId,
-      customerName: customer.name || '',
+      customerName: capitalizeName(customer.name || ''),
       customerEmail: customer.email || '',
       customerPhone: customer.phone || '',
       invoiceNumber,
@@ -520,7 +521,7 @@ exports.renewAssignment = async (req, res) => {
       userId: req.user._id,
       gymId,
       customerId: assignment.customerId._id || assignment.customerId,
-      customerName: customer.name || '',
+      customerName: capitalizeName(customer.name || ''),
       customerEmail: customer.email || '',
       customerPhone: customer.phone || '',
       invoiceNumber,

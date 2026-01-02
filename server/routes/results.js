@@ -5,6 +5,7 @@ const { gymAuth } = require('../middleware/gymAuth');
 const mongoose = require('mongoose');
 const db = mongoose.connection;
 const Customer = require('../models/Customer');
+const { capitalizeName } = require('../lib/nameUtils');
 
 // GET /api/gym/results - Get all results with pagination and sorting
 router.get('/', auth, gymAuth, async (req, res) => {
@@ -46,7 +47,7 @@ router.get('/', auth, gymAuth, async (req, res) => {
             ...result,
             user: customer ? {
               _id: customer._id,
-              name: customer.name,
+              name: capitalizeName(customer.name || ''),
               email: customer.email,
               phone: customer.phone
             } : null
@@ -189,7 +190,7 @@ router.get('/user/:userId', auth, gymAuth, async (req, res) => {
             ...result,
             user: customer ? {
               _id: customer._id,
-              name: customer.name,
+              name: capitalizeName(customer.name || ''),
               email: customer.email,
               phone: customer.phone
             } : null

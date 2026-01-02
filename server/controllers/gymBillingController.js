@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const Customer = require('../models/Customer');
 const Gym = require('../models/Gym');
 const mongoose = require('mongoose');
+const { capitalizeName } = require('../lib/nameUtils');
 
 // Get gym billing summary for a specific month
 const getGymBillingForMonth = async (req, res) => {
@@ -899,7 +900,7 @@ async function calculateCurrentMonthBillingRealTime(gymId, year, month, gymName)
     // Create member bills with pro-rated amounts (including daysActive)
     const memberBills = activeCustomers.map(customer => ({
       memberId: customer._id,
-      memberName: customer.name,
+      memberName: capitalizeName(customer.name || ''),
       memberEmail: customer.email || '',
       memberPhone: customer.phone || '',
       membershipType: customer.membershipType || 'basic',
@@ -957,7 +958,7 @@ async function createMonthlyBillingHelper(gymId, year, month) {
   // Create member bills with pro-rated amounts
   const memberBills = activeCustomers.map(customer => ({
     memberId: customer._id,
-    memberName: customer.name,
+    memberName: capitalizeName(customer.name || ''),
     memberEmail: customer.email || '', // No filler email
     memberPhone: customer.phone || '', // No filler phone
     membershipType: customer.membershipType || 'basic', // Keep original membershipType
@@ -1003,7 +1004,7 @@ async function updateMonthlyBilling(billing, year, month) {
   // Update member bills with pro-rated amounts
   const memberBills = activeCustomers.map(customer => ({
     memberId: customer._id,
-    memberName: customer.name,
+    memberName: capitalizeName(customer.name || ''),
     memberEmail: customer.email || '', // No filler email
     memberPhone: customer.phone || '', // No filler phone
     membershipType: customer.membershipType || 'basic', // Keep original membershipType

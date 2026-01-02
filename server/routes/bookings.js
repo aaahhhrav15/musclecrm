@@ -8,6 +8,7 @@ const Invoice = require('../models/Invoice');
 const Transaction = require('../models/Transaction');
 const Notification = require('../models/Notification');
 const { addDays } = require('date-fns');
+const { capitalizeName } = require('../lib/nameUtils');
 
 // Apply both auth and gymAuth middleware to all routes
 router.use(auth);
@@ -138,7 +139,7 @@ router.post('/', async (req, res) => {
       userId: req.user._id,
       gymId: req.gymId,
       customerId: booking.customerId,
-      customerName: customer.name || '',
+      customerName: capitalizeName(customer.name || ''),
       customerEmail: customer.email || '',
       customerPhone: customer.phone || '',
       amount: booking.price,
